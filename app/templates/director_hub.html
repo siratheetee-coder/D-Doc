@@ -32,6 +32,8 @@
   .dh-card h3 { margin:0; font-size:19px; color:#fff; }
   .dh-card .dc-desc { color:rgba(255,255,255,.9); font-size:13.5px; line-height:1.5; flex:1; }
   .dh-card .dc-go { font-weight:700; font-size:14px; display:inline-flex; align-items:center; gap:6px; }
+.d3d{flex:none;width:58px;height:58px;border-radius:16px;box-shadow:0 8px 18px rgba(0,0,0,.22);display:block}
+.dh-card .d3d{margin-bottom:12px}
 </style>
 
 <div class="dh-head">
@@ -43,14 +45,14 @@
 <div class="dh-primary">
   <a class="dh-big" style="background:linear-gradient(135deg,#e11d48,#f43f5e);" href="/approvals">
     {% if counts.total %}<span class="dh-badge">{{ counts.total }}</span>{% endif %}
-    <span class="di-ic"><svg class="icon"><use href="#ic-check"/></svg></span>
+    <img class="d3d" src="/static/images/home3d/a_wait_dir.png" alt="">
     <div>
       <h2>กล่องรออนุมัติ</h2>
       <div class="di-desc">พัสดุ การเงิน ธุรการ โครงการ อาหารกลางวัน แผนการสอน ใบลา ไปราชการ ที่รอ ผอ. อนุมัติ</div>
     </div>
   </a>
   <a class="dh-big" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);" href="/academic/supervision">
-    <span class="di-ic"><svg class="icon"><use href="#ic-clipboard"/></svg></span>
+    <img class="d3d" src="/static/images/home3d/myplans.png" alt="">
     <div>
       <h2>นิเทศห้องเรียน</h2>
       <div class="di-desc">เยี่ยมชั้นเรียน นิเทศการสอน บันทึกและพิมพ์แบบนิเทศ</div>
@@ -59,8 +61,8 @@
 </div>
 
 <a class="dh-big" style="background:linear-gradient(135deg,#0f766e,#0891b2);margin-bottom:24px" href="/admin/incoming-tracking">
-  <span class="di-ic"><svg class="icon"><use href="#ic-file"/></svg></span>
-  <div><h2>ติดตามหนังสือและงานที่มอบหมาย</h2><div class="di-desc">ดูรายชื่อผู้รับทราบ · ผู้ที่ยังไม่รับทราบ · ตรวจรายงานผลการดำเนินงาน</div></div>
+  <img class="d3d" src="/static/images/home3d/letters.png" alt="">
+  <div><h2>ติดตามหนังสือและงานที่มอบหมาย</h2><div class="di-desc">ดูรายชื่อผู้รับทราบ  ผู้ที่ยังไม่รับทราบ  ตรวจรายงานผลการดำเนินงาน</div></div>
 </a>
 <div class="dh-sec"><svg class="icon" style="width:18px;height:18px;"><use href="#ic-home"/></svg> งานต่างๆ (เข้าดูข้อมูลได้ทุกงาน)</div>
 <div class="dh-grid">
@@ -74,7 +76,7 @@
       ('lunch','#ic-food','#ea580c','#fb923c','งบอาหารกลางวัน บัญชีรับ-จ่าย ภาวะโภชนาการ') ] %}
     {% if modules_live[k] and can_use(_tid, k) %}
     <a class="dh-card" style="--c:{{ c }}; --c2:{{ c2 }};" href="/{{ k }}">
-      <span class="dc-ic"><svg class="icon"><use href="{{ ico }}"/></svg></span>
+      <img class="d3d" src="/static/images/home3d/mod_{{ k }}.png" alt="">
       <h3>{{ module_labels[k] }}</h3>
       <div class="dc-desc">{{ desc }}</div>
       <span class="dc-go">เข้าดู <svg class="icon" style="width:15px;height:15px;"><use href="#ic-arrow-right"/></svg></span>
