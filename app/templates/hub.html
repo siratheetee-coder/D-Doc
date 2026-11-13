@@ -94,6 +94,7 @@
     .hub-go, .hub-buy { font-size: 13.5px; }
     .hub-trial { top: 10px; right: 10px; font-size: 10.5px; padding: 2px 8px; }
   }
+.hub-ic3d{width:52px;height:52px;border-radius:15px;box-shadow:0 6px 14px rgba(15,23,42,.16);display:block;margin-bottom:10px}
 </style>
 
 <div class="hub-wrap">
@@ -158,7 +159,7 @@
     <a class="hub-card {{ '' if live else 'dim' }}{{ ' locked' if (live and not (usable and allowed)) else '' }}" style="--c:#7c3aed; --c2:#a78bfa;"
        href="{{ '/admin' if (live and usable and allowed) else ('/checkout' if (live and not usable) else '#') }}" {{ '' if (live and usable and allowed) else 'onclick=return false;'|safe }}>
       {% if live and usable and allowed and not owned %}<span class="hub-trial">ทดลอง</span>{% endif %}
-      <span class="hub-ic"><svg class="icon"><use href="#ic-file"/></svg></span>
+      <img class="hub-ic3d" src="/static/images/home3d/mod_admin.png" alt="">
       <h2>งานธุรการ</h2>
       <div class="desc">ทะเบียนหนังสือรับ-ส่ง ออกบันทึกข้อความ คำสั่งโรงเรียน</div>
       {% if not live %}<span class="hub-soon">เร็วๆ นี้</span>
@@ -173,7 +174,7 @@
     <a class="hub-card {{ '' if live else 'dim' }}{{ ' locked' if (live and not (usable and allowed)) else '' }}" style="--c:#4880FF; --c2:#6f9bff;"
        href="{{ '/procurement' if (live and usable and allowed) else ('/checkout' if (live and not usable) else '#') }}" {{ '' if (live and usable and allowed) else 'onclick=return false;'|safe }}>
       {% if live and usable and allowed and not owned %}<span class="hub-trial">ทดลอง</span>{% endif %}
-      <span class="hub-ic"><svg class="icon"><use href="#ic-package"/></svg></span>
+      <img class="hub-ic3d" src="/static/images/home3d/mod_procurement.png" alt="">
       <h2>งานพัสดุ</h2>
       <div class="desc">จัดซื้อจัดจ้าง ออกเอกสารครบชุด ทะเบียนครุภัณฑ์ บัญชีวัสดุ</div>
       {% if not live %}<span class="hub-soon">เร็วๆ นี้</span>
@@ -188,7 +189,7 @@
     <a class="hub-card {{ '' if live else 'dim' }}{{ ' locked' if (live and not (usable and allowed)) else '' }}" style="--c:#16a34a; --c2:#4ade80;"
        href="{{ '/finance' if (live and usable and allowed) else ('/checkout' if (live and not usable) else '#') }}" {{ '' if (live and usable and allowed) else 'onclick=return false;'|safe }}>
       {% if live and usable and allowed and not owned %}<span class="hub-trial">ทดลอง</span>{% endif %}
-      <span class="hub-ic"><svg class="icon"><use href="#ic-coins"/></svg></span>
+      <img class="hub-ic3d" src="/static/images/home3d/mod_finance.png" alt="">
       <h2>งานการเงิน</h2>
       <div class="desc">ทะเบียนคุมเงินแยกบัญชี บันทึกขอเบิกจ่าย รายงานการเงิน ใบเสร็จ/ใบสำคัญ</div>
       {% if not live %}<span class="hub-soon">เร็วๆ นี้</span>
@@ -201,7 +202,7 @@
     <a class="hub-card {{ '' if live else 'dim' }}{{ ' locked' if (live and not (usable and allowed)) else '' }}" style="--c:#ea580c; --c2:#fb923c;"
        href="{{ '/lunch' if (live and usable and allowed) else ('/checkout' if (live and not usable) else '#') }}" {{ '' if (live and usable and allowed) else 'onclick=return false;'|safe }}>
       {% if live and usable and allowed and not owned %}<span class="hub-trial">ทดลอง</span>{% endif %}
-      <span class="hub-ic"><svg class="icon"><use href="#ic-food"/></svg></span>
+      <img class="hub-ic3d" src="/static/images/home3d/mod_lunch.png" alt="">
       <h2>งานอาหารกลางวัน</h2>
       <div class="desc">คำนวณงบตามจำนวนนักเรียน บัญชีรับ-จ่ายเงินอุดหนุน เชื่อมเรื่องจ้างเหมา</div>
       {% if not live %}<span class="hub-soon">เร็วๆ นี้</span>
@@ -214,7 +215,7 @@
     <a class="hub-card {{ '' if live else 'dim' }}{{ ' locked' if (live and not (usable and allowed)) else '' }}" style="--c:#0d9488; --c2:#2dd4bf;"
        href="{{ '/hr' if (live and usable and allowed) else ('/checkout' if (live and not usable) else '#') }}" {{ '' if (live and usable and allowed) else 'onclick=return false;'|safe }}>
       {% if live and usable and allowed and not owned %}<span class="hub-trial">ทดลอง</span>{% endif %}
-      <span class="hub-ic"><svg class="icon"><use href="#ic-users"/></svg></span>
+      <img class="hub-ic3d" src="/static/images/home3d/mod_hr.png" alt="">
       <h2>งานบุคคล</h2>
       <div class="desc">ทะเบียนบุคลากร ทะเบียนวันลา (คงเหลืออัตโนมัติ) ใบลา หนังสือรับรอง</div>
       {% if not live %}<span class="hub-soon">เร็วๆ นี้</span>
@@ -227,7 +228,7 @@
     <a class="hub-card {{ '' if live else 'dim' }}{{ ' locked' if (live and not (usable and allowed)) else '' }}" style="--c:#4f46e5; --c2:#818cf8;"
        href="{{ '/academic' if (live and usable and allowed) else ('/checkout' if (live and not usable) else '#') }}" {{ '' if (live and usable and allowed) else 'onclick=return false;'|safe }}>
       {% if live and usable and allowed and not owned %}<span class="hub-trial">ทดลอง</span>{% endif %}
-      <span class="hub-ic"><svg class="icon"><use href="#ic-clipboard"/></svg></span>
+      <img class="hub-ic3d" src="/static/images/home3d/mod_academic.png" alt="">
       <h2>งานวิชาการ</h2>
       <div class="desc">ห้องเรียน/ครูประจำชั้น รายวิชา 8 กลุ่มสาระ กรอกคะแนน ปพ.5 ประเมิน ปพ.6 สมุดรายงาน</div>
       {% if not live %}<span class="hub-soon">เร็วๆ นี้</span>
@@ -238,7 +239,7 @@
 
     <!-- งานบริหารทั่วไป: เปิดให้ทุกโรงเรียนใช้ฟรี (บันทึกการเข้าแถว ฯลฯ) -->
     <a class="hub-card" style="--c:#0891b2; --c2:#22d3ee;" href="/general">
-      <span class="hub-ic"><svg class="icon"><use href="#ic-calendar"/></svg></span>
+      <img class="hub-ic3d" src="/static/images/home3d/mod_general.png" alt="">
       <h2>งานบริหารทั่วไป</h2>
       <div class="desc">บันทึกการเข้าแถว (คลิกชื่อ ลงเวลา สาย/มาทัน) พิมพ์ตารางรายวัน</div>
       <span class="hub-go">เข้าใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
