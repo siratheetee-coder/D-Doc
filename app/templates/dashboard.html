@@ -201,7 +201,7 @@
 .rg-tabs button[data-f=late].on{background:linear-gradient(135deg,#f87171,#dc2626);color:#fff}
 .rgc-side{flex:none;width:190px;display:flex;flex-direction:column;align-items:flex-end;gap:7px;padding-left:16px;border-left:1px solid #eef2f7}
 .rgc-amt{font-size:19px;font-weight:800;color:#0f172a}.rgc-amt small{font-size:12px;color:#64748b;font-weight:600}
-.rgc-side select{width:auto;padding:4px 8px;font-size:13px}
+.rgc-side select{width:auto;min-width:132px;padding:5px 30px 5px 10px;font-size:13px;background-position:right 8px center}
 @media(max-width:860px){.rgc{flex-wrap:wrap}.rgc-ic{width:48px;height:48px}.rgc-main{flex-basis:calc(100% - 64px)}.rgc-side{width:100%;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;border-left:0;padding-left:0;border-top:1px solid #eef2f7;padding-top:10px}}
 </style>
 {% macro reg_table(rows) %}
@@ -289,7 +289,7 @@
   </div>
 </div>
 
-<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin:4px 0 -4px;"><div class="rg-tabs" role="tablist" aria-label="กรองตามสถานะ">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin:4px 0 12px;"><div class="rg-tabs" role="tablist" aria-label="กรองตามสถานะ">
   {% for f,l in [('all','ทั้งหมด'),('draft','ร่าง'),('approved','รอส่งมอบ/ตรวจรับ'),('inspected','ตรวจรับแล้ว'),('paid','เบิกจ่ายแล้ว'),('late','เลยกำหนดส่งมอบ')] %}<button type="button" data-f="{{ f }}" onclick="rgFilter('{{ f }}')">{{ l }}<b>0</b></button>{% endfor %}
 </div><div class="rg-view" role="group" aria-label="มุมมองทะเบียน"><button type="button" data-v="card" onclick="rgView('card')">การ์ด</button><button type="button" data-v="table" onclick="rgView('table')">ตาราง</button></div></div>
 <!-- เล่มที่ 1: ทะเบียนคุมการจัดซื้อ -->
