@@ -14,15 +14,22 @@
 {% elif email_msg == 'off' %}<div class="alert">✔ ลบอีเมลแล้ว จะไม่ส่งหนังสือเวียนเข้าอีเมล</div>
 {% elif email_msg == 'bad' %}<div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> อีเมลไม่ถูกรูปแบบ ลองพิมพ์ใหม่</div>{% endif %}
 {% if linked %}
-<div class="card em-card">
-  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-send"/></svg> {{ 'ส่งหนังสือเวียนเข้าอีเมล ' ~ my_email if my_email else 'อยากได้หนังสือเวียนทางอีเมลด้วยไหม' }}</h2>
-  <p class="muted" style="margin:0 0 10px;">{{ 'แก้อีเมลได้ ลบให้ว่างแล้วกดบันทึก = เลิกส่งทางอีเมล' if my_email else 'ใส่อีเมลของคุณ ระบบจะส่งหนังสือพร้อมไฟล์แนบเข้าอีเมลทุกครั้งที่มีหนังสือเวียนถึงคุณ' }}</p>
+{% if my_email and email_msg != 'bad' %}
+<div class="em-mini">
+  <span><svg class="icon"><use href="#ic-send"/></svg> ส่งหนังสือเวียนเข้าอีเมล <b>{{ my_email }}</b></span>
+  <button type="button" class="btn sm gray" onclick="document.getElementById('emEdit').hidden=false;this.parentNode.hidden=true;"><svg class="icon"><use href="#ic-edit"/></svg> แก้ไขอีเมล</button>
+</div>
+{% endif %}
+<div class="card em-card" id="emEdit" {{ 'hidden' if my_email and email_msg != 'bad' }}>
+  <h2 style="margin-top:0;"><svg class="icon"><use href="#ic-send"/></svg> {{ 'แก้ไขอีเมลรับหนังสือเวียน' if my_email else 'อยากได้หนังสือเวียนทางอีเมลด้วยไหม' }}</h2>
+  <p class="muted" style="margin:0 0 10px;">{{ 'ลบให้ว่างแล้วกดบันทึก = เลิกส่งทางอีเมล' if my_email else 'ใส่อีเมลของคุณ ระบบจะส่งหนังสือพร้อมไฟล์แนบเข้าอีเมลทุกครั้งที่มีหนังสือเวียนถึงคุณ' }}</p>
   <form class="em-form" method="post" action="/me/email">
     <input type="hidden" name="back" value="/me/letters">
     <input type="email" name="email" value="{{ my_email }}" placeholder="เช่น kru.somchai@gmail.com" aria-label="อีเมลของฉัน">
     <button class="btn sm" data-no-floating-save>บันทึกอีเมล</button>
   </form>
 </div>
+<style>.em-mini{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin:0 0 14px;padding:10px 14px;border-radius:14px;background:#fff;box-shadow:0 1px 3px rgba(15,23,42,.06);font-size:14px;color:#475569}.em-mini .icon{width:16px;height:16px;vertical-align:-3px;color:#16a34a}.em-card[hidden]{display:none}</style>
 {% endif %}
 {% if not linked %}
 <div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg> บัญชีนี้ยังไม่ได้ผูกกับรายชื่อบุคลากร จึงรับหนังสือเวียนไม่ได้ ติดต่อผู้ดูแลระบบของโรงเรียน</div>
