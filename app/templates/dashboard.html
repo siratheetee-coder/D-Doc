@@ -54,6 +54,7 @@
   .pbx[open] .pbx-go { display:none; }
   .pbx-how { margin:12px 0 10px; padding-left:20px; color:#134e4a; font-size:14px; line-height:1.7; }
   .pbx .table-wrap { background:#fff; border-radius:12px; }
+.nc-3d{flex:none;width:46px;height:46px;border-radius:13px;box-shadow:0 5px 12px rgba(15,23,42,.15)}
 </style>
 {% endif %}
 {% if request.query_params.get('msg') %}<div class="alert">✔ {{ request.query_params.get('msg') }}</div>{% endif %}
@@ -78,42 +79,42 @@
 
 <div class="nav-grid">
   <a class="nav-card" href="/procurement/new">
-    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-file-plus"/></svg></span><h3>สร้างเรื่องจัดซื้อ/จัดจ้าง</h3></div>
+    <div class="nc-head"><img class="nc-3d" style="flex:none;width:46px;height:46px;border-radius:13px;box-shadow:0 5px 12px rgba(15,23,42,.15);" src="/static/images/home3d/p_create.png" alt=""><h3>สร้างเรื่องจัดซื้อ/จัดจ้าง</h3></div>
     <p class="nc-desc">กรอกครั้งเดียว ระบบออกเอกสารครบชุดตามระเบียบ (รวม ว.804/ว.119) เลขที่รันอัตโนมัติ</p>
     <span class="nc-go">สร้างเรื่องใหม่ <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
   <a class="nav-card" href="/procurement/from-file">
-    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-download"/></svg></span><h3>อัปโหลดเรื่องซื้อ/จ้าง</h3></div>
+    <div class="nc-head"><img class="nc-3d" style="flex:none;width:46px;height:46px;border-radius:13px;box-shadow:0 5px 12px rgba(15,23,42,.15);" src="/static/images/home3d/p_upload.png" alt=""><h3>อัปโหลดเรื่องซื้อ/จ้าง</h3></div>
     <p class="nc-desc">มีไฟล์อยู่แล้ว อัปโหลดเข้าทะเบียน ระบบอ่านข้อมูลให้อัตโนมัติ</p>
     <span class="nc-go">อัปโหลด <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
   <a class="nav-card" href="/procurement/wizard">
-    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-clipboard"/></svg></span><h3>ตัวช่วยจัดซื้อจัดจ้าง</h3></div>
+    <div class="nc-head"><img class="nc-3d" style="flex:none;width:46px;height:46px;border-radius:13px;box-shadow:0 5px 12px rgba(15,23,42,.15);" src="/static/images/home3d/p_helper.png" alt=""><h3>ตัวช่วยจัดซื้อจัดจ้าง</h3></div>
     <p class="nc-desc">ไม่แน่ใจว่าเรื่องนี้ใช้แบบไหน ตอบคำถามไม่กี่ข้อ ระบบแนะนำพร้อมระเบียบที่อ้างอิง</p>
     <span class="nc-go">เริ่มตอบคำถาม <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
   <a class="nav-card" href="/procurement/plan">
-    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-clipboard"/></svg></span><h3>แผนจัดซื้อจัดจ้าง</h3></div>
+    <div class="nc-head"><img class="nc-3d" style="flex:none;width:46px;height:46px;border-radius:13px;box-shadow:0 5px 12px rgba(15,23,42,.15);" src="/static/images/home3d/p_plan.png" alt=""><h3>แผนจัดซื้อจัดจ้าง</h3></div>
     <p class="nc-desc">จัดทำ + ประกาศเผยแพร่แผนประจำปี (ตาม พ.ร.บ. มาตรา 11)</p>
     <span class="nc-go">เปิดแผน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
   <a class="nav-card" href="/procurement/contracts">
-    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-file"/></svg></span><h3>ทะเบียนคุมสัญญา</h3></div>
+    <div class="nc-head"><img class="nc-3d" style="flex:none;width:46px;height:46px;border-radius:13px;box-shadow:0 5px 12px rgba(15,23,42,.15);" src="/static/images/home3d/p_contract.png" alt=""><h3>ทะเบียนคุมสัญญา</h3></div>
     <p class="nc-desc">คุมสัญญา/ใบสั่งซื้อ ครบกำหนดส่งมอบ ค่าปรับ</p>
     <span class="nc-go">เปิดทะเบียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
   <a class="nav-card" href="/assets">
-    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-package"/></svg></span><h3>ทะเบียนครุภัณฑ์</h3></div>
+    <div class="nc-head"><img class="nc-3d" style="flex:none;width:46px;height:46px;border-radius:13px;box-shadow:0 5px 12px rgba(15,23,42,.15);" src="/static/images/home3d/p_asset.png" alt=""><h3>ทะเบียนครุภัณฑ์</h3></div>
     <p class="nc-desc">คุมทรัพย์สิน/ครุภัณฑ์ คิดค่าเสื่อม รายงานตรวจสอบพัสดุประจำปี</p>
     <span class="nc-go">เปิดทะเบียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
   <a class="nav-card" href="/materials">
-    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-clipboard"/></svg></span><h3>บัญชีวัสดุ ใบเบิก</h3></div>
+    <div class="nc-head"><img class="nc-3d" style="flex:none;width:46px;height:46px;border-radius:13px;box-shadow:0 5px 12px rgba(15,23,42,.15);" src="/static/images/home3d/p_material.png" alt=""><h3>บัญชีวัสดุ ใบเบิก</h3></div>
     <p class="nc-desc">บัญชีวัสดุคงคลัง + ใบเบิกวัสดุ ตัดยอดอัตโนมัติ</p>
     <span class="nc-go">เปิดบัญชีวัสดุ <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
   <a class="nav-card" href="/textbooks/purchase">
-    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-book"/></svg></span><h3>จัดซื้อหนังสือเรียน</h3></div>
+    <div class="nc-head"><img class="nc-3d" style="flex:none;width:46px;height:46px;border-radius:13px;box-shadow:0 5px 12px rgba(15,23,42,.15);" src="/static/images/home3d/p_textbook.png" alt=""><h3>จัดซื้อหนังสือเรียน</h3></div>
     <p class="nc-desc">คัดเลือกหนังสือรายชั้น → TOR + ชุดเอกสารคัดเลือก → ส่งเข้างานพัสดุออกเอกสารจัดซื้อ</p>
     <span class="nc-go">เปิดงานหนังสือเรียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
@@ -168,7 +169,62 @@
 </div>
 {% endif %}
 
+<style>
+.rg-view{display:inline-flex;gap:4px;padding:4px;border-radius:12px;background:#f1f5f9}
+.rg-view button{border:0;border-radius:9px;padding:6px 12px;font:inherit;font-size:13px;font-weight:700;color:#64748b;background:none;cursor:pointer}
+.rg-view button.on{background:#fff;color:#4338ca;box-shadow:0 2px 6px rgba(15,23,42,.1)}
+.rgt-wrap{display:none}body.rg-table .rgt-wrap{display:block}body.rg-table .rgc-list{display:none}
+.rgc-list{display:grid;gap:12px;margin-top:10px}
+.rgc{position:relative;display:flex;gap:16px;align-items:center;background:#fff;border-radius:16px;padding:14px 16px 14px 20px;box-shadow:0 1px 3px rgba(15,23,42,.06),0 6px 18px rgba(15,23,42,.05);overflow:hidden}
+.rgc::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--bar)}
+.rgc-ic{flex:none;width:60px;height:60px;border-radius:16px;box-shadow:0 6px 14px rgba(15,23,42,.15)}
+.rgc-main{flex:1;min-width:0}
+.rgc-t{font-size:16.5px;font-weight:800;color:#1e3a8a;text-decoration:none;display:block;line-height:1.35}
+.rgc-t:hover{text-decoration:underline}
+.rgc-meta{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:#64748b;margin-top:3px}
+.rgc-steps{display:flex;margin-top:10px;max-width:420px}
+.rgc-steps>div{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11.5px;color:#94a3b8}
+.rgc-steps>div:not(:first-child)::before{content:"";position:absolute;top:11px;right:50%;width:100%;height:3px;background:#e2e8f0}
+.rgc-steps i{font-style:normal;width:24px;height:24px;border-radius:50%;background:#e2e8f0;color:#64748b;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;position:relative;z-index:1}
+.rgc-steps .done{color:#166534}.rgc-steps .done i{background:linear-gradient(135deg,#4ade80,#16a34a);color:#fff}
+.rgc-steps .done::before,.rgc-steps .now::before{background:#86efac!important}
+.rgc-steps .now{color:#b45309;font-weight:700}.rgc-steps .now i{background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#fff;box-shadow:0 0 0 4px #fef3c7}
+.rgc-side{flex:none;width:190px;display:flex;flex-direction:column;align-items:flex-end;gap:7px;padding-left:16px;border-left:1px solid #eef2f7}
+.rgc-amt{font-size:19px;font-weight:800;color:#0f172a}.rgc-amt small{font-size:12px;color:#64748b;font-weight:600}
+.rgc-side select{width:auto;padding:4px 8px;font-size:13px}
+@media(max-width:860px){.rgc{flex-wrap:wrap}.rgc-ic{width:48px;height:48px}.rgc-main{flex-basis:calc(100% - 64px)}.rgc-side{width:100%;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;border-left:0;padding-left:0;border-top:1px solid #eef2f7;padding-top:10px}}
+</style>
 {% macro reg_table(rows) %}
+<div class="rgc-list">
+  {% for p in rows %}
+  {% set k = {'ร่าง':0,'อนุมัติ':1,'ตรวจรับแล้ว':2,'เบิกจ่ายแล้ว':3}.get(p.status, 0) %}
+  {% set bar = ['#94a3b8','#f59e0b','#3b82f6','#22c55e'][k] %}
+  <div class="rgc" style="--bar:{{ bar }};">
+    <img class="rgc-ic" src="/static/images/home3d/{{ 'p_hire' if p.proc_type == 'จ้าง' else 'p_buy' }}.png" alt="">
+    <div class="rgc-main">
+      <a class="rgc-t" href="/procurement/{{ p.id }}">{{ p.proc_type }}{{ p.subject }}</a>
+      <div class="rgc-meta">
+        <span><b>{% if p.order_no %}เลขที่ {{ p.order_no }}{% else %}ยังไม่ออกใบสั่ง{% endif %}</b></span>
+        <span>{{ thai_date(p.order_date) if p.order_date else "ยังไม่ระบุวันที่" }}</span>
+        <span>{{ p.method }}</span>
+        <span>{{ p.vendor.name if p.vendor else "ยังไม่ระบุผู้ขาย" }}</span>
+      </div>
+      <div class="rgc-steps">
+        {% for lb in ['ร่าง','อนุมัติ','ตรวจรับ','เบิกจ่าย'] %}<div class="{{ 'done' if loop.index0 < k or k == 3 else 'now' if loop.index0 == k else '' }}"><i>{{ '✓' if loop.index0 < k or k == 3 else loop.index }}</i><span>{{ lb }}</span></div>{% endfor %}
+      </div>
+    </div>
+    <div class="rgc-side">
+      <div class="rgc-amt">{{ "{:,.2f}".format(p.total_amount or 0) }} <small>บาท</small></div>
+      <select class="status-sel" onchange="setStatus({{ p.id }}, this)" title="เปลี่ยนสถานะ">
+        {% for s in ['ร่าง','อนุมัติ','ตรวจรับแล้ว','เบิกจ่ายแล้ว'] %}<option value="{{ s }}" {{ 'selected' if p.status==s }}>{{ s }}</option>{% endfor %}
+      </select>
+      {% if p.paid_before_system %}<small style="color:#115e59;">จ่ายแล้ว (ก่อนเริ่มใช้ระบบ)</small>{% endif %}
+      <a class="btn sm gray" href="/procurement/{{ p.id }}">เปิดเรื่อง <svg class="icon"><use href="#ic-arrow-right"/></svg></a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<div class="rgt-wrap">
 <div class="table-wrap"><table>
   <thead>
     <tr><th>เลขที่</th><th>วันที่</th><th>เรื่อง</th><th>วิธี</th>
@@ -184,7 +240,7 @@
       <td class="right">{{ "{:,.2f}".format(p.total_amount or 0) }}</td>
       <td>{{ p.vendor.name if p.vendor else "-" }}</td>
       <td>
-        <select class="status-sel" onchange="setStatus({{ p.id }}, this)" title="เปลี่ยนสถานะ"
+        <select class="status-sel rgt-sel" onchange="setStatus({{ p.id }}, this)" title="เปลี่ยนสถานะ"
                 style="width:auto; padding:4px 8px; font-size:13px;">
           {% for s in ['ร่าง','อนุมัติ','ตรวจรับแล้ว','เบิกจ่ายแล้ว'] %}<option value="{{ s }}" {{ 'selected' if p.status==s }}>{{ s }}</option>{% endfor %}
         </select>
@@ -194,6 +250,7 @@
     {% endfor %}
   </tbody>
 </table></div>
+</div>
 {% endmacro %}
 
 {% if q %}
@@ -218,6 +275,7 @@
   </div>
 </div>
 
+<div style="display:flex;justify-content:flex-end;margin:4px 0 -4px;"><div class="rg-view" role="group" aria-label="มุมมองทะเบียน"><button type="button" data-v="card" onclick="rgView('card')">การ์ด</button><button type="button" data-v="table" onclick="rgView('table')">ตาราง</button></div></div>
 <!-- เล่มที่ 1: ทะเบียนคุมการจัดซื้อ -->
 <div class="card" id="reg-buy">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
@@ -244,6 +302,11 @@
 {% endif %}
 
 <script>
+  // มุมมองทะเบียน การ์ด/ตาราง จำไว้ในเครื่อง
+  function rgView(v){ document.body.classList.toggle('rg-table', v==='table');
+    document.querySelectorAll('.rg-view button').forEach(function(b){ b.classList.toggle('on', b.dataset.v===v); });
+    try{ localStorage.setItem('ddoc_reg_view', v); }catch(e){} }
+  (function(){ var v='card'; try{ v=localStorage.getItem('ddoc_reg_view')||'card'; }catch(e){} rgView(v); })();
   // เปลี่ยนสถานะเรื่องจากตารางได้เลย (ไม่ต้องเข้าหน้ารายละเอียด)
   function setStatus(id, sel){
     sel.disabled = true;
