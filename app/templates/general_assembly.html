@@ -2,55 +2,39 @@
 {% block title %}บันทึกการเข้าแถว{% endblock %}
 {% block content %}
 <style>
-.as-hero{position:relative;display:flex;align-items:center;gap:18px;padding:22px 24px;border-radius:24px;color:#fff;overflow:hidden;
-  background:linear-gradient(135deg,#06b6d4 0%,#4f46e5 60%,#7c3aed 100%);
-  box-shadow:0 18px 40px rgba(79,70,229,.35),inset 0 2px 0 rgba(255,255,255,.35),inset 0 -6px 0 rgba(0,0,0,.12)}
-.as-hero::after{content:"";position:absolute;right:-60px;top:-80px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.28),rgba(255,255,255,0) 70%)}
-.as-hero img{width:76px;height:76px;border-radius:20px;box-shadow:0 10px 22px rgba(0,0,0,.28);flex:none;position:relative;z-index:1}
-.as-title{font-size:26px;font-weight:800;text-shadow:0 2px 0 rgba(0,0,0,.15)}
-.as-hero p{margin:4px 0 0;opacity:.92}
-.as-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:16px 0 14px;padding:12px 14px;border-radius:18px;background:#fff;
-  box-shadow:0 6px 18px rgba(15,23,42,.08),inset 0 -3px 0 #eef2ff}
-.as-bar form{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0}
-.as-bar select,.as-bar input{border:0;border-radius:12px;padding:10px 12px;font:inherit;font-weight:600;background:#f1f5f9;box-shadow:inset 0 2px 4px rgba(15,23,42,.08)}
-.as-bar .grow{flex:1}
-.b3d{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:14px;padding:10px 16px;font:inherit;font-weight:800;color:#fff;cursor:pointer;text-decoration:none;
-  background:linear-gradient(180deg,var(--t,#6366f1),var(--b,#4338ca));box-shadow:0 5px 0 var(--d,#312e81),0 10px 18px rgba(15,23,42,.18);transition:transform .08s,box-shadow .08s}
-.b3d:active{transform:translateY(4px);box-shadow:0 1px 0 var(--d,#312e81),0 4px 8px rgba(15,23,42,.18)}
-.b3d .icon{width:17px;height:17px}
-.b3d.soft{--t:#e0e7ff;--b:#c7d2fe;--d:#a5b4fc;color:#3730a3}
-.as-sum{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
-.as-card{position:relative;border-radius:20px;padding:14px 12px 16px;color:#fff;text-align:center;overflow:hidden;
-  background:linear-gradient(160deg,var(--t),var(--b));box-shadow:0 6px 0 var(--d),0 14px 24px rgba(15,23,42,.16),inset 0 2px 0 rgba(255,255,255,.4)}
-.as-card::before{content:"";position:absolute;left:8px;right:8px;top:6px;height:38%;border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,.35),rgba(255,255,255,0))}
-.as-card i{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:14px;background:rgba(255,255,255,.25);box-shadow:inset 0 2px 0 rgba(255,255,255,.45),0 4px 8px rgba(0,0,0,.12);position:relative}
+.as-top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0 12px}
+.as-top form{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0}
+.as-top input,.as-top select{border:0;border-radius:12px;padding:9px 12px;font:inherit;background:#f1f5f9}
+.as-top .grow{flex:1}
+.as-sum{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:14px}
+.as-card{display:flex;align-items:center;gap:12px;padding:14px;border-radius:16px;background:#fff;box-shadow:0 1px 3px rgba(15,23,42,.06),0 6px 18px rgba(15,23,42,.06)}
+.as-card i{flex:none;width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;color:#fff;position:relative;
+  background:linear-gradient(145deg,var(--t),var(--b));box-shadow:0 6px 12px var(--sh),inset 0 2px 0 rgba(255,255,255,.4),inset 0 -3px 0 rgba(0,0,0,.12)}
 .as-card i .icon{width:22px;height:22px}
-.as-card b{display:block;font-size:30px;line-height:1.1;margin-top:6px;text-shadow:0 2px 0 rgba(0,0,0,.15);position:relative}
-.as-card span{font-weight:700;font-size:14px;position:relative}
-.as-list{background:#fff;border-radius:22px;box-shadow:0 10px 28px rgba(15,23,42,.10),inset 0 -4px 0 #eef2ff;overflow:hidden}
-.as-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:14px 16px;background:linear-gradient(135deg,#ecfeff,#eef2ff)}
-.as-head b{font-size:16px}
-.as-row{display:flex;align-items:center;gap:10px;padding:10px 16px;border-top:1px solid #f1f5f9}
-.as-row:nth-child(odd){background:#fafbff}
-.as-name{flex:1;min-width:0;font-size:15.5px;font-weight:600}
-.as-name small{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;margin-right:10px;border-radius:9px;background:#eef2ff;color:#4338ca;font-weight:800;box-shadow:inset 0 -2px 0 #c7d2fe}
-.as-st{display:flex;gap:8px}
-.as-st button{min-width:64px;height:42px;padding:0 12px;border:0;border-radius:13px;font:inherit;font-weight:800;cursor:pointer;color:#64748b;
-  background:linear-gradient(180deg,#f8fafc,#e2e8f0);box-shadow:0 4px 0 #cbd5e1,0 6px 10px rgba(15,23,42,.08);transition:transform .08s,box-shadow .08s}
-.as-st button:active{transform:translateY(3px);box-shadow:0 1px 0 #cbd5e1}
-.as-st button.on{color:#fff;transform:translateY(2px)}
-.as-st button.on[data-v=ontime]{background:linear-gradient(180deg,#4ade80,#16a34a);box-shadow:0 2px 0 #166534,0 6px 12px rgba(22,163,74,.35)}
-.as-st button.on[data-v=late]{background:linear-gradient(180deg,#fcd34d,#f59e0b);box-shadow:0 2px 0 #b45309,0 6px 12px rgba(245,158,11,.35)}
-.as-st button.on[data-v=absent]{background:linear-gradient(180deg,#f87171,#dc2626);box-shadow:0 2px 0 #991b1b,0 6px 12px rgba(220,38,38,.35)}
-.as-st button.on[data-v=skip]{background:linear-gradient(180deg,#c4b5fd,#7c3aed);box-shadow:0 2px 0 #5b21b6,0 6px 12px rgba(124,58,237,.35)}
-.as-save{position:sticky;bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;padding:12px 16px;border-radius:18px;background:#fff;box-shadow:0 12px 30px rgba(15,23,42,.16)}
-@media(max-width:700px){.as-sum{grid-template-columns:repeat(3,1fr)}.as-row{flex-wrap:wrap}.as-name{flex-basis:100%}.as-st{width:100%}.as-st button{flex:1;min-width:0}.as-hero img{width:60px;height:60px}.as-title{font-size:22px}}
+.as-card b{display:block;font-size:24px;line-height:1.1;color:var(--b)}
+.as-card span{font-size:13px;color:#64748b;font-weight:600}
+.as-list{background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(15,23,42,.06),0 6px 18px rgba(15,23,42,.06);overflow:hidden}
+.as-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 14px;background:linear-gradient(135deg,#ecfeff,#eef2ff)}
+.as-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid #f1f5f9}
+.as-name{flex:1;min-width:0;font-size:15px}.as-name small{color:#94a3b8;margin-right:8px}
+.as-st{display:flex;gap:6px}
+.as-st button{min-width:58px;height:40px;padding:0 10px;border:0;border-radius:12px;font:inherit;font-weight:700;cursor:pointer;color:#64748b;
+  background:#f1f5f9;box-shadow:0 2px 0 #e2e8f0;transition:transform .08s}
+.as-st button:active{transform:translateY(2px)}
+.as-st button.on{color:#fff}
+.as-st button.on[data-v=ontime]{background:linear-gradient(180deg,#4ade80,#16a34a);box-shadow:0 3px 8px rgba(22,163,74,.3)}
+.as-st button.on[data-v=late]{background:linear-gradient(180deg,#fcd34d,#f59e0b);box-shadow:0 3px 8px rgba(245,158,11,.3)}
+.as-st button.on[data-v=absent]{background:linear-gradient(180deg,#f87171,#dc2626);box-shadow:0 3px 8px rgba(220,38,38,.3)}
+.as-st button.on[data-v=skip]{background:linear-gradient(180deg,#c4b5fd,#7c3aed);box-shadow:0 3px 8px rgba(124,58,237,.3)}
+.as-save{position:sticky;bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px;padding:10px 14px;border-radius:16px;background:#fff;box-shadow:0 8px 24px rgba(15,23,42,.12)}
+@media(max-width:700px){.as-sum{grid-template-columns:repeat(2,1fr)}.as-row{flex-wrap:wrap}.as-name{flex-basis:100%}.as-st{width:100%}.as-st button{flex:1;min-width:0}}
 </style>
 
-<div class="as-hero">
-  <img src="/static/images/home3d/assembly.png" alt="">
-  <div style="position:relative;z-index:1;"><div class="as-title">บันทึกการเข้าแถว</div>
-    <p>{% if is_teacher %}เช็คนักเรียนห้องที่ประจำชั้น กด มา สาย ขาด โดดแถว{% else %}เลือกห้อง แล้วกดเช็คนักเรียนทีละคน{% endif %}</p></div>
+<div class="hero" style="background:linear-gradient(135deg,#0891b2,#4f46e5);">
+  <div style="display:flex;align-items:center;gap:14px;"><img src="/static/images/home3d/assembly.png" alt="" style="width:60px;height:60px;border-radius:16px;box-shadow:0 6px 16px rgba(0,0,0,.2);"><div>
+    <span class="hero-title">บันทึกการเข้าแถว</span>
+    <div class="hero-meta">{% if is_teacher %}เช็คนักเรียนห้องที่ประจำชั้น กด มา สาย ขาด โดดแถว{% else %}เลือกห้อง แล้วกดเช็คนักเรียนทีละคน{% endif %}</div>
+  </div></div>
 </div>
 
 {% if msg %}<div class="alert ok" style="margin-top:14px;">{{ msg }}</div>{% endif %}
@@ -58,31 +42,31 @@
 {% if not c %}
 <div class="card" style="margin-top:14px;"><p style="margin:0;">{% if is_teacher %}บัญชีนี้ยังไม่ได้เป็นครูประจำชั้นห้องไหน ให้เจ้าหน้าที่วิชาการกำหนดครูประจำชั้นในหน้าห้องเรียนก่อน{% else %}ยังไม่มีห้องเรียนของปีการศึกษานี้ เพิ่มห้องเรียนในงานวิชาการก่อน{% endif %}</p></div>
 {% else %}
-<div class="as-bar">
+<div class="as-top">
   <form method="get" action="/general/assembly">
     {% if classes|length > 1 %}<select name="cid" onchange="this.form.submit()" aria-label="ห้อง">{% for id,l in classes %}<option value="{{ id }}" {{ 'selected' if id == c.id }}>ห้อง {{ l }}</option>{% endfor %}</select>{% else %}<input type="hidden" name="cid" value="{{ c.id }}"><b>ห้อง {{ c_label }}</b>{% endif %}
     <input type="text" name="date" value="{{ day_input }}" data-date="1" inputmode="numeric" maxlength="10" aria-label="วันที่" style="width:130px;">
-    <button class="b3d soft" type="submit">ดู</button>
+    <button class="btn soft sm" type="submit">ดู</button>
   </form>
   <span class="muted">{{ day_be }}</span>
   <span class="grow"></span>
-  <a class="b3d" style="--t:#22d3ee;--b:#0891b2;--d:#0e7490;" href="/general/assembly/print?cid={{ c.id }}&date={{ day }}" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์รายวัน</a>
-  <a class="b3d" style="--t:#a78bfa;--b:#7c3aed;--d:#5b21b6;" href="/general/assembly/month?cid={{ c.id }}&month={{ month }}" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-calendar"/></svg> พิมพ์รายเดือน</a>
-  {% if not is_teacher %}<a class="b3d soft" href="/general/arrival/stats"><svg class="icon"><use href="#ic-layers"/></svg> สถิติ</a>{% endif %}
+  <a class="btn sm" href="/general/assembly/print?cid={{ c.id }}&date={{ day }}" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์รายวัน</a>
+  <a class="btn sm soft" href="/general/assembly/month?cid={{ c.id }}&month={{ month }}" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-calendar"/></svg> พิมพ์รายเดือน</a>
+  {% if not is_teacher %}<a class="btn sm gray" href="/general/arrival/stats"><svg class="icon"><use href="#ic-layers"/></svg> สถิติ</a>{% endif %}
 </div>
 
 <div class="as-sum">
-  <div class="as-card" style="--t:#4ade80;--b:#16a34a;--d:#166534;"><i><svg class="icon"><use href="#ic-check"/></svg></i><b id="nOn">0</b><span>มา</span></div>
-  <div class="as-card" style="--t:#fcd34d;--b:#f59e0b;--d:#b45309;"><i><svg class="icon"><use href="#ic-clock"/></svg></i><b id="nLate">0</b><span>สาย</span></div>
-  <div class="as-card" style="--t:#f87171;--b:#dc2626;--d:#991b1b;"><i><svg class="icon"><use href="#ic-x"/></svg></i><b id="nAbs">0</b><span>ขาด</span></div>
-  <div class="as-card" style="--t:#c4b5fd;--b:#7c3aed;--d:#5b21b6;"><i><svg class="icon"><use href="#ic-alert"/></svg></i><b id="nSkip">0</b><span>โดดแถว</span></div>
-  <div class="as-card" style="--t:#cbd5e1;--b:#64748b;--d:#334155;"><i><svg class="icon"><use href="#ic-clipboard"/></svg></i><b id="nNone">0</b><span>ยังไม่เช็ค</span></div>
+  <div class="as-card" style="--t:#4ade80;--b:#16a34a;--sh:rgba(15,23,42,.18);"><i><svg class="icon"><use href="#ic-check"/></svg></i><div><b id="nOn">0</b><span>มา</span></div></div>
+  <div class="as-card" style="--t:#fcd34d;--b:#f59e0b;--sh:rgba(15,23,42,.18);"><i><svg class="icon"><use href="#ic-clock"/></svg></i><div><b id="nLate">0</b><span>สาย</span></div></div>
+  <div class="as-card" style="--t:#f87171;--b:#dc2626;--sh:rgba(15,23,42,.18);"><i><svg class="icon"><use href="#ic-x"/></svg></i><div><b id="nAbs">0</b><span>ขาด</span></div></div>
+  <div class="as-card" style="--t:#c4b5fd;--b:#7c3aed;--sh:rgba(15,23,42,.18);"><i><svg class="icon"><use href="#ic-alert"/></svg></i><div><b id="nSkip">0</b><span>โดดแถว</span></div></div>
+  <div class="as-card" style="--t:#cbd5e1;--b:#64748b;--sh:rgba(15,23,42,.18);"><i><svg class="icon"><use href="#ic-clipboard"/></svg></i><div><b id="nNone">0</b><span>ยังไม่เช็ค</span></div></div>
 </div>
 
 <form method="post" action="/general/assembly" id="asForm">
   <input type="hidden" name="cid" value="{{ c.id }}"><input type="hidden" name="date" value="{{ day }}"><input type="hidden" name="marks" id="asMarks">
   <div class="as-list">
-    <div class="as-head"><b>ห้อง {{ c_label }} นักเรียน {{ rows|length }} คน</b><button type="button" class="b3d" style="--t:#4ade80;--b:#16a34a;--d:#166534;" id="asAll"><svg class="icon"><use href="#ic-check"/></svg> มาทั้งหมด</button></div>
+    <div class="as-head"><b>ห้อง {{ c_label }} นักเรียน {{ rows|length }} คน</b><button type="button" class="btn sm" id="asAll"><svg class="icon"><use href="#ic-check"/></svg> มาทั้งหมด</button></div>
     {% for r in rows %}
     <div class="as-row" data-sid="{{ r.sid }}" data-v="{{ r.status }}" data-o="{{ r.status }}">
       <div class="as-name"><small>{{ r.no }}</small>{{ r.name }}</div>
@@ -91,7 +75,7 @@
     {% else %}<p class="muted" style="padding:16px;margin:0;">ห้องนี้ยังไม่มีรายชื่อนักเรียน</p>{% endfor %}
   </div>
   {% if missing %}<p class="muted" style="font-size:13px;">มีนักเรียน {{ missing }} คนที่ยังไม่ได้ผูกกับทะเบียนนักเรียน จึงไม่ขึ้นในรายชื่อนี้</p>{% endif %}
-  <div class="as-save"><span id="asStatus" class="muted">ยังไม่มีการแก้ไข</span><button class="b3d" type="submit" data-no-floating-save><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button></div>
+  <div class="as-save"><span id="asStatus" class="muted">ยังไม่มีการแก้ไข</span><button class="btn" type="submit" data-no-floating-save><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button></div>
 </form>
 <script>
 (function(){
