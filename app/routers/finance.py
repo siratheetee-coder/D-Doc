@@ -1951,7 +1951,7 @@ def loans_page(request: Request, db: Session = Depends(get_db), year: int | None
     return templates.TemplateResponse("finance_loans.html", {
         "request": request, "school": get_school(db), "fiscal_year": fy,
         "years": _finance_years(db, fy), "rows": rows,
-        "accounts": _fin_accounts(db), "today_be": be_date_input(datetime.now()),
+        "accounts": _fin_accounts(db), "today_be": be_date_input(datetime.now()), "now_dt": datetime.now(),
         "persons": _fin_persons(db),
         "projects": list(projects.values()), "pj_acts": activity_maps(db),
         "pre_project": pre_pj,

@@ -68,34 +68,72 @@
     <a class="btn sm gray" href="/finance/loans/register.docx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> พิมพ์ทะเบียนคุม (Word)</a>
   </div>
   {% if rows %}
-  <div class="table-wrap"><table class="stack-sm">
-    <thead><tr><th>เลขที่</th><th>วันที่ยืม</th><th>ผู้ยืม</th><th>วัตถุประสงค์</th>
-      <th class="right">ยืม</th><th>ครบกำหนด</th><th class="right">ส่งใช้แล้ว</th><th class="right">คงค้าง</th><th></th></tr></thead>
-    <tbody>
-      {% for r in rows %}
-      <tr id="loan-{{ r.o.id }}" style="scroll-margin-top:90px;{% if r.left > 0.005 %}background:#fff7ed;{% endif %}">
-        <td data-label="เลขที่"><b>{{ r.o.contract_no or '-' }}</b></td>
-        <td data-label="วันที่ยืม">{{ thai_date(r.o.date) if r.o.date else '-' }}</td>
-        <td data-label="ผู้ยืม">{{ r.o.borrower }}</td>
-        <td data-label="วัตถุประสงค์">{{ r.o.purpose }}
-          {% if r.project %}<small class="loan-pj"><a href="/projects/{{ r.project.id }}#activities">{{ r.project.name }}</a>{% if r.activity %} กิจกรรม {{ r.activity.name }}{% endif %}</small>{% endif %}</td>
-        <td data-label="ยืม" class="right">{{ "{:,.2f}".format(r.o.amount or 0) }}</td>
-        <td data-label="ครบกำหนด">{{ thai_date(r.o.due_date) if r.o.due_date else '-' }}</td>
-        <td data-label="ส่งใช้แล้ว" class="right">{{ "{:,.2f}".format(r.paid) }}</td>
-        <td data-label="คงค้าง" class="right">
-          {% if r.left > 0.005 %}<b style="color:#b91c1c;">{{ "{:,.2f}".format(r.left) }}</b>
-          {% else %}<span class="pill done loan-settled">ส่งใช้ครบแล้ว</span>{% endif %}</td>
-        <td class="right loan-actions" style="white-space:normal;"><a class="btn sm soft" href="/finance/staff/loans/{{ r.o.id }}">ผู้รับผิดชอบ</a>
+  <style>
+  .lnc-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+  .lnc-tabs button{border:0;border-radius:999px;padding:7px 14px;font:inherit;font-size:13.5px;font-weight:700;color:#475569;background:#f1f5f9;cursor:pointer}
+  .lnc-tabs button b{margin-left:4px;padding:0 7px;border-radius:999px;background:#fff;color:#334155;font-size:12px}
+  .lnc-tabs button.on{background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;box-shadow:0 4px 10px rgba(22,163,74,.3)}
+  .lnc-tabs button.on b{background:rgba(255,255,255,.25);color:#fff}
+  .lnc-tabs button[data-f=late].on{background:linear-gradient(135deg,#f87171,#dc2626)}
+  .lnc-list{display:grid;gap:12px}
+  .lnc{position:relative;background:#fff;border-radius:16px;padding:14px 16px 14px 20px;box-shadow:0 1px 3px rgba(15,23,42,.06),0 6px 18px rgba(15,23,42,.05);overflow:hidden;scroll-margin-top:90px}
+  .lnc::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--bar)}
+  .lnc.late{box-shadow:0 0 0 2px #fecaca,0 6px 18px rgba(239,68,68,.12)}
+  .lnc-top{display:flex;gap:16px;align-items:center}
+  .lnc-ic{flex:none;width:58px;height:58px;border-radius:16px;box-shadow:0 6px 14px rgba(15,23,42,.15)}
+  .lnc-main{flex:1;min-width:0}
+  .lnc-t{font-size:16.5px;font-weight:800;color:#14532d;line-height:1.35}
+  .lnc-meta{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:#64748b;margin-top:3px}
+  .lnc-late{color:#dc2626;font-weight:700;background:#fef2f2;border-radius:999px;padding:1px 9px}
+  .lnc-bar{height:8px;border-radius:99px;background:#e2e8f0;overflow:hidden;margin-top:10px;max-width:380px}
+  .lnc-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#4ade80,#16a34a)}
+  .lnc-barlbl{font-size:12px;color:#64748b;margin-top:3px}
+  .lnc-side{flex:none;width:200px;display:flex;flex-direction:column;align-items:flex-end;gap:4px;padding-left:16px;border-left:1px solid #eef2f7}
+  .lnc-amt{font-size:19px;font-weight:800;color:#0f172a}.lnc-amt small{font-size:12px;color:#64748b;font-weight:600}
+  .lnc-left{font-size:13.5px;font-weight:700;color:#b91c1c}
+  .lnc-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid #f1f5f9}
+  .lnc-acts .btn{margin:0}
+  .lnc-ret{margin-top:12px;padding:12px;border-radius:12px;background:#f8fafc}
+  .lnc-ret[hidden]{display:none}
+  @media(max-width:860px){.lnc-top{flex-wrap:wrap}.lnc-ic{width:48px;height:48px}.lnc-main{flex-basis:calc(100% - 64px)}.lnc-side{width:100%;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;border-left:0;padding-left:0;border-top:1px solid #eef2f7;padding-top:10px}}
+  </style>
+  <div class="lnc-tabs">{% for f,l in [('all','ทั้งหมด'),('open','ยังส่งใช้ไม่ครบ'),('late','เลยกำหนดส่งใช้'),('done','ส่งใช้ครบแล้ว')] %}<button type="button" data-f="{{ f }}" onclick="lnFilter('{{ f }}')">{{ l }}<b>0</b></button>{% endfor %}</div>
+  <div class="lnc-list">
+  {% for r in rows %}
+    {% set open = r.left > 0.005 %}
+    {% set late = open and r.o.due_date and r.o.due_date < now_dt %}
+    {% set pct = ((r.paid / r.o.amount * 100) if r.o.amount else 0)|round|int %}
+    <div class="lnc{{ ' late' if late }}" id="loan-{{ r.o.id }}" data-st="{{ 'late' if late else 'open' if open else 'done' }}" style="--bar:{{ '#ef4444' if late else '#f59e0b' if open else '#22c55e' }};">
+      <div class="lnc-top">
+        <img class="lnc-ic" src="/static/images/home3d/mod_finance.png" alt="">
+        <div class="lnc-main">
+          <div class="lnc-t">{{ r.o.borrower }}</div>
+          <div class="lnc-meta">
+            <span><b>สัญญาเลขที่ {{ r.o.contract_no or '-' }}</b></span>
+            <span>ยืม {{ thai_date(r.o.date) if r.o.date else '-' }}</span>
+            <span>ครบกำหนด {{ thai_date(r.o.due_date) if r.o.due_date else '-' }}</span>
+            {% if late %}<span class="lnc-late">เลยกำหนด {{ (now_dt - r.o.due_date).days }} วัน</span>{% endif %}
+          </div>
+          <div class="lnc-meta" style="color:#334155;">{{ r.o.purpose }}</div>
+          {% if r.project %}<small class="loan-pj"><a href="/projects/{{ r.project.id }}#activities">{{ r.project.name }}</a>{% if r.activity %} กิจกรรม {{ r.activity.name }}{% endif %}</small>{% endif %}
+          <div class="lnc-bar"><i style="width:{{ [pct,100]|min }}%;"></i></div>
+          <div class="lnc-barlbl">ส่งใช้แล้ว {{ "{:,.2f}".format(r.paid) }} บาท ({{ [pct,100]|min }}%)</div>
+        </div>
+        <div class="lnc-side">
+          <div class="lnc-amt">{{ "{:,.2f}".format(r.o.amount or 0) }} <small>บาท</small></div>
+          {% if open %}<div class="lnc-left">คงค้าง {{ "{:,.2f}".format(r.left) }} บาท</div>
+          {% else %}<span class="pill done loan-settled">ส่งใช้ครบแล้ว</span>{% endif %}
+        </div>
+      </div>
+      <div class="lnc-acts loan-actions"><a class="btn sm soft" href="/finance/staff/loans/{{ r.o.id }}">ผู้รับผิดชอบ</a>
           <a class="btn sm green" href="/finance/loans/{{ r.o.id }}/money">จ่ายเงินยืม / รับคืนเงินสด</a>
           <a class="btn sm" href="/finance/loans/{{ r.o.id }}/contract.docx"><svg class="icon"><use href="#ic-download"/></svg> สัญญา 8500</a>
           {% if r.o.returns %}<a class="btn sm green" href="/finance/loans/{{ r.o.id }}/returns.docx">เอกสารส่งใช้ (Word)</a>{% endif %}
           {% if r.ap %}{% from "_approval_box.html" import approval_box %}{{ approval_box(r.ap, '/finance/approval', '/finance/loans?year=' ~ fiscal_year ~ '#loan-' ~ r.o.id, {'ref_id': r.o.id}, True) }}{% endif %}
-          <button class="btn sm gray" type="button" onclick="document.getElementById('ret{{ r.o.id }}').hidden = !document.getElementById('ret{{ r.o.id }}').hidden">ส่งใช้</button>
+          <button class="btn sm gray" type="button" onclick="var x=document.getElementById('ret{{ r.o.id }}'); x.hidden=!x.hidden">ส่งใช้</button>
           <form method="post" action="/finance/loans/{{ r.o.id }}/delete" style="display:inline" onsubmit="return confirm('ลบสัญญายืมนี้และประวัติการส่งใช้?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
-        </td>
-      </tr>
-      <tr id="ret{{ r.o.id }}" hidden>
-        <td colspan="9" style="background:#f8fafc;">
+        </div>
+      <div class="lnc-ret" id="ret{{ r.o.id }}" hidden>
           {% if r.o.returns %}
           <div class="table-wrap"><table>
             <thead><tr><th>ครั้งที่</th><th>วันที่</th><th>ส่งใช้เป็น</th><th class="right">จำนวนเงิน</th><th>ใบรับเลขที่</th></tr></thead>
@@ -125,11 +163,21 @@
             <div><label>ใบรับเลขที่</label><input name="receipt_no"></div>
             <div><button class="btn sm green" type="submit">บันทึกส่งใช้</button></div>
           </form>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table></div>
+</div>
+    </div>
+  {% endfor %}
+  </div>
+  <script>
+  function lnFilter(f){
+    document.querySelectorAll('.lnc[data-st]').forEach(function(el){ var st=el.dataset.st;
+      el.style.display=(f==='all'||st===f||(f==='open'&&st==='late'))?'':'none'; });
+    document.querySelectorAll('.lnc-tabs button').forEach(function(b){ b.classList.toggle('on', b.dataset.f===f); }); }
+  (function(){ var c={all:0,open:0,late:0,done:0};
+    document.querySelectorAll('.lnc[data-st]').forEach(function(el){ c.all++; c[el.dataset.st]++; if(el.dataset.st==='late') c.open++; });
+    document.querySelectorAll('.lnc-tabs button').forEach(function(b){ b.querySelector('b').textContent=c[b.dataset.f]||0;
+      if(b.dataset.f==='late' && !c.late) b.style.display='none'; });
+    lnFilter('all'); })();
+  </script>
   {% else %}
   <p class="muted">ยังไม่มีสัญญายืมเงินในปีงบนี้</p>
   {% endif %}
