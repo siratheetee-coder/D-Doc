@@ -452,7 +452,7 @@ def dashboard(request: Request, db: Session = Depends(get_db),
     hires = sorted([p for p in procurements if (p.proc_type or "ซื้อ") == "จ้าง"], key=_order_sort_key)
     return templates.TemplateResponse("dashboard.html", {
         "request": request, "school": get_school(db), "procurements": procurements,
-        "buys": buys, "hires": hires,
+        "buys": buys, "hires": hires, "today_dt": datetime.now(),
         "buy_total": sum(p.total_amount or 0 for p in buys),
         "hire_total": sum(p.total_amount or 0 for p in hires),
         "fiscal_year": fy, "years": years, "total_amount": total_amount,

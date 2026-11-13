@@ -189,6 +189,16 @@
 .rgc-steps .done{color:#166534}.rgc-steps .done i{background:linear-gradient(135deg,#4ade80,#16a34a);color:#fff}
 .rgc-steps .done::before,.rgc-steps .now::before{background:#86efac!important}
 .rgc-steps .now{color:#b45309;font-weight:700}.rgc-steps .now i{background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#fff;box-shadow:0 0 0 4px #fef3c7}
+.rgc.late{box-shadow:0 0 0 2px #fecaca,0 6px 18px rgba(239,68,68,.12)}
+.rgc-late{display:inline-flex;align-items:center;gap:4px;color:#dc2626;font-weight:700;background:#fef2f2;border-radius:999px;padding:1px 9px}
+.rgc-late .icon{width:13px;height:13px}
+.rg-tabs{display:flex;flex-wrap:wrap;gap:6px}
+.rg-tabs button{border:0;border-radius:999px;padding:7px 14px;font:inherit;font-size:13.5px;font-weight:700;color:#475569;background:#f1f5f9;cursor:pointer}
+.rg-tabs button b{margin-left:4px;padding:0 7px;border-radius:999px;background:#fff;color:#334155;font-size:12px}
+.rg-tabs button.on{background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;box-shadow:0 4px 10px rgba(79,70,229,.3)}
+.rg-tabs button.on b{background:rgba(255,255,255,.25);color:#fff}
+.rg-tabs button[data-f=late].has{color:#dc2626;background:#fef2f2}
+.rg-tabs button[data-f=late].on{background:linear-gradient(135deg,#f87171,#dc2626);color:#fff}
 .rgc-side{flex:none;width:190px;display:flex;flex-direction:column;align-items:flex-end;gap:7px;padding-left:16px;border-left:1px solid #eef2f7}
 .rgc-amt{font-size:19px;font-weight:800;color:#0f172a}.rgc-amt small{font-size:12px;color:#64748b;font-weight:600}
 .rgc-side select{width:auto;padding:4px 8px;font-size:13px}
@@ -198,8 +208,9 @@
 <div class="rgc-list">
   {% for p in rows %}
   {% set k = {'ร่าง':0,'อนุมัติ':1,'ตรวจรับแล้ว':2,'เบิกจ่ายแล้ว':3}.get(p.status, 0) %}
-  {% set bar = ['#94a3b8','#f59e0b','#3b82f6','#22c55e'][k] %}
-  <div class="rgc" style="--bar:{{ bar }};">
+  {% set late = p.status == 'อนุมัติ' and p.delivery_due_date and p.delivery_due_date < today_dt %}
+  {% set bar = '#ef4444' if late else ['#94a3b8','#f59e0b','#3b82f6','#22c55e'][k] %}
+  <div class="rgc{{ ' late' if late }}" style="--bar:{{ bar }};" data-st="{{ 'late' if late else ['draft','approved','inspected','paid'][k] }}">
     <img class="rgc-ic" src="/static/images/home3d/{{ 'p_hire' if p.proc_type == 'จ้าง' else 'p_buy' }}.png" alt="">
     <div class="rgc-main">
       <a class="rgc-t" href="/procurement/{{ p.id }}">{{ p.proc_type }}{{ p.subject }}</a>
@@ -208,6 +219,7 @@
         <span>{{ thai_date(p.order_date) if p.order_date else "ยังไม่ระบุวันที่" }}</span>
         <span>{{ p.method }}</span>
         <span>{{ p.vendor.name if p.vendor else "ยังไม่ระบุผู้ขาย" }}</span>
+        {% if late %}<span class="rgc-late"><svg class="icon"><use href="#ic-alert"/></svg> เลยกำหนดส่งมอบ {{ (today_dt - p.delivery_due_date).days }} วัน</span>{% endif %}
       </div>
       <div class="rgc-steps">
         {% for lb in ['ร่าง','อนุมัติ','ตรวจรับ','เบิกจ่าย'] %}<div class="{{ 'done' if loop.index0 < k or k == 3 else 'now' if loop.index0 == k else '' }}"><i>{{ '✓' if loop.index0 < k or k == 3 else loop.index }}</i><span>{{ lb }}</span></div>{% endfor %}
@@ -232,7 +244,9 @@
   </thead>
   <tbody>
     {% for p in rows %}
-    <tr>
+    {% set k = {'ร่าง':0,'อนุมัติ':1,'ตรวจรับแล้ว':2,'เบิกจ่ายแล้ว':3}.get(p.status, 0) %}
+    {% set late = p.status == 'อนุมัติ' and p.delivery_due_date and p.delivery_due_date < today_dt %}
+    <tr data-st="{{ 'late' if late else ['draft','approved','inspected','paid'][k] }}"{% if late %} style="background:#fef2f2;"{% endif %}>
       <td><a href="/procurement/{{ p.id }}">{% if p.order_no %}{{ p.order_no }}{% else %}<span class="muted">ยังไม่ออกใบสั่ง</span>{% endif %}</a></td>
       <td>{{ thai_date(p.order_date) if p.order_date else "-" }}</td>
       <td>{{ p.proc_type }}{{ p.subject }}</td>
@@ -275,7 +289,9 @@
   </div>
 </div>
 
-<div style="display:flex;justify-content:flex-end;margin:4px 0 -4px;"><div class="rg-view" role="group" aria-label="มุมมองทะเบียน"><button type="button" data-v="card" onclick="rgView('card')">การ์ด</button><button type="button" data-v="table" onclick="rgView('table')">ตาราง</button></div></div>
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin:4px 0 -4px;"><div class="rg-tabs" role="tablist" aria-label="กรองตามสถานะ">
+  {% for f,l in [('all','ทั้งหมด'),('draft','ร่าง'),('approved','รอส่งมอบ/ตรวจรับ'),('inspected','ตรวจรับแล้ว'),('paid','เบิกจ่ายแล้ว'),('late','เลยกำหนดส่งมอบ')] %}<button type="button" data-f="{{ f }}" onclick="rgFilter('{{ f }}')">{{ l }}<b>0</b></button>{% endfor %}
+</div><div class="rg-view" role="group" aria-label="มุมมองทะเบียน"><button type="button" data-v="card" onclick="rgView('card')">การ์ด</button><button type="button" data-v="table" onclick="rgView('table')">ตาราง</button></div></div>
 <!-- เล่มที่ 1: ทะเบียนคุมการจัดซื้อ -->
 <div class="card" id="reg-buy">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
@@ -307,6 +323,17 @@
     document.querySelectorAll('.rg-view button').forEach(function(b){ b.classList.toggle('on', b.dataset.v===v); });
     try{ localStorage.setItem('ddoc_reg_view', v); }catch(e){} }
   (function(){ var v='card'; try{ v=localStorage.getItem('ddoc_reg_view')||'card'; }catch(e){} rgView(v); })();
+  // แท็บกรองสถานะ (การ์ดและตารางใช้ data-st เดียวกัน) เลยกำหนดส่งมอบนับรวมในรอส่งมอบด้วย
+  function rgFilter(f){
+    document.querySelectorAll('.rgc[data-st], .rgt-wrap tr[data-st]').forEach(function(el){
+      var st=el.dataset.st; el.style.display=(f==='all'||st===f||(f==='approved'&&st==='late'))?'':'none'; });
+    document.querySelectorAll('.rg-tabs button').forEach(function(b){ b.classList.toggle('on', b.dataset.f===f); });
+  }
+  (function(){ var c={all:0,draft:0,approved:0,inspected:0,paid:0,late:0};
+    document.querySelectorAll('.rgc[data-st]').forEach(function(el){ c.all++; c[el.dataset.st]++; if(el.dataset.st==='late') c.approved++; });
+    document.querySelectorAll('.rg-tabs button').forEach(function(b){ b.querySelector('b').textContent=c[b.dataset.f]||0;
+      if(b.dataset.f==='late'){ b.classList.toggle('has', c.late>0); if(!c.late) b.style.display='none'; } });
+    rgFilter('all'); })();
   // เปลี่ยนสถานะเรื่องจากตารางได้เลย (ไม่ต้องเข้าหน้ารายละเอียด)
   function setStatus(id, sel){
     sel.disabled = true;
