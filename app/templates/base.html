@@ -257,13 +257,13 @@
 
         <div class="nav-sec">ระบบ</div>
         {% if request.session.get('director') %}<a href="/approvals" class="{{ 'active' if path.startswith('/approvals') }}" style="font-weight:700;"><svg class="icon"><use href="#ic-check"/></svg> กล่องรออนุมัติ ผอ.</a>{% if module != 'admin' %}<a href="/admin/incoming-tracking"><svg class="icon"><use href="#ic-clipboard"/></svg> ติดตามหนังสือและงาน</a>{% endif %}{% endif %}
-        <a href="/docnos" class="{{ 'active' if path.startswith('/docnos') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> ทะเบียนเลขหนังสือ</a>
+        {% if not (request.session.get('person_id') and not request.session.get('owner') and not request.session.get('director')) %}<a href="/docnos" class="{{ 'active' if path.startswith('/docnos') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> ทะเบียนเลขหนังสือ</a>
         <a href="/projects" class="{{ 'active' if path.startswith('/projects') }}"><svg class="icon"><use href="#ic-coins"/></svg> โครงการ/แผนงบ</a>
         <a href="/vendors" class="{{ 'active' if path.startswith('/vendors') }}"><svg class="icon"><use href="#ic-store"/></svg> ผู้ขาย/ผู้รับจ้าง</a>
         <a href="/masters" class="{{ 'active' if path.startswith('/masters') }}"><svg class="icon"><use href="#ic-users"/></svg> บุคลากร/ฝ่าย</a>
         <a href="/students" class="{{ 'active' if path.startswith('/students') and not path.startswith('/students/growth') }}"><svg class="icon"><use href="#ic-users"/></svg> ข้อมูลนักเรียน</a>
         <a href="/students/growth" class="subnav {{ 'active' if path.startswith('/students/growth') }}"><svg class="icon"><use href="#ic-check"/></svg> น้ำหนัก/ส่วนสูง</a>
-        <a href="/settings" class="{{ 'active' if path.startswith('/settings') }}"><svg class="icon"><use href="#ic-settings"/></svg> ตั้งค่าโรงเรียน</a>
+        <a href="/settings" class="{{ 'active' if path.startswith('/settings') }}"><svg class="icon"><use href="#ic-settings"/></svg> ตั้งค่าโรงเรียน</a>{% endif %}
         {% if request.session.get('owner') %}<a href="/users" class="{{ 'active' if path.startswith('/users') }}"><svg class="icon"><use href="#ic-users"/></svg> จัดการผู้ใช้</a>
         <a href="/audit" class="subnav {{ 'active' if path.startswith('/audit') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> บันทึกการใช้งาน</a>
         <a href="/academic/teacher-accounts" class="subnav {{ 'active' if path.startswith('/academic/teacher-accounts') }}"><svg class="icon"><use href="#ic-users"/></svg> บัญชีครู</a>{% endif %}

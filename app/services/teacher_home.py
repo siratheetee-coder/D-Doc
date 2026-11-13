@@ -40,24 +40,24 @@ def build(db, pid, *, year=None, letters=None, letter_tasks=0, letter_late=0, le
             if total and done < total:
                 after_left += total - done
                 todos.append(dict(level=2, title=f"บันทึกหลังสอน {p.title}",
-                                  note=f"บันทึกแล้ว {done} จาก {total} แผน", tag="ยังไม่ครบ", href=href, icon="ic-edit"))
+                                  note=f"บันทึกแล้ว {done} จาก {total} แผน", tag="ยังไม่ครบ", href=href, icon="ic-edit", img="t_edit"))
         elif p.status == "revise":
             waiting_plans += 1
             why = (p.director_comment or p.comment or "").strip()
             todos.append(dict(level=0, title=f"แผนถูกส่งกลับให้แก้ {p.title}",
-                              note=why or "เปิดดูความเห็นแล้วแก้ไขก่อนส่งอีกครั้ง", tag="ต้องแก้", href=href, icon="ic-alert"))
+                              note=why or "เปิดดูความเห็นแล้วแก้ไขก่อนส่งอีกครั้ง", tag="ต้องแก้", href=href, icon="ic-alert", img="t_edit"))
         elif p.status == "draft":
             waiting_plans += 1
             todos.append(dict(level=1, title=f"แผนยังไม่กดส่ง {p.title}",
                               note=lesson_set.ready_to_send(p) or "แนบไฟล์ครบแล้ว กดส่งให้หัวหน้าวิชาการตรวจได้เลย",
-                              tag="ร่าง", href=href, icon="ic-file"))
+                              tag="ร่าง", href=href, icon="ic-file", img="t_doc"))
         rows.append(dict(title=p.title, term=p.term, label=label, tone=tone, href=href,
                          done=done, total=total, mode=lesson_set.mode_label(p)))
 
     for item in letters or []:
         lv = 0 if item["tag"] == "เลยกำหนดรายงาน" else 1
         todos.append(dict(level=lv, title=item["title"] or "หนังสือรับ", note=item.get("note") or "",
-                          tag=item["tag"], href=item["href"], icon="ic-file"))
+                          tag=item["tag"], href=item["href"], icon="ic-file", img="t_doc"))
     todos.sort(key=lambda t: t["level"])
 
     reqs = []
@@ -77,7 +77,7 @@ def build(db, pid, *, year=None, letters=None, letter_tasks=0, letter_late=0, le
     stats = [
         dict(label="หนังสือรอรับทราบ", n=letter_pending, href="/me/letters", icon="ic-file", img="letters", tone="blue"),
         dict(label="แผนรอดำเนินการ", n=waiting_plans, href="/academic/lesson-plans", icon="ic-clipboard", img="plans", tone="purple"),
-        dict(label="บันทึกหลังสอนค้าง", n=after_left, href="/academic/lesson-plans", icon="ic-edit", img="notes", tone="amber",
+        dict(label="บันทึกหลังสอนที่ยังไม่กรอก", n=after_left, href="/academic/lesson-plans", icon="ic-edit", img="notes", tone="amber",
              unit="แผน"),
         dict(label="ใบลา/ไปราชการรออนุมัติ", n=pending_req, href="/me/leave", icon="ic-calendar", img="leave_wait", tone="green"),
     ]

@@ -64,7 +64,7 @@
     {% else %}<p class="muted" style="padding:14px;margin:0;">ห้องนี้ยังไม่มีรายชื่อนักเรียน</p>{% endfor %}
   </div>
   {% if missing %}<p class="muted" style="font-size:13px;">มีนักเรียน {{ missing }} คนที่ยังไม่ได้ผูกกับทะเบียนนักเรียน จึงไม่ขึ้นในรายชื่อนี้</p>{% endif %}
-  <div class="as-save"><span id="asStatus" class="muted">ยังไม่มีการแก้ไข</span><button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button></div>
+  <div class="as-save"><span id="asStatus" class="muted">ยังไม่มีการแก้ไข</span><button class="btn" type="submit" data-no-floating-save><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button></div>
 </form>
 <script>
 (function(){
