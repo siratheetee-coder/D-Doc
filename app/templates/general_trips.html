@@ -2,11 +2,11 @@
 {% block title %}ทัศนศึกษา{% endblock %}
 {% block content %}
 <div class="hero">
-  <div>
+  <div style="display:flex;align-items:center;gap:14px;"><img src="/static/images/home3d/trip.png" alt="" style="width:60px;height:60px;border-radius:16px;box-shadow:0 6px 16px rgba(0,0,0,.2);flex:none;"><div>
     <div class="hero-sub">งานบริหารทั่วไป</div>
     <span class="hero-title">ทัศนศึกษา / พานักเรียนไปนอกสถานศึกษา</span>
     <div class="hero-meta">ตามระเบียบกระทรวงศึกษาธิการ ว่าด้วยการพานักเรียน และนักศึกษาไปนอกสถานศึกษา พ.ศ. 2562</div>
-  </div>
+  </div></div>
   <form method="post" action="/general/trips/new" style="margin:0;">
     <button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มการไปทัศนศึกษา</button>
   </form>
