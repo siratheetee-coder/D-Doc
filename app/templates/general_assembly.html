@@ -4,7 +4,9 @@
 <style>
 .as-top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0 12px}
 .as-top form{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0}
-.as-top input,.as-top select{border:0;border-radius:12px;padding:9px 12px;font:inherit;background:#f1f5f9}
+.as-top input,.as-top select{width:auto;border:1px solid #cbd5e1;border-radius:12px;padding:9px 12px;font:inherit;font-weight:600;background:#fff;box-shadow:0 1px 2px rgba(15,23,42,.05)}
+.as-top select{width:auto;min-width:150px;padding-right:34px;cursor:pointer;appearance:none;-webkit-appearance:none;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center}
+.as-top label{font-size:12.5px;color:#64748b;font-weight:600;display:block;margin-bottom:3px}
 .as-top .grow{flex:1}
 .as-sum{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:14px}
 .as-card{display:flex;align-items:center;gap:12px;padding:14px;border-radius:16px;background:#fff;box-shadow:0 1px 3px rgba(15,23,42,.06),0 6px 18px rgba(15,23,42,.06)}
@@ -45,8 +47,9 @@
 <div class="as-top">
   <form method="get" action="/general/assembly">
     {% if classes|length > 1 %}<select name="cid" onchange="this.form.submit()" aria-label="ห้อง">{% for id,l in classes %}<option value="{{ id }}" {{ 'selected' if id == c.id }}>ห้อง {{ l }}</option>{% endfor %}</select>{% else %}<input type="hidden" name="cid" value="{{ c.id }}"><b>ห้อง {{ c_label }}</b>{% endif %}
-    <input type="text" name="date" value="{{ day_input }}" data-date="1" inputmode="numeric" maxlength="10" aria-label="วันที่" style="width:130px;">
-    <button class="btn soft sm" type="submit">ดู</button>
+    <input type="text" name="date" value="{{ day_input }}" data-date="1" inputmode="numeric" maxlength="10" aria-label="วันที่" placeholder="วว/ดด/ปปปป" style="width:140px;"
+      oninput="if(this.value.length===10)this.form.submit()">
+    <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-calendar"/></svg> เปลี่ยนวันที่</button>
   </form>
   <span class="muted">{{ day_be }}</span>
   <span class="grow"></span>
