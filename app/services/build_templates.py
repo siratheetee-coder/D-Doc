@@ -1182,6 +1182,8 @@ def build_tor():
     _p(doc, "{%p endfor %}")
     _p(doc, "{%p endif %}")
     # หัวหน้าหน่วยงานของรัฐให้ความเห็นชอบขอบเขตของงาน (ระเบียบฯ ข้อ 21)
+    # เว้นระยะให้ชัดว่าช่องติ๊กเป็นของ ผอ. ไม่ใช่ของผู้จัดทำร่าง
+    _p(doc, "", after=14)
     _signoff_director(doc, with_approve=True, sign_gap=SIGN_GAP)
     TEMPLATES_DIR.mkdir(exist_ok=True)
     out = TEMPLATES_DIR / "TOR.docx"
