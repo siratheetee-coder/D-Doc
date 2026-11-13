@@ -1117,7 +1117,12 @@ def build_tor():
             "เพื่อให้การดำเนินงานเป็นไปตามวัตถุประสงค์และได้{{ obj_word }}ที่เหมาะสมกับการใช้งาน "
             "จึงจัดทำขอบเขตของงานหรือรายละเอียดคุณลักษณะเฉพาะฉบับนี้ เพื่อกำหนดรายการ "
             "จำนวน คุณลักษณะ เงื่อนไขการส่งมอบ และการรับประกันให้ชัดเจน "
-            "สำหรับใช้ประกอบการเสนอราคาและการตรวจรับต่อไป", align="justify", indent=1.25)
+            "สำหรับใช้ประกอบการเสนอราคาและการตรวจรับต่อไป", align="justify", indent=1.25, after=0)
+    _p(doc, "{%p if project_name %}")
+    _p(doc, "ชื่อโครงการ  {{ project_name }}", indent=1.25, after=0)
+    _p(doc, "{%p endif %}")
+    _p(doc, "เงินงบประมาณ  {{ total_amount }} บาท ({{ total_baht }})", indent=1.25, after=0)
+    _p(doc, "ราคากลาง  {{ total_amount }} บาท ({{ total_baht }})", indent=1.25)
 
     _p(doc, "2. วัตถุประสงค์", bold=True, underline=True, after=0)
     _p(doc, "{{ objective }}", align="justify", indent=1.25)
@@ -1140,7 +1145,7 @@ def build_tor():
 
     _p(doc, "6. เกณฑ์การพิจารณาผลการยื่นข้อเสนอ", bold=True, underline=True, after=0)
     _p(doc, "ในการพิจารณาผลการยื่นข้อเสนอครั้งนี้ {{ school_name }} จะพิจารณาตัดสินโดยใช้"
-            "เกณฑ์ราคา โดยพิจารณาจากราคารวม", align="justify", indent=1.25)
+            "เกณฑ์ราคา โดยพิจารณาจากราคารวม{% if item_count > 1 %} หรือราคาต่อรายการ{% endif %}", align="justify", indent=1.25)
 
     _p(doc, "7. งบประมาณในการดำเนินการ", bold=True, underline=True, after=0)
     _p(doc, "ในการ{{ proc_type }}ครั้งนี้ ใช้งบประมาณจากเงิน{{ budget_source }} จำนวนเงิน "
@@ -1176,6 +1181,8 @@ def build_tor():
     _p(doc, "{{ m.role }}", align="center", after=SIGN_GAP)
     _p(doc, "{%p endfor %}")
     _p(doc, "{%p endif %}")
+    # หัวหน้าหน่วยงานของรัฐให้ความเห็นชอบขอบเขตของงาน (ระเบียบฯ ข้อ 21)
+    _signoff_director(doc, with_approve=True, sign_gap=SIGN_GAP)
     TEMPLATES_DIR.mkdir(exist_ok=True)
     out = TEMPLATES_DIR / "TOR.docx"
     doc.save(str(out))
