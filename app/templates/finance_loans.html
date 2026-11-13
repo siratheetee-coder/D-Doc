@@ -105,7 +105,7 @@
     {% set pct = ((r.paid / r.o.amount * 100) if r.o.amount else 0)|round|int %}
     <div class="lnc{{ ' late' if late }}" id="loan-{{ r.o.id }}" data-st="{{ 'late' if late else 'open' if open else 'done' }}" style="--bar:{{ '#ef4444' if late else '#f59e0b' if open else '#22c55e' }};">
       <div class="lnc-top">
-        <img class="lnc-ic" src="/static/images/home3d/mod_finance.png" alt="">
+        <img class="lnc-ic" src="/static/images/home3d/f_loans.png" alt="">
         <div class="lnc-main">
           <div class="lnc-t">{{ r.o.borrower }}</div>
           <div class="lnc-meta">

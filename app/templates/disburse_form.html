@@ -135,7 +135,7 @@
     {% set k = {'ร่าง':0,'อนุมัติ':1,'จ่ายแล้ว':2}.get(m.status, 0) %}
     {% set st = [('ร่าง','#f1f5f9','#475569','#94a3b8'),('อนุมัติ รอจ่าย','#fef3c7','#92400e','#f59e0b'),('จ่ายแล้ว','#dcfce7','#166534','#22c55e')][k] %}
     <div class="dvc" style="--bar:{{ st[3] }};" data-st="{{ ['draft','approved','paid'][k] }}">
-      <img class="dvc-ic" src="/static/images/home3d/mod_finance.png" alt="">
+      <img class="dvc-ic" src="/static/images/home3d/f_disburse.png" alt="">
       <div class="dvc-main">
         <a class="dvc-t" href="/finance/disburse/{{ m.id }}">{{ m.subject or "-" }}</a>
         <div class="dvc-meta">
