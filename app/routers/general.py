@@ -114,7 +114,12 @@ def general_home(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/general/arrival", response_class=HTMLResponse)
-def arrival_page(request: Request, db: Session = Depends(get_db),
+def arrival_page_redirect(date: str = ""):
+    """รวมเป็นหน้าเดียวแล้ว (บันทึกการเข้าแถว = เช็ครายห้อง) ลิงก์เก่าพาไปหน้าใหม่"""
+    return RedirectResponse("/general/assembly" + (f"?date={date}" if date else ""), status_code=303)
+
+
+def arrival_page_old(request: Request, db: Session = Depends(get_db),
                  date: str = "", msg: str = ""):
     day = _valid_date(date)
     st = _setting(db)
@@ -297,14 +302,27 @@ ASSEMBLY_STATUS = {"ontime": "มา", "late": "สาย", "absent": "ขาด
 PRESENT = ("ontime", "late")
 
 
+def _is_teacher(request) -> bool:
+    ss = request.session
+    return bool(ss.get("person_id")) and not ss.get("owner") and not ss.get("director")
+
+
 def _my_homerooms(request, db):
+    """ห้องที่บัญชีนี้เช็คได้: ไอดีครู = ห้องที่เป็นครูประจำชั้น/คู่ชั้น  เจ้าหน้าที่/ไอดีหลัก/ผอ. = ทุกห้องของปีการศึกษา"""
     from app.models import AcadClass
-    pid = request.session.get("person_id")
-    if not pid:
-        return []
-    pid = int(pid)
+    from app.routers.academic import _acad_year
+    from app.thai_utils import level_key
+    if not _is_teacher(request):
+        cls = db.query(AcadClass).filter(AcadClass.year == _acad_year(db)).all()
+        return sorted(cls, key=lambda c: (level_key(c.level or ""), int(c.room) if (c.room or "").isdigit() else 999))
+    pid = int(request.session.get("person_id"))
     return (db.query(AcadClass).filter((AcadClass.homeroom_id == pid) | (AcadClass.co_homeroom_id == pid))
             .order_by(AcadClass.id).all())
+
+
+def _class_students(c):
+    studs = sorted(c.students, key=lambda s: (s.seq or 9999, s.name or ""))
+    return [s for s in studs if s.student_id], sum(1 for s in studs if not s.student_id)
 
 
 @router.get("/general/assembly", response_class=HTMLResponse)
@@ -328,6 +346,67 @@ def assembly_page(request: Request, db: Session = Depends(get_db), date: str = "
         "request": request, "school": get_school(db), "day": day, "day_be": _be(day), "day_input": _be_input(day),
         "classes": [(x.id, acad_label(x)) for x in classes], "c": c, "c_label": acad_label(c) if c else "",
         "rows": rows, "missing": missing, "states": ASSEMBLY_STATUS, "msg": msg,
+        "is_teacher": _is_teacher(request), "month": day[:7],
+    })
+
+
+def _pick_class(request, db, cid):
+    classes = _my_homerooms(request, db)
+    return next((x for x in classes if x.id == cid), classes[0] if classes else None)
+
+
+@router.get("/general/assembly/print", response_class=HTMLResponse)
+def assembly_print_day(request: Request, db: Session = Depends(get_db), cid: int = 0, date: str = ""):
+    """รายงานการเข้าแถวรายวันของห้อง (ครูพิมพ์ได้เฉพาะห้องตัวเอง)"""
+    from app.routers.academic import _class_label as acad_label
+    day = _valid_date(date)
+    c = _pick_class(request, db, cid)
+    if not c:
+        return RedirectResponse("/general/assembly", status_code=303)
+    studs, _ = _class_students(c)
+    recs = {r.student_id: r for r in db.query(Arrival).filter(
+        Arrival.date == day, Arrival.student_id.in_([s.student_id for s in studs])).all()}
+    rows = [{"no": s.seq or i, "name": s.name, "status": recs[s.student_id].status if s.student_id in recs else ""}
+            for i, s in enumerate(studs, 1)]
+    cnt = {k: sum(1 for r in rows if r["status"] == k) for k in ASSEMBLY_STATUS}
+    teacher = c.homeroom.name if getattr(c, "homeroom", None) else ""
+    return templates.TemplateResponse("general_assembly_print.html", {
+        "request": request, "school": get_school(db), "mode": "day", "c_label": acad_label(c),
+        "day_be": _be(day), "rows": rows, "cnt": cnt, "none": sum(1 for r in rows if not r["status"]),
+        "states": ASSEMBLY_STATUS, "teacher": teacher,
+    })
+
+
+@router.get("/general/assembly/month", response_class=HTMLResponse)
+def assembly_print_month(request: Request, db: Session = Depends(get_db), cid: int = 0, month: str = ""):
+    """รายงานการเข้าแถวรายเดือน: นักเรียน x วันที่ + รวมรายคน"""
+    import calendar
+    from app.routers.academic import _class_label as acad_label
+    from app.thai_utils import _THAI_MONTHS
+    try:
+        y, m = (int(x) for x in (month or _today_iso()[:7]).split("-"))
+    except ValueError:
+        y, m = (int(x) for x in _today_iso()[:7].split("-"))
+    c = _pick_class(request, db, cid)
+    if not c:
+        return RedirectResponse("/general/assembly", status_code=303)
+    studs, _ = _class_students(c)
+    pre = f"{y:04d}-{m:02d}-"
+    recs = db.query(Arrival).filter(Arrival.date.like(pre + "%"),
+                                    Arrival.student_id.in_([s.student_id for s in studs])).all()
+    mark = {(r.student_id, int(r.date[8:10])): r.status for r in recs}
+    days = sorted({d for (_, d) in mark}) or []
+    ndays = calendar.monthrange(y, m)[1]
+    sym = {"ontime": "/", "late": "ส", "absent": "ข", "skip": "ด"}
+    rows = []
+    for i, s in enumerate(studs, 1):
+        cells = [sym.get(mark.get((s.student_id, d), ""), "") for d in days]
+        tot = {k: sum(1 for d in days if mark.get((s.student_id, d)) == k) for k in sym}
+        rows.append({"no": s.seq or i, "name": s.name, "cells": cells, "tot": tot})
+    teacher = c.homeroom.name if getattr(c, "homeroom", None) else ""
+    return templates.TemplateResponse("general_assembly_print.html", {
+        "request": request, "school": get_school(db), "mode": "month", "c_label": acad_label(c),
+        "month_be": f"{_THAI_MONTHS[m]} {y + 543}", "days": days, "ndays": ndays, "rows": rows, "teacher": teacher,
     })
 
 

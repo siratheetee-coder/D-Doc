@@ -53,7 +53,7 @@
 <section class="ta-card">
   <div class="ta-head"><img class="ta-img" src="/static/images/home3d/clock.png" alt="">
     <div class="ta-title">คาบสอนวันนี้<small>{{ ta.today_label }}</small></div>
-    {% if ta.homeroom %}<a class="btn sm" href="/general/assembly">เช็คชื่อเข้าแถว</a>{% endif %}<a class="btn gray sm" href="/academic/timetable">ตารางสอน →</a></div>
+    {% if ta.homeroom %}<a class="btn sm" href="/general/assembly">บันทึกการเข้าแถว</a>{% endif %}<a class="btn gray sm" href="/academic/timetable">ตารางสอน →</a></div>
   {% for l in ta.lessons %}
   <a class="ta-lesson" href="{{ l.href }}">
     <span class="ta-slot">{{ l.slot }}<small>{{ l.minutes }} นาที</small></span>

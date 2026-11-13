@@ -75,7 +75,7 @@
         <a href="/me/letters"><svg class="icon"><use href="#ic-file"/></svg> หนังสือถึงฉัน</a>
         {% if can_use(request.session.get('tid'),'academic') and 'academic' in (request.session.get('mods') or '').split(',') %}<a href="/academic"><svg class="icon"><use href="#ic-clipboard"/></svg> งานวิชาการของฉัน</a>
         <a href="/academic/lesson-plans"><svg class="icon"><use href="#ic-file-plus"/></svg> ส่งแผนการสอน</a>{% endif %}
-        <a href="/general/assembly"><svg class="icon"><use href="#ic-users"/></svg> เช็คชื่อเข้าแถว</a>
+        <a href="/general/assembly"><svg class="icon"><use href="#ic-users"/></svg> บันทึกการเข้าแถว</a>
         <a href="/me/leave"><svg class="icon"><use href="#ic-calendar"/></svg> ส่งใบลา</a>
         <a href="/me/travel"><svg class="icon"><use href="#ic-send"/></svg> ขอไปราชการ</a>
         <a href="/system-updates"><svg class="icon"><use href="#ic-info"/></svg> อัปเดตระบบ</a>
@@ -223,15 +223,14 @@
         <div class="nav-sec">งานบุคคล ของฉัน</div>
         <a href="/me/leave" class="{{ 'active' if path.startswith('/me/leave') }}"><svg class="icon"><use href="#ic-calendar"/></svg> ส่งใบลา</a>
         <a href="/me/travel" class="{{ 'active' if path.startswith('/me/travel') }}"><svg class="icon"><use href="#ic-send"/></svg> ขอไปราชการ</a>
-        <a href="/general/assembly" class="{{ 'active' if path.startswith('/general/assembly') }}"><svg class="icon"><use href="#ic-users"/></svg> เช็คชื่อเข้าแถว</a>
+        <a href="/general/assembly" class="{{ 'active' if path.startswith('/general/assembly') or path.startswith('/general/arrival') }}"><svg class="icon"><use href="#ic-users"/></svg> บันทึกการเข้าแถว</a>
         <a href="/me/letters" class="{{ 'active' if path.startswith('/me/letters') }}"><svg class="icon"><use href="#ic-file"/></svg> หนังสือถึงฉัน</a>
         {% endif %}
 
         {% elif module == 'general' %}
         <div class="nav-sec">งานบริหารทั่วไป</div>
         <a href="/general" class="{{ 'active' if path == '/general' }}"><svg class="icon"><use href="#ic-home"/></svg> หน้าหลัก</a>
-        <a href="/general/arrival" class="{{ 'active' if path.startswith('/general/arrival') }}"><svg class="icon"><use href="#ic-calendar"/></svg> บันทึกการเข้าแถว</a>
-        <a href="/general/assembly" class="{{ 'active' if path.startswith('/general/assembly') }}"><svg class="icon"><use href="#ic-users"/></svg> เช็คชื่อเข้าแถว (ครูประจำชั้น)</a>
+        <a href="/general/assembly" class="{{ 'active' if path.startswith('/general/assembly') or path.startswith('/general/arrival') }}"><svg class="icon"><use href="#ic-users"/></svg> บันทึกการเข้าแถว</a>
         <a href="/general/trips" class="{{ 'active' if path.startswith('/general/trips') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> ทัศนศึกษา</a>
 
         {% else %}{# hub #}

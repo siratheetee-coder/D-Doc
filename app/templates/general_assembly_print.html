@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>รายงานการเข้าแถว {{ c_label }} {{ day_be if mode == 'day' else month_be }}</title>
+<style>
+  @page { size: A4 {{ 'landscape' if mode == 'month' else 'portrait' }}; margin: 14mm 12mm; }
+  body { font-family: "TH SarabunPSK","Sarabun",sans-serif; font-size: 16pt; color:#000; margin:0; }
+  h1 { text-align:center; font-size:20pt; margin:0; }
+  .sub { text-align:center; margin:2px 0 10px; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { border:1px solid #000; padding:2px 6px; }
+  th { background:#eef2ff; }
+  .c { text-align:center; }
+  .sum { margin:8px 0; }
+  .sign { margin-top:28px; width:46%; margin-left:auto; text-align:center; line-height:1.9; }
+  .m td, .m th { font-size:12pt; padding:1px 2px; text-align:center; }
+  .m td.n { text-align:left; white-space:nowrap; }
+  .noprint { margin:10px 0; text-align:center; }
+  @media print { .noprint { display:none; } }
+</style></head>
+<body>
+<div class="noprint"><button onclick="window.print()" style="font-size:16px;padding:8px 18px;border-radius:10px;border:0;background:#4f46e5;color:#fff;cursor:pointer;">พิมพ์</button></div>
+<h1>รายงานการเข้าแถว{{ 'ประจำวัน' if mode == 'day' else 'ประจำเดือน' }}</h1>
+<p class="sub">{{ school.name }}  ชั้น {{ c_label }}  {{ ('วันที่ ' ~ day_be) if mode == 'day' else ('เดือน ' ~ month_be) }}</p>
+
+{% if mode == 'day' %}
+<table>
+  <thead><tr><th class="c" style="width:60px;">เลขที่</th><th>ชื่อ - นามสกุล</th><th class="c" style="width:130px;">การเข้าแถว</th></tr></thead>
+  <tbody>
+  {% for r in rows %}<tr><td class="c">{{ r.no }}</td><td>{{ r.name }}</td><td class="c">{{ states.get(r.status, '-') }}</td></tr>{% endfor %}
+  </tbody>
+</table>
+<p class="sum">รวม {{ rows|length }} คน  มา {{ cnt.ontime }} คน  สาย {{ cnt.late }} คน  ขาด {{ cnt.absent }} คน  โดดแถว {{ cnt.skip }} คน{% if none %}  ยังไม่เช็ค {{ none }} คน{% endif %}</p>
+{% else %}
+<table class="m">
+  <thead><tr><th rowspan="2">เลขที่</th><th rowspan="2">ชื่อ - นามสกุล</th><th colspan="{{ days|length or 1 }}">วันที่</th><th colspan="4">รวม (ครั้ง)</th></tr>
+  <tr>{% for d in days %}<th>{{ d }}</th>{% else %}<th>-</th>{% endfor %}<th>มา</th><th>สาย</th><th>ขาด</th><th>โดด</th></tr></thead>
+  <tbody>
+  {% for r in rows %}<tr><td>{{ r.no }}</td><td class="n">{{ r.name }}</td>{% for x in r.cells %}<td>{{ x }}</td>{% else %}<td></td>{% endfor %}<td>{{ r.tot.ontime }}</td><td>{{ r.tot.late }}</td><td>{{ r.tot.absent }}</td><td>{{ r.tot.skip }}</td></tr>{% endfor %}
+  </tbody>
+</table>
+<p class="sum" style="font-size:13pt;">สัญลักษณ์  / = มา  ส = สาย  ข = ขาด  ด = โดดแถว  แสดงเฉพาะวันที่มีการเช็ค</p>
+{% endif %}
+
+<div class="sign">ลงชื่อ...........................................<br>( {{ teacher or '...........................................' }} )<br>ครูประจำชั้น</div>
+</body></html>
