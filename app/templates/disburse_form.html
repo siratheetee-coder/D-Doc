@@ -95,11 +95,70 @@
     <a class="btn sm gray" href="/finance/disburse-register.docx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> พิมพ์ทะเบียนคุมหลักฐานขอเบิก (Word)</a>
   </div>
   {% if rows %}
-  <div class="table-wrap"><table>
+  <style>
+  .dv-bar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin:12px 0}
+  .dv-tabs{display:flex;flex-wrap:wrap;gap:6px}
+  .dv-tabs button{border:0;border-radius:999px;padding:7px 14px;font:inherit;font-size:13.5px;font-weight:700;color:#475569;background:#f1f5f9;cursor:pointer}
+  .dv-tabs button b{margin-left:4px;padding:0 7px;border-radius:999px;background:#fff;color:#334155;font-size:12px}
+  .dv-tabs button.on{background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;box-shadow:0 4px 10px rgba(22,163,74,.3)}
+  .dv-tabs button.on b{background:rgba(255,255,255,.25);color:#fff}
+  .dv-view{display:inline-flex;gap:4px;padding:4px;border-radius:12px;background:#f1f5f9}
+  .dv-view button{border:0;border-radius:9px;padding:6px 12px;font:inherit;font-size:13px;font-weight:700;color:#64748b;background:none;cursor:pointer}
+  .dv-view button.on{background:#fff;color:#15803d;box-shadow:0 2px 6px rgba(15,23,42,.1)}
+  .dvt-wrap{display:none}body.dv-table .dvt-wrap{display:block}body.dv-table .dvc-list{display:none}
+  .dvc-list{display:grid;gap:12px}
+  .dvc{position:relative;display:flex;gap:16px;align-items:center;background:#fff;border-radius:16px;padding:14px 16px 14px 20px;box-shadow:0 1px 3px rgba(15,23,42,.06),0 6px 18px rgba(15,23,42,.05);overflow:hidden}
+  .dvc::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--bar)}
+  .dvc-ic{flex:none;width:58px;height:58px;border-radius:16px;box-shadow:0 6px 14px rgba(15,23,42,.15)}
+  .dvc-main{flex:1;min-width:0}
+  .dvc-t{font-size:16.5px;font-weight:800;color:#14532d;text-decoration:none;display:block;line-height:1.35}
+  .dvc-t:hover{text-decoration:underline}
+  .dvc-meta{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:#64748b;margin-top:3px}
+  .dvc-steps{display:flex;margin-top:10px;max-width:330px}
+  .dvc-steps>div{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11.5px;color:#94a3b8}
+  .dvc-steps>div:not(:first-child)::before{content:"";position:absolute;top:11px;right:50%;width:100%;height:3px;background:#e2e8f0}
+  .dvc-steps i{font-style:normal;width:24px;height:24px;border-radius:50%;background:#e2e8f0;color:#64748b;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;position:relative;z-index:1}
+  .dvc-steps .done{color:#166534}.dvc-steps .done i{background:linear-gradient(135deg,#4ade80,#16a34a);color:#fff}
+  .dvc-steps .done::before,.dvc-steps .now::before{background:#86efac!important}
+  .dvc-steps .now{color:#b45309;font-weight:700}.dvc-steps .now i{background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#fff;box-shadow:0 0 0 4px #fef3c7}
+  .dvc-side{flex:none;width:180px;display:flex;flex-direction:column;align-items:flex-end;gap:7px;padding-left:16px;border-left:1px solid #eef2f7}
+  .dvc-amt{font-size:19px;font-weight:800;color:#0f172a}.dvc-amt small{font-size:12px;color:#64748b;font-weight:600}
+  .dvc-pill{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;padding:4px 12px;border-radius:999px;background:var(--pb);color:var(--pc)}
+  @media(max-width:860px){.dvc{flex-wrap:wrap}.dvc-ic{width:48px;height:48px}.dvc-main{flex-basis:calc(100% - 64px)}.dvc-side{width:100%;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;border-left:0;padding-left:0;border-top:1px solid #eef2f7;padding-top:10px}}
+  </style>
+  <div class="dv-bar">
+    <div class="dv-tabs">{% for f,l in [('all','ทั้งหมด'),('draft','ร่าง'),('approved','อนุมัติ รอจ่าย'),('paid','จ่ายแล้ว')] %}<button type="button" data-f="{{ f }}" onclick="dvFilter('{{ f }}')">{{ l }}<b>0</b></button>{% endfor %}</div>
+    <div class="dv-view"><button type="button" data-v="card" onclick="dvView('card')">การ์ด</button><button type="button" data-v="table" onclick="dvView('table')">ตาราง</button></div>
+  </div>
+  <div class="dvc-list">
+  {% for m in rows %}
+    {% set k = {'ร่าง':0,'อนุมัติ':1,'จ่ายแล้ว':2}.get(m.status, 0) %}
+    {% set st = [('ร่าง','#f1f5f9','#475569','#94a3b8'),('อนุมัติ รอจ่าย','#fef3c7','#92400e','#f59e0b'),('จ่ายแล้ว','#dcfce7','#166534','#22c55e')][k] %}
+    <div class="dvc" style="--bar:{{ st[3] }};" data-st="{{ ['draft','approved','paid'][k] }}">
+      <img class="dvc-ic" src="/static/images/home3d/mod_finance.png" alt="">
+      <div class="dvc-main">
+        <a class="dvc-t" href="/finance/disburse/{{ m.id }}">{{ m.subject or "-" }}</a>
+        <div class="dvc-meta">
+          <span><b>เลขที่ {{ m.memo_no or "-" }}</b></span>
+          <span>{{ thai_date(m.date) if m.date else "ยังไม่ระบุวันที่" }}</span>
+          <span>จ่ายให้ {{ m.payee or "-" }}</span>
+          {% if m.account %}<span>{{ m.account.name }}</span>{% endif %}
+        </div>
+        <div class="dvc-steps">{% for lb in ['ร่าง','อนุมัติ','จ่ายแล้ว'] %}<div class="{{ 'done' if loop.index0 < k or k == 2 else 'now' if loop.index0 == k else '' }}"><i>{{ '✓' if loop.index0 < k or k == 2 else loop.index }}</i><span>{{ lb }}</span></div>{% endfor %}</div>
+      </div>
+      <div class="dvc-side">
+        <div class="dvc-amt">{{ "{:,.2f}".format(m.amount or 0) }} <small>บาท</small></div>
+        <span class="dvc-pill" style="--pb:{{ st[1] }};--pc:{{ st[2] }};">{{ st[0] }}</span>
+        <a class="btn sm gray" href="/finance/disburse/{{ m.id }}">เปิดบันทึก <svg class="icon"><use href="#ic-arrow-right"/></svg></a>
+      </div>
+    </div>
+  {% endfor %}
+  </div>
+  <div class="dvt-wrap">  <div class="table-wrap"><table>
     <thead><tr><th>เลขที่</th><th>วันที่</th><th>เรื่อง</th><th>จ่ายให้</th><th class="right">จำนวนเงิน</th><th>สถานะ</th></tr></thead>
     <tbody>
       {% for m in rows %}
-      <tr>
+      <tr data-st="{{ {'ร่าง':'draft','อนุมัติ':'approved','จ่ายแล้ว':'paid'}.get(m.status,'draft') }}">
         <td><a href="/finance/disburse/{{ m.id }}"><b>{{ m.memo_no or "-" }}</b></a></td>
         <td>{{ thai_date(m.date) if m.date else "-" }}</td>
         <td>{{ m.subject or "-" }}</td>
@@ -110,6 +169,19 @@
       {% endfor %}
     </tbody>
   </table></div>
+</div>
+  <script>
+  function dvView(v){ document.body.classList.toggle('dv-table', v==='table');
+    document.querySelectorAll('.dv-view button').forEach(function(b){ b.classList.toggle('on', b.dataset.v===v); });
+    try{ localStorage.setItem('ddoc_dv_view', v); }catch(e){} }
+  function dvFilter(f){
+    document.querySelectorAll('.dvc[data-st], .dvt-wrap tr[data-st]').forEach(function(el){ el.style.display=(f==='all'||el.dataset.st===f)?'':'none'; });
+    document.querySelectorAll('.dv-tabs button').forEach(function(b){ b.classList.toggle('on', b.dataset.f===f); }); }
+  (function(){ var c={all:0,draft:0,approved:0,paid:0};
+    document.querySelectorAll('.dvc[data-st]').forEach(function(el){ c.all++; c[el.dataset.st]++; });
+    document.querySelectorAll('.dv-tabs button').forEach(function(b){ b.querySelector('b').textContent=c[b.dataset.f]||0; });
+    var v='card'; try{ v=localStorage.getItem('ddoc_dv_view')||'card'; }catch(e){} dvView(v); dvFilter('all'); })();
+  </script>
   {% else %}<p class="muted">ยังไม่มีบันทึกขอเบิกจ่าย</p>{% endif %}
 </div>
 
