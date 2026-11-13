@@ -292,6 +292,7 @@ class Procurement(Base):
     budget_source = Column(String, default="เงินอุดหนุน")  # แหล่งงบประมาณ
     total_amount = Column(Float, default=0.0)      # วงเงินรวม (บาท)
     price_ref_source = Column(String, default="การสืบราคาจากท้องตลาด")  # ที่มาราคากลาง
+    price_ref = Column(Float, default=0.0)         # ราคากลาง (บาท) 0 = ใช้ยอดรวมรายการ
 
     delivery_days = Column(Integer, default=7)     # กำหนดส่งมอบภายใน (วัน)
     # ---- ใช้ใน TOR/ขอบเขตของงาน ตามระเบียบฯ ข้อ 21 ----

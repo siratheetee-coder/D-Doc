@@ -1994,6 +1994,7 @@ def _populate_proc_from_form(proc: Procurement, form, db: Session, threshold: fl
     _collect_case_extra(proc, form)
     proc.budget_source = (form.get("budget_source") or "อุดหนุน").strip()
     proc.price_ref_source = (form.get("price_ref_source") or "การสืบราคาจากท้องตลาด").strip()
+    proc.price_ref = max(_to_float((form.get("price_ref") or "").replace(",", ""), 0.0), 0.0)
     proc.delivery_days = _to_int(form.get("delivery_days"), 7)
     proc.vat_mode = form.get("vat_mode") or "none"
     proc.wht_rate = _to_float(form.get("wht_rate"), 0.0)

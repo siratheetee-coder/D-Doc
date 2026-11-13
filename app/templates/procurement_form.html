@@ -102,6 +102,8 @@
       {% if not is_special %}
       <div><label>ที่มาราคากลาง</label>
         <input name="price_ref_source" value="{{ p.price_ref_source if is_edit else 'การสืบราคาจากท้องตลาด' }}"></div>
+      <div><label>ราคากลาง (บาท)</label>
+        <input name="price_ref" inputmode="decimal" placeholder="เว้นว่าง = ใช้ยอดรวมรายการ" value="{{ '{:,.2f}'.format(p.price_ref) if is_edit and p.price_ref else '' }}"></div>
       <div><label>กำหนดส่งมอบ (วัน)</label>
         <input name="delivery_days" type="number" value="{{ p.delivery_days if is_edit else prefill_delivery|default(7) }}"></div>
       {% endif %}

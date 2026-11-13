@@ -755,6 +755,7 @@ def _sync_book_procurement(db: Session, tp: TextbookPurchase, groups) -> "Procur
     proc.total_amount = round(total, 2)
     proc.delivery_days = tp.delivery_days or 15
     proc.price_ref_source = "ราคาตามบัญชีกำหนดสื่อการเรียนรู้ฯ / สืบราคาจากสำนักพิมพ์"
+    proc.price_ref = tp.price_ref or 0.0
     # ผู้ขาย: ใช้ที่กรอกไว้ในหน้าหนังสือเรียน (ยังไม่มีในระบบ = สร้างให้อัตโนมัติ)
     vname = (tp.vendor_name or "").strip()
     if vname:

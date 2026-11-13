@@ -50,6 +50,7 @@ MIGRATIONS = [
     ("procurement", "quote_valid_days", "INTEGER DEFAULT 30"),
     ("procurement", "warranty_text", "VARCHAR DEFAULT '1 ปี'"),
     ("procurement", "fix_days", "INTEGER DEFAULT 7"),
+    ("procurement", "price_ref", "FLOAT DEFAULT 0"),
     ("school", "delegation_cmd_no", "VARCHAR DEFAULT ''"),
     ("school", "delegation_cmd_date", "DATETIME"),
     ("field_trip", "schedule", "TEXT DEFAULT ''"),

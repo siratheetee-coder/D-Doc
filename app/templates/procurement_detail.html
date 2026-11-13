@@ -155,6 +155,7 @@
     <tr><th>วิธี</th><td>{{ p.method }}</td></tr>
     <tr><th>เหตุผลความจำเป็น</th><td>{{ p.purpose or "-" }}</td></tr>
     <tr><th>แหล่งงบ / ที่มาราคากลาง</th><td>{{ p.budget_source }} / {{ p.price_ref_source }}</td></tr>
+    <tr><th>ราคากลาง</th><td>{{ "{:,.2f}".format(p.price_ref or p.total_amount or 0) }} บาท{% if not p.price_ref %} <span class="muted">(ใช้ยอดรวมรายการ)</span>{% endif %}</td></tr>
     <tr><th>ผู้ขาย/ผู้รับจ้าง</th><td>{{ p.vendor.name if p.vendor else "-" }}</td></tr>
     <tr><th>วงเงินรวม</th><td><b>{{ "{:,.2f}".format(p.total_amount or 0) }}</b> บาท ({{ bahttext(p.total_amount or 0) }})</td></tr>
     <tr><th>ผู้ตรวจรับ</th><td>

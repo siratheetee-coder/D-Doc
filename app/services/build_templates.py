@@ -495,7 +495,7 @@ def build_purchase_request():
 
     _p(doc, "1.  เหตุผลและความจำเป็นที่จะต้อง{{ proc_type }} คือ  {{ purpose }}", align="justify", indent=1.25, after=0)
     _p(doc, "2.  รายละเอียดงานที่จะ{{ proc_type }}คือ ... (รายละเอียดตามบันทึกที่แนบ)", indent=1.25, after=0)
-    _p(doc, "3.  ราคากลางของ{{ obj_word }}ที่จะ{{ proc_type }} เป็นเงิน  {{ total_amount }}  บาท", indent=1.25, after=0)
+    _p(doc, "3.  ราคากลางของ{{ obj_word }}ที่จะ{{ proc_type }} เป็นเงิน  {{ price_ref }}  บาท", indent=1.25, after=0)
     _p(doc, "4.  วงเงินที่จะ{{ proc_type }}ครั้งนี้ จำนวน {{ total_amount }} บาท ({{ total_baht }})", indent=1.25, after=0)
     _p(doc, "5.  กำหนดส่งมอบ{{ obj_word }}ภายใน {{ delivery_days }} วัน (การนับวันนับถัดจากวันลงนาม)", indent=1.25, after=0)
     _p(doc,
@@ -1122,7 +1122,7 @@ def build_tor():
     _p(doc, "ชื่อโครงการ  {{ project_name }}", indent=1.25, after=0)
     _p(doc, "{%p endif %}")
     _p(doc, "เงินงบประมาณ  {{ total_amount }} บาท ({{ total_baht }})", indent=1.25, after=0)
-    _p(doc, "ราคากลาง  {{ total_amount }} บาท ({{ total_baht }})", indent=1.25)
+    _p(doc, "ราคากลาง  {{ price_ref }} บาท ({{ price_ref_baht }})", indent=1.25)
 
     _p(doc, "2. วัตถุประสงค์", bold=True, underline=True, after=0)
     _p(doc, "{{ objective }}", align="justify", indent=1.25)

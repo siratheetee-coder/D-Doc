@@ -166,6 +166,9 @@ def build_context(proc, school) -> dict:
         "items": items,
         "total_amount": _money(proc.total_amount),
         "total_baht": bahttext(proc.total_amount or 0),
+        # ราคากลาง: กรอกเองได้ในฟอร์ม เว้นว่าง = ยอดรวมรายการ
+        "price_ref": _money(getattr(proc, "price_ref", 0) or proc.total_amount),
+        "price_ref_baht": bahttext(getattr(proc, "price_ref", 0) or proc.total_amount or 0),
 
         "inspection_mode": proc.inspection_mode or "single",
         "inspector_name": inspector_name or "..............................",
