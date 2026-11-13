@@ -103,7 +103,8 @@
       <div><label>ที่มาราคากลาง</label>
         <input name="price_ref_source" value="{{ p.price_ref_source if is_edit else 'การสืบราคาจากท้องตลาด' }}"></div>
       <div><label>ราคากลาง (บาท)</label>
-        <input name="price_ref" inputmode="decimal" placeholder="เว้นว่าง = ใช้ยอดรวมรายการ" value="{{ '{:,.2f}'.format(p.price_ref) if is_edit and p.price_ref else '' }}"></div>
+        <input name="price_ref" inputmode="decimal" placeholder="เว้นว่าง = ใช้ยอดรวมรายการ" value="{{ '{:,.2f}'.format(p.price_ref) if is_edit and p.price_ref else '' }}" oninput="checkPriceRef()">
+        <div id="priceRefWarn" style="display:none;margin-top:6px;padding:8px 10px;border-radius:10px;background:#fff7ed;color:#c2410c;font-size:13px;font-weight:600;"></div></div>
       <div><label>กำหนดส่งมอบ (วัน)</label>
         <input name="delivery_days" type="number" value="{{ p.delivery_days if is_edit else prefill_delivery|default(7) }}"></div>
       {% endif %}
@@ -526,6 +527,16 @@
     refreshAllRoles();
     tr.querySelector('input').focus();
   }
+  // ราคากลางสูงกว่าวงเงิน (ยอดรวมรายการ) -> เตือน ไม่บล็อกการบันทึก
+  window.checkPriceRef = function() {
+    var inp = document.querySelector('input[name="price_ref"]'), w = document.getElementById('priceRefWarn');
+    if (!inp || !w) return;
+    var ref = parseFloat((inp.value || '').replace(/,/g, '')) || 0, t = window._procTotal || 0;
+    if (ref > 0 && t > 0 && ref > t) {
+      w.textContent = 'ราคากลางสูงกว่างบประมาณ ' + (ref - t).toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' บาท ตรวจตัวเลขอีกครั้ง หรือขออนุมัติเพิ่มวงเงินก่อน';
+      w.style.display = 'block';
+    } else { w.style.display = 'none'; }
+  };
   function calcTotal() {
     var t = 0;
     document.querySelectorAll('#items tbody tr').forEach(function(tr){
@@ -538,6 +549,7 @@
     var tStr = t.toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2});
     document.getElementById('totalShow').innerText = tStr;
     var gt = document.getElementById('grandTotal'); if (gt) gt.innerText = tStr;
+    window._procTotal = t; checkPriceRef();
     // บังคับโหมดตามวงเงิน: เกินเกณฑ์ -> คณะกรรมการ (ปิดตัวเลือกคนเดียว)
     var modeSel = document.getElementById('mode');
     if (!modeSel) return;   // ฟอร์มแบบพิเศษไม่มีส่วนคณะกรรมการ
