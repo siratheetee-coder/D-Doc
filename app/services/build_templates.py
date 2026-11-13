@@ -488,7 +488,7 @@ def build_purchase_request():
     # ===== เนื้อหา (บีบระยะห่าง after=0 เพื่อให้ทั้งฉบับอยู่หน้าเดียว) =====
     _p(doc,
        "ด้วย {{ department }} มีความประสงค์จะ{{ proc_type }}{{ subject }} จำนวน {{ item_count }} รายการ "
-       "จากเงิน{{ budget_source }} ตามโครงการ{{ project_name }} จำนวน {{ total_amount }} บาท "
+       "จาก{{ budget_source if budget_source.startswith('เงิน') else 'เงิน' ~ budget_source }} ตามโครงการ{{ project_name }} จำนวน {{ total_amount }} บาท "
        "({{ total_baht }}) รายละเอียดดังแนบ",
        align="justify", indent=1.25, after=0)
     _p(doc, LEGAL_INTRO, align="justify", indent=1.25, after=0)
@@ -1119,7 +1119,7 @@ def build_tor():
             "จำนวน คุณลักษณะ เงื่อนไขการส่งมอบ และการรับประกันให้ชัดเจน "
             "สำหรับใช้ประกอบการเสนอราคาและการตรวจรับต่อไป", align="justify", indent=1.25, after=0)
     _p(doc, "{%p if project_name %}")
-    _p(doc, "ชื่อโครงการ  {{ project_name }}", indent=1.25, after=0)
+    _p(doc, "ชื่อโครงการ  โครงการ{{ project_name }}", indent=1.25, after=0)
     _p(doc, "{%p endif %}")
     _p(doc, "เงินงบประมาณ  {{ total_amount }} บาท ({{ total_baht }})", indent=1.25, after=0)
     _p(doc, "ราคากลาง  {{ price_ref }} บาท ({{ price_ref_baht }})", indent=1.25)
@@ -1148,7 +1148,7 @@ def build_tor():
             "เกณฑ์ราคา โดยพิจารณาจากราคารวม{% if item_count > 1 %} หรือราคาต่อรายการ{% endif %}", align="justify", indent=1.25)
 
     _p(doc, "7. งบประมาณในการดำเนินการ", bold=True, underline=True, after=0)
-    _p(doc, "ในการ{{ proc_type }}ครั้งนี้ ใช้งบประมาณจากเงิน{{ budget_source }} จำนวนเงิน "
+    _p(doc, "ในการ{{ proc_type }}ครั้งนี้ ใช้งบประมาณจาก{{ budget_source if budget_source.startswith('เงิน') else 'เงิน' ~ budget_source }} จำนวนเงิน "
             "{{ total_amount }} บาท ({{ total_baht }})", align="justify", indent=1.25)
 
     _p(doc, "8. อัตราค่าปรับ", bold=True, underline=True, after=0)
