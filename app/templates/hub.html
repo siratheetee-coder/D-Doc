@@ -94,6 +94,7 @@
     .hub-go, .hub-buy { font-size: 13.5px; }
     .hub-trial { top: 10px; right: 10px; font-size: 10.5px; padding: 2px 8px; }
   }
+.ov-3d{flex:none;width:44px;height:44px;border-radius:14px;box-shadow:0 5px 12px rgba(15,23,42,.15)}
 .hub-ic3d{width:52px;height:52px;border-radius:15px;box-shadow:0 6px 14px rgba(15,23,42,.16);display:block;margin-bottom:10px}
 </style>
 
@@ -250,13 +251,13 @@
   <div class="card" style="margin-top:22px;">
     <h2>ภาพรวมปีงบประมาณ {{ fiscal_year }}</h2>
     <div class="ov-grid">
-      <div class="ov-box"><span class="ov-ic ov-blue"><svg class="icon"><use href="#ic-clipboard"/></svg></span><div><div class="n">{{ stats.proc }}</div><div class="l">เรื่องจัดซื้อจัดจ้าง</div></div></div>
-      <div class="ov-box"><span class="ov-ic ov-purple"><svg class="icon"><use href="#ic-file"/></svg></span><div><div class="n">{{ stats.memo }}</div><div class="l">บันทึกข้อความ</div></div></div>
-      <div class="ov-box"><span class="ov-ic ov-purple"><svg class="icon"><use href="#ic-clipboard"/></svg></span><div><div class="n">{{ stats.order }}</div><div class="l">คำสั่งโรงเรียน</div></div></div>
-      <div class="ov-box"><span class="ov-ic ov-amber"><svg class="icon"><use href="#ic-download"/></svg></span><div><div class="n">{{ stats.incoming }}</div><div class="l">หนังสือรับ</div></div></div>
-      <div class="ov-box"><span class="ov-ic ov-amber"><svg class="icon"><use href="#ic-upload"/></svg></span><div><div class="n">{{ stats.outgoing }}</div><div class="l">หนังสือส่ง</div></div></div>
-      <div class="ov-box"><span class="ov-ic ov-blue"><svg class="icon"><use href="#ic-package"/></svg></span><div><div class="n">{{ stats.asset }}</div><div class="l">ครุภัณฑ์</div></div></div>
-      <div class="ov-box"><span class="ov-ic ov-green"><svg class="icon"><use href="#ic-clipboard"/></svg></span><div><div class="n">{{ stats.material }}</div><div class="l">รายการวัสดุ</div></div></div>
+      <div class="ov-box"><img class="ov-3d" src="/static/images/home3d/st_proc.png" alt=""><div><div class="n">{{ stats.proc }}</div><div class="l">เรื่องจัดซื้อจัดจ้าง</div></div></div>
+      <div class="ov-box"><img class="ov-3d" src="/static/images/home3d/st_memo.png" alt=""><div><div class="n">{{ stats.memo }}</div><div class="l">บันทึกข้อความ</div></div></div>
+      <div class="ov-box"><img class="ov-3d" src="/static/images/home3d/st_order.png" alt=""><div><div class="n">{{ stats.order }}</div><div class="l">คำสั่งโรงเรียน</div></div></div>
+      <div class="ov-box"><img class="ov-3d" src="/static/images/home3d/st_in.png" alt=""><div><div class="n">{{ stats.incoming }}</div><div class="l">หนังสือรับ</div></div></div>
+      <div class="ov-box"><img class="ov-3d" src="/static/images/home3d/st_out.png" alt=""><div><div class="n">{{ stats.outgoing }}</div><div class="l">หนังสือส่ง</div></div></div>
+      <div class="ov-box"><img class="ov-3d" src="/static/images/home3d/st_asset.png" alt=""><div><div class="n">{{ stats.asset }}</div><div class="l">ครุภัณฑ์</div></div></div>
+      <div class="ov-box"><img class="ov-3d" src="/static/images/home3d/st_material.png" alt=""><div><div class="n">{{ stats.material }}</div><div class="l">รายการวัสดุ</div></div></div>
     </div>
   </div>
 </div>
