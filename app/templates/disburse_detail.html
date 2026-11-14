@@ -4,7 +4,7 @@
 {% block content %}
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-    <h1 style="margin:0;">บันทึกขอเบิกจ่าย {{ m.memo_no or "" }}</h1>
+    <h1 class="dm-heading"><img src="/static/images/finance3d/document-money.png" class="dm-title-art" width="58" height="58" alt="" aria-hidden="true"> <span>บันทึกขอเบิกจ่าย {{ m.memo_no or "" }}</span></h1>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <a class="btn gray sm" href="/finance/disburse?year={{ m.fiscal_year }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a>
       <a class="btn sm" href="/finance/disburse/{{ m.id }}/generate"><svg class="icon"><use href="#ic-download"/></svg> ดาวน์โหลด Word</a>
@@ -136,7 +136,7 @@
 </div>
 
 <div class="card dm-records" id="existing-payments">
-  <h2>เคยบันทึกจ่ายเงินไว้แล้วหรือไม่?</h2>
+  <div class="dm-related-heading"><img src="/static/images/finance3d/link-records.png" width="60" height="60" alt="" aria-hidden="true" loading="lazy"><div><h2>เคยบันทึกจ่ายเงินไว้แล้วหรือไม่?</h2><small>ใช้รายการจ่ายเดิม โดยไม่ตัดเงินเพิ่ม</small></div></div>
   <p>หากเคยบันทึกจ่ายเงินในหน้ารับ–จ่ายแล้ว ไม่ต้องลงจ่ายซ้ำ ให้ <strong>เชื่อมรายการจ่ายที่บันทึกไว้แล้ว</strong> กับบันทึกนี้ ยอดเงินจะไม่ถูกตัดเพิ่ม</p>
   {% if posted %}
     {% if payment_info.own[0].linked_existing %}
@@ -205,6 +205,6 @@
 <script>window.PJ_ACTS = {{ pj_acts|tojson }};</script>
 <script src="/static/project_activity.js?v=1"></script>
 <script>window.SUGGEST_NAMES = {{ names|tojson }};</script>
-<link rel="stylesheet" href="/static/disburse_payment.css?v=1">
+<link rel="stylesheet" href="/static/disburse_payment.css?v=2">
 <script src="/static/disburse_payment.js?v=1" defer></script>
 {% endblock %}

@@ -4,7 +4,7 @@
 {% set stale_source = lunch_source and lunch_source.stale %}
 {% set can_pay = not posted and not legacy_paid and not payment_info.managed and payment_info.remaining > 0 and m.account_id and not needs_approval and not stale_source %}
 <section class="dm-payment {{ 'dm-paid' if posted else '' }}" aria-labelledby="dm-payment-title">
-  <div class="dm-state"><span class="dm-state-icon"><svg class="icon" aria-hidden="true"><use href="#ic-{{ 'check' if posted else 'coins' }}"/></svg></span><div><h2 id="dm-payment-title">{{ 'บันทึกจ่ายเงินจริงแล้ว' if posted else 'ยังไม่ได้บันทึกจ่ายเงินจริง' }}</h2><p>{% if posted %}ลงทะเบียนคุมเงินแล้ว{% if posted_txn %} · วันที่ {{ be_date(posted_txn.date) }}{% endif %}{% if lunch_source %} · อัปเดตงวดอาหารกลางวันแล้ว{% endif %}{% else %}การบันทึกขอเบิกยังไม่ตัดยอดในทะเบียนคุมเงิน{% endif %}</p></div>
+  <div class="dm-state"><span class="dm-state-icon"><img class="dm-state-art" src="/static/images/finance3d/{{ 'wallet-paid' if posted else 'wallet-pending' }}.png" width="76" height="76" alt="" aria-hidden="true"></span><div><h2 id="dm-payment-title">{{ 'บันทึกจ่ายเงินจริงแล้ว' if posted else 'ยังไม่ได้บันทึกจ่ายเงินจริง' }}</h2><p>{% if posted %}ลงทะเบียนคุมเงินแล้ว{% if posted_txn %} · วันที่ {{ be_date(posted_txn.date) }}{% endif %}{% if lunch_source %} · อัปเดตงวดอาหารกลางวันแล้ว{% endif %}{% else %}การบันทึกขอเบิกยังไม่ตัดยอดในทะเบียนคุมเงิน{% endif %}</p></div>
     {% if ap_state and ap_state.code in ('approved','signed') %}<span class="dm-approved"><svg class="icon"><use href="#ic-check"/></svg> ผอ. อนุมัติแล้ว</span>{% endif %}
   </div>
   <div class="dm-summary"><div class="dm-amounts"><div><small>ยอดขอเบิก</small><strong>{{ '{:,.2f}'.format(m.amount or 0) }} <span>บาท</span></strong></div><div><small>จ่ายสุทธิ</small><strong>{{ '{:,.2f}'.format((m.amount or 0)-(m.wht or 0)-(m.fine or 0)) }} <span>บาท</span></strong></div></div>
@@ -24,7 +24,7 @@
 </section>
 {% if can_pay %}
 <dialog id="disburse-payment-dialog" class="dm-dialog" aria-labelledby="dm-dialog-title">
-  <div class="dm-dialog-head"><div><span>บันทึกขอเบิก {{ m.memo_no or m.id }}</span><h2 id="dm-dialog-title">ยืนยันบันทึกจ่ายเงินจริง</h2></div><button type="button" data-dm-close class="dm-close" aria-label="ปิดหน้าต่าง">✕</button></div>
+  <div class="dm-dialog-head"><img class="dm-dialog-art" src="/static/images/finance3d/bank-transfer.png" width="64" height="64" alt="" aria-hidden="true" loading="lazy"><div><span>บันทึกขอเบิก {{ m.memo_no or m.id }}</span><h2 id="dm-dialog-title">ยืนยันบันทึกจ่ายเงินจริง</h2></div><button type="button" data-dm-close class="dm-close" aria-label="ปิดหน้าต่าง">✕</button></div>
   <form method="post" action="/finance/disburse/{{ m.id }}/post" id="dm-payment-form">
     <div class="dm-dialog-body">
       {% if lunch_source %}<label for="lunch-paid-date">วันที่จ่ายเงินจริง <span class="dm-required">*</span></label><input id="lunch-paid-date" name="paid_date" placeholder="วว/ดด/ปปปป" data-date="1" required autocomplete="off"><small class="dm-hint">ลงบัญชีตามวันที่จ่ายจริง โดยเก็บวันที่บันทึกขอเบิกไว้ตามเดิม</small>{% else %}<label>วันที่ลงรายการจ่าย</label><div class="dm-readonly">{{ be_date(m.date) if m.date else 'ใช้วันที่ปัจจุบันเมื่อยืนยัน' }}</div><small class="dm-hint">ใช้วันที่ที่บันทึกไว้ในรายละเอียดขอเบิก</small>{% endif %}
