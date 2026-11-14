@@ -8,7 +8,8 @@ lunch.py - งานอาหารกลางวัน
 import re
 from datetime import datetime, timedelta
 
-from app.services import school_calendar as sc, lunch_calendar as lcal
+from app.services import school_calendar as sc, lunch_calendar as lcal, lunch_claim
+from app.modules import parse_modules
 from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
@@ -152,6 +153,10 @@ async def lunch_save(request: Request, db: Session = Depends(get_db)):
     if not prog:
         prog = LunchProgram()
         db.add(prog)
+    if prog.id and (form.get('operate_mode') or 'hire')!=prog.operate_mode:
+        for rnd in prog.rounds:
+            try:lunch_claim.guard_source(db,rnd)
+            except ValueError as e:return _calendar_error(f'/lunch/{prog.id}',e)
     prog.year = _to_int(form.get("year"), _current_academic_year())
     prog.days = _to_int(form.get("days"), 200)
     prog.operate_mode = form.get("operate_mode") or "hire"
@@ -214,6 +219,10 @@ def lunch_move_finance(pid: int, to: int = Form(0), db: Session = Depends(get_db
     prog, acc = db.get(LunchProgram, pid), db.get(FinanceAccount, to)
     if not prog or not acc:
         return RedirectResponse("/lunch", status_code=303)
+    for rnd in prog.rounds:
+        for claim in lunch_claim.view_map(db,rnd).values():
+            if db.query(FinanceTxn).filter_by(disburse_id=claim['id']).first():
+                return _calendar_error(f'/lunch/{pid}','มีงวดที่จ่ายผ่านการเงินแล้ว กรุณายกเลิกการบันทึกจ่ายก่อนย้ายบัญชี')
     n = move(db, prog, acc.id)
     db.commit()
     return RedirectResponse(f"/lunch/{pid}?moved={n}", status_code=303)
@@ -223,6 +232,9 @@ def lunch_move_finance(pid: int, to: int = Form(0), db: Session = Depends(get_db
 def lunch_delete(pid: int, db: Session = Depends(get_db)):
     prog = db.get(LunchProgram, pid)
     if prog:
+        for rnd in prog.rounds:
+            try:lunch_claim.guard_source(db,rnd)
+            except ValueError as e:return _calendar_error(f'/lunch/{pid}',e)
         # ลบรายการคู่ในการเงินก่อน (cascade ลบ LunchLedger แต่ไม่ลบ FinanceTxn ให้)
         for l in list(prog.ledger):
             _unmirror_finance(db, l)
@@ -323,6 +335,11 @@ def lunch_ledger_delete(lid: int, db: Session = Depends(get_db)):
     row = db.get(LunchLedger, lid)
     pid = row.program_id if row else None
     if row:
+        t=db.get(FinanceTxn,row.finance_txn_id) if row.finance_txn_id else None
+        from app.models import DisburseMemo
+        memo=db.get(DisburseMemo,t.disburse_id) if t and t.disburse_id else None
+        if memo and lunch_claim.link_of(db,memo):
+            return _calendar_error(f'/lunch/{pid}','รายการนี้จ่ายจากการเงิน ให้ยกเลิกการบันทึกจ่ายที่บันทึกขอเบิกต้นทาง')
         _delete_ledger(db, row)
         db.commit()
     return RedirectResponse(f"/lunch/{pid}" if pid else "/lunch", status_code=303)
@@ -596,6 +613,7 @@ def _sync_round_ledger(db: Session, rnd: LunchHireRound) -> None:
     """ผูกบัญชีอัตโนมัติ: รอบที่ 'จ่ายแล้ว' -> มีรายการจ่ายในบัญชี (1 รอบ = 1 รายการ)
     ถ้ายังไม่จ่าย/ลบรอบ/ยอดเป็น 0 -> ลบรายการบัญชีที่ผูกไว้"""
     existing = db.query(LunchLedger).filter_by(round_id=rnd.id).first()
+    if lunch_claim.view_map(db,rnd).get(f'r:{rnd.id}'):return
     amount = round_spend(rnd)
     if getattr(rnd, "loan_id", None):
         # ค่าวัตถุดิบที่จ่ายจากเงินยืมลงบัญชีไปแล้วตอนจ่ายเงินยืม/รับคืน ไม่นับซ้ำ
@@ -859,6 +877,10 @@ async def round_update(rid: int, request: Request, db: Session = Depends(get_db)
     rnd = db.get(LunchHireRound, rid)
     if not rnd:
         return RedirectResponse("/lunch", status_code=303)
+    if rnd:
+        claims=lunch_claim.view_map(db,rnd)
+        if any(db.query(FinanceTxn).filter_by(disburse_id=c['id']).first() for c in claims.values()):
+            return _calendar_error(f'/lunch/round/{rid}/plan','รอบนี้มีงวดที่จ่ายผ่านการเงินแล้ว กรุณายกเลิกการบันทึกจ่ายก่อนแก้รอบ')
     form = await request.form()
     try:_populate_round(rnd, form, db)
     except ValueError as e:
@@ -976,6 +998,9 @@ async def round_set_status(rid: int, request: Request, db: Session = Depends(get
     ซิงก์เรื่องจัดจ้าง + บัญชีให้อัตโนมัติ (จ่ายแล้ว->ลงบัญชี, ถอย->ลบรายการบัญชี)"""
     rnd = db.get(LunchHireRound, rid)
     ok = False
+    if rnd and status.strip()!=rnd.status:
+        try:lunch_claim.guard_source(db,rnd)
+        except ValueError as e:return _calendar_error(f'/lunch/round/{rnd.id}/plan',e)
     if rnd and status.strip() in ("ร่าง", "จ้างแล้ว", "จ่ายแล้ว"):
         rnd.status = status.strip()
         _sync_round_procurement(db, rnd)
@@ -996,6 +1021,8 @@ def round_delete(rid: int, db: Session = Depends(get_db)):
     rnd = db.get(LunchHireRound, rid)
     pid = rnd.program_id if rnd else None
     if rnd:
+        try:lunch_claim.guard_source(db,rnd)
+        except ValueError as e:return _calendar_error(f'/lunch/round/{rnd.id}/plan',e)
         # ลบรายการบัญชี (+ รายการคู่ในการเงิน) ที่ผูกกับรอบนี้ รวมงวดย่อยด้วย
         insts = {i.id for i in rnd.installments}
         for l in db.query(LunchLedger).filter_by(round_id=rnd.id).all():
@@ -1351,6 +1378,7 @@ def nutrition_report_docx(db: Session = Depends(get_db), year: str = ""):
 def _sync_installment_ledger(db: Session, inst: LunchInstallment) -> None:
     """ผูกบัญชีอัตโนมัติรายงวด: งวด 'จ่ายแล้ว' -> รายการจ่ายในบัญชี ; ไม่งั้นลบ"""
     existing = db.query(LunchLedger).filter_by(installment_id=inst.id).first()
+    if lunch_claim.view_map(db,inst.round).get(f'i:{inst.id}'):return  # Finance owns the linked payment.
     from app.services.lunch_meals import pays_by_round
     if pays_by_round(inst.round):                    # จ่ายครั้งเดียวทั้งรอบ ลงบัญชีที่รอบ ไม่ใช่รายงวด
         if existing:
@@ -1495,7 +1523,7 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("lunch_contract.html", {
         "ap_lunch": _ap_lunch_boxes(db, rnd),
         "request": request, "school": get_school(db), "r": rnd, "p": rnd.program,
-        "installments": rnd.installments, "paid": paid,
+        "installments": rnd.installments, "paid": paid, "lunch_claims": lunch_claim.view_map(db,rnd), "can_finance": bool(request.session.get("owner") or request.session.get("director") or "finance" in parse_modules(request.session.get("mods",""))),
         "ing_total": ing_total, "fuel_cost": fuel_cost, "wage": wage, "round_budget": round_budget,
         "ing_budget": ing_budget, "ing_remaining": ing_remaining,
         "committed": sum(i.amount or 0 for i in rnd.installments),
@@ -1666,7 +1694,25 @@ async def installment_update(iid: int, request: Request, db: Session = Depends(g
     def val(k):
         return (form.get(k) or "").strip()
 
+    if form.get('flow_action')=='1':
+        from app.services.disburse_payments import lock
+        lock(db);db.refresh(inst)
+        expected={'ร่าง':'ส่งมอบแล้ว','ส่งมอบแล้ว':'ตรวจรับแล้ว'}.get(inst.status)
+        delivery=parse_be_date(val('deliver_date')) if has('deliver_date') else inst.deliver_date
+        inspection=parse_be_date(val('inspect_date')) if has('inspect_date') else inst.inspect_date
+        error=''
+        if val('status')!=expected:error='สถานะงวดเปลี่ยนแล้ว กรุณาโหลดหน้าใหม่ก่อนทำขั้นถัดไป'
+        elif not delivery:error='กรุณาระบุวันส่งมอบก่อนบันทึก'
+        elif expected=='ตรวจรับแล้ว' and not inspection:error='กรุณาระบุวันตรวจรับ'
+        elif expected=='ตรวจรับแล้ว' and inspection<delivery:error='วันตรวจรับต้องไม่ก่อนวันส่งมอบ'
+        if error:
+            db.rollback();return JSONResponse({'ok':False,'error':error},400)
     old_range = (inst.start_date, inst.end_date)
+    claim=lunch_claim.view_map(db,inst.round).get(f'i:{inst.id}')
+    if claim and (has('status') or db.query(FinanceTxn).filter_by(disburse_id=claim['id']).first()):
+        err='งวดนี้เชื่อมงานการเงินแล้ว กรุณาจัดการสถานะจ่ายที่บันทึกขอเบิกในการเงิน'
+        if request.headers.get('x-requested-with')=='fetch':return JSONResponse({'ok':False,'error':err},400)
+        return _calendar_error(f'/lunch/round/{inst.round_id}/plan',err)
     if has("start_date"):
         inst.start_date = parse_be_date(val("start_date"))
     if has("end_date"):
@@ -1708,6 +1754,8 @@ def installment_delete(iid: int, db: Session = Depends(get_db)):
     inst = db.get(LunchInstallment, iid)
     rid = inst.round_id if inst else None
     if inst:
+        try:lunch_claim.guard_source(db,inst.round,inst)
+        except ValueError as e:return _calendar_error(f'/lunch/round/{inst.round_id}/plan',e)
         for l in db.query(LunchLedger).filter_by(installment_id=inst.id).all():
             _delete_ledger(db, l)
         db.delete(inst)
@@ -1743,6 +1791,8 @@ def round_pay_mode(rid: int, db: Session = Depends(get_db), pay_mode: str = Form
         return RedirectResponse("/lunch", status_code=303)
     mode = "round" if pay_mode == "round" else "installment"
     back = f"/lunch/round/{rid}/plan#installments"
+    try:lunch_claim.guard_source(db,rnd)
+    except ValueError as e:return _calendar_error(f'/lunch/round/{rnd.id}/plan',e)
     if mode == "round" and any((i.status or "") == "จ่ายแล้ว" for i in rnd.installments):
         from urllib.parse import quote
         return RedirectResponse(f"/lunch/round/{rid}/plan?err=" + quote(

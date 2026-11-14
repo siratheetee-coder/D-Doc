@@ -2,11 +2,12 @@
 {% extends "base.html" %}
 {% block title %}บันทึกขอเบิกจ่าย{% endblock %}
 {% block content %}
-<div class="card"><form method="get" action="/finance/disburse"><label>ปีงบประมาณของบันทึกขอเบิกจ่าย</label><select name="year" onchange="this.form.submit()">{% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}</select><noscript><button class="btn">เลือกปี</button></noscript></form><p class="muted">เลือกปีก่อนกรอกข้อมูล เพื่อแสดงเรื่องจัดซื้อและหมวดเงินของปีนั้น</p></div>
+<div class="card"><form method="get" action="/finance/disburse">{% if lunch_source %}<input type="hidden" name="lunch_inst" value="{{ lunch_source.inst.id if lunch_source.inst else '' }}"><input type="hidden" name="lunch_round" value="{{ lunch_source.rnd.id if not lunch_source.inst else '' }}">{% endif %}<label>ปีงบประมาณของบันทึกขอเบิกจ่าย</label><select name="year" onchange="this.form.submit()">{% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}</select><noscript><button class="btn">เลือกปี</button></noscript></form><p class="muted">เลือกปีก่อนกรอกข้อมูล เพื่อแสดงเรื่องจัดซื้อและหมวดเงินของปีนั้น</p></div>
 {% if request.query_params.get('attention') == '1' %}<div class="alert">แสดงบันทึกที่ยังไม่จ่าย ปีงบ {{ fiscal_year }} <a href="/finance/disburse">ดูทั้งหมด</a></div>{% endif %}
 <div class="card">
   <h1><svg class="icon"><use href="#ic-file"/></svg> ออกบันทึกขออนุมัติเบิกจ่ายเงิน</h1>
   <p class="muted" style="margin-top:0;">กรอกข้อมูลเอง หรือ เลือกดึงข้อมูลจากเรื่องจัดซื้อ/จัดจ้างเพื่อให้ระบบกรอกให้ จากนั้นบันทึกเพื่อออกเอกสาร</p>
+  {% if lunch_source %}<div class="alert" style="background:#fff7ed"><b>ขอเบิกจาก{{ lunch_source.title }}</b><br>ระบบเติมผู้รับจ้าง ยอดเงิน ภาษี และค่าปรับจากงวดให้แล้ว การบันทึกขอเบิกยังไม่ตัดเงิน<br><a href="{{ lunch_source.back }}">กลับหน้างวดอาหารกลางวัน</a></div>{% endif %}
   {% if travel_source %}<div class="alert" style="background:#eff6ff;">
     <b>เบิกค่าใช้จ่ายจากคำขอไปราชการที่อนุมัติแล้ว</b><br>
     {{ travel_source.subject }} · งบประมาณที่ขอไว้ {{ '{:,.2f}'.format(travel_source.budget or 0) }} บาท<br>
@@ -15,12 +16,13 @@
   </div>{% endif %}
   <form method="post" action="/finance/disburse">
 {{ case_staff(request, prefill, False) }}
+    {% if lunch_source %}<input type="hidden" name="lunch_inst" value="{{ lunch_source.inst.id if lunch_source.inst else '' }}"><input type="hidden" name="lunch_round" value="{{ lunch_source.rnd.id if not lunch_source.inst else '' }}">{% endif %}
     <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
     <div class="row">
       <div><label>เลขที่บันทึก</label><input name="memo_no" value="{{ prefill.memo_no if prefill and prefill.memo_no else sug_memo }}"></div>
       <div><label>วันที่</label><input name="date" value="{{ be_date(prefill.date) if prefill and prefill.date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
       <div style="flex:2;"><label title="ไม่บังคับ">ดึงจากเรื่องจัดซื้อ/จัดจ้าง</label>
-        <select id="procSel" onchange="if(this.value)location.href='/finance/disburse?year={{ fiscal_year }}&proc='+this.value;">
+        <select {{ 'disabled' if lunch_source }} id="procSel" onchange="if(this.value)location.href='/finance/disburse?year={{ fiscal_year }}&proc='+this.value;">
           <option value="">- ไม่ผูกกับเรื่องพัสดุ -</option>
           {% for p in procs %}
           <option value="{{ p.id }}" {{ 'selected' if prefill and prefill.procurement_id==p.id }}>{{ p.order_no or p.memo_no or '-' }} {{ p.proc_type }}{{ p.subject }}</option>
@@ -56,7 +58,7 @@
       <div><label>เบิกจากบัญชี</label>
         <select name="account_id" id="acctSel">
           <option value="">- เลือกภายหลัง -</option>
-          {% for a in accounts %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
+          {% for a in accounts %}<option value="{{ a.id }}" {{ 'selected' if prefill and prefill.account_id == a.id }}>{{ a.name }}</option>{% endfor %}
         </select>
       </div>
       <div><label>หมวด</label>
@@ -64,11 +66,11 @@
       </div>
       <div><label>ชื่อเงินที่พิมพ์ในเอกสาร</label><input name="budget_source" value="{{ prefill.budget_source if prefill else '' }}" placeholder="เช่น เงินอุดหนุน"></div>
     </div>
-    {% include "_disburse_splits.html" %}
+    {% if not lunch_source %}{% include "_disburse_splits.html" %}{% endif %}
     <div class="row">
       <div><label>ภาษีมูลค่าเพิ่ม (VAT)</label><input name="vat" type="number" step="0.01" min="0" value="0"></div>
-      <div class="wht-inline">{% set wht_value = 0 %}{% include "_finance_wht_field.html" %}</div>
-      <div><label>ค่าปรับ</label><input name="fine" type="number" step="0.01" min="0" value="0"></div>
+      <div class="wht-inline">{% set wht_value = prefill.wht if lunch_source else 0 %}{% include "_finance_wht_field.html" %}</div>
+      <div><label>ค่าปรับ</label><input name="fine" type="number" step="0.01" min="0" value="{{ prefill.fine if lunch_source else 0 }}"></div>
       <div><label>มูลค่าสินค้า / คงเหลือจ่ายจริง</label><input value="คำนวณให้อัตโนมัติในเอกสาร" disabled style="background:#f3f5f9;"></div>
     </div>
     <input type="hidden" name="procurement_id" value="{{ prefill.procurement_id if prefill else '' }}">

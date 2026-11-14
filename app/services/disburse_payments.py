@@ -10,6 +10,9 @@ def lock(db):
 
 
 def summary(db, memo):
+    from app.services import lunch_claim
+    lunch=lunch_claim.payment_summary(db,memo)
+    if lunch is not None:return lunch
     proc = db.get(Procurement, memo.procurement_id) if memo.procurement_id else None
     own = db.query(FinanceTxn).filter_by(disburse_id=memo.id).all()
     rows = list(own)
@@ -48,6 +51,8 @@ def validate_new(db, memo, excluding=None):
     paid = sum(x.amount or 0 for x in info['rows'] if x.id not in skip)
     if round(paid + memo.amount - info['total'], 2) > 0:
         raise ValueError('ยอดที่เบิกครั้งนี้เกินยอดคงเหลือของเรื่อง กรุณาตรวจรายการจ่ายเดิม')
+    from app.services import lunch_claim
+    if info.get('lunch_source'):lunch_claim.validate(db,memo,info['lunch_source'])
     if info['managed']:
         raise ValueError('เรื่องนี้ลงจ่ายจากงานอาหารกลางวัน กรุณาลงจ่ายที่ต้นทางแล้วเชื่อมรายการเดิม')
 
@@ -61,6 +66,9 @@ def compatible(db, memo, txn):
         return False
     if not math.isfinite(txn.amount or 0) or round((txn.amount or 0) - (memo.amount or 0), 2) != 0 or txn.amount <= 0:
         return False
+    from app.services import lunch_claim
+    lunch_ok=lunch_claim.compatible_source(db,memo,txn)
+    if lunch_ok is not None:return lunch_ok
     proc = db.get(Procurement, memo.procurement_id) if memo.procurement_id else None
     project_id = memo.project_id or (proc.project_id if proc else None)
     if txn.project_id and txn.project_id != project_id:

@@ -20,6 +20,8 @@
   {% if request.query_params.get('payment_message') %}<div class="alert">{{ request.query_params.get('payment_message') }}</div>{% endif %}
   {% if request.query_params.get('linked') %}<div class="alert">เชื่อมรายการจ่ายเดิมแล้ว ยอดเงินคงเหลือไม่เปลี่ยน และไม่ได้สร้างรายการจ่ายเพิ่ม</div>{% endif %}
   {% if request.query_params.get('unlinked') %}<div class="alert">ยกเลิกการเชื่อมแล้ว รายการจ่ายเดิมยังอยู่ในทะเบียนคุมเงิน</div>{% endif %}
+  {% if lunch_source %}<div class="lf-source"><b>{{ lunch_source.title }}</b><p>บันทึกจ่ายที่หน้านี้แล้ว ระบบจะอัปเดตงวดอาหารกลางวันให้โดยอัตโนมัติ ใช้รายการเงินเดียวกัน</p><a class="btn gray sm" href="{{ lunch_source.back }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับหน้างวดอาหารกลางวัน</a>
+  {% if lunch_source.stale and not posted %}<p class="alert warn">ข้อมูลงวดเปลี่ยนแล้ว กรุณาปรับยอดจากงวดล่าสุดและตรวจอนุมัติอีกครั้งก่อนจ่าย</p><form method="post" action="/finance/disburse/{{ m.id }}/lunch-refresh"><button class="btn sm" type="submit">ปรับข้อมูลจากงวดล่าสุด</button></form>{% endif %}</div><link rel="stylesheet" href="/static/lunch_payment_flow.css?v=1">{% endif %}
   {% if travel_source %}<div class="alert" style="background:#eff6ff;">
     <b>ค่าใช้จ่ายจากคำขอไปราชการ</b> · {{ travel_source.subject }}
     <a href="/hr/travel-requests/{{ travel_source.id }}">เปิดคำขอต้นทาง</a>
@@ -89,7 +91,7 @@
       </div>
       <div><label>ชื่อเงินที่พิมพ์ในเอกสาร</label><input name="budget_source" value="{{ m.budget_source }}" placeholder="เช่น เงินอุดหนุน"></div>
     </div>
-    {% include "_disburse_splits.html" %}
+    {% if not lunch_source %}{% include "_disburse_splits.html" %}{% endif %}
     <div class="row">
       <div><label>ภาษีมูลค่าเพิ่ม (VAT)</label><input name="vat" type="number" step="0.01" value="{{ '%.2f'|format(m.vat or 0) }}"></div>
       <div class="wht-inline">{% set wht_value = m.wht or 0 %}{% include "_finance_wht_field.html" %}</div>
@@ -108,7 +110,7 @@
     </div>
     <label>รายละเอียดเพิ่มเติม</label>
     <textarea name="note">{{ m.note or "" }}</textarea>
-    {% if posted and not payment_info.own[0].linked_existing %}<p class="muted" style="margin:10px 0 0;"><svg class="icon"><use href="#ic-alert"/></svg> บันทึกนี้ลงจ่ายเข้าทะเบียนคุมเงินแล้ว: การแก้ "หมวด / บัญชี / จำนวนเงิน / วันที่" แล้วกดบันทึก จะอัปเดตรายการในทะเบียนคุมเงินให้อัตโนมัติ (ยอดคงเหลือรายหมวดปรับตาม)</p>{% endif %}
+    {% if posted and not payment_info.own[0].linked_existing and not lunch_source %}<p class="muted" style="margin:10px 0 0;"><svg class="icon"><use href="#ic-alert"/></svg> บันทึกนี้ลงจ่ายเข้าทะเบียนคุมเงินแล้ว: การแก้ "หมวด / บัญชี / จำนวนเงิน / วันที่" แล้วกดบันทึก จะอัปเดตรายการในทะเบียนคุมเงินให้อัตโนมัติ (ยอดคงเหลือรายหมวดปรับตาม)</p>{% endif %}
     <br><br><button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกการแก้ไข</button>
   </form>
 </div>
@@ -144,7 +146,8 @@
     </ul></div></div>
   {% endif %}
   {% if posted %}
-  <p class="muted">รายการนี้ลงจ่ายในทะเบียนคุมเงินแล้ว</p>
+  <p class="muted">รายการนี้ลงจ่ายในทะเบียนคุมเงินแล้ว{% if lunch_source %} และอัปเดตสถานะงวดอาหารกลางวันแล้ว · วันที่จ่าย {{ be_date(posted_txn.date) }}{% endif %}</p>
+  {% if lunch_source and not payment_info.own[0].linked_existing %}<form method="post" action="/finance/disburse/{{ m.id }}/lunch-cancel-payment" onsubmit="return confirm('ยกเลิกการบันทึกจ่าย คืนยอดในทะเบียนคุมเงิน และให้งวดกลับเป็นตรวจรับแล้ว?');"><button class="btn gray sm" type="submit">ยกเลิกการบันทึกจ่ายงวดนี้</button></form>{% endif %}
   {% if posted_txn and posted_txn.date and posted_txn.fiscal_year != date_fy %}
   <div class="alert warn" role="alert"><div><b>รายการจ่ายนี้อยู่ในทะเบียนปีงบ {{ posted_txn.fiscal_year }} แต่วันที่จ่ายอยู่ในปีงบ {{ date_fy }}</b>
     <ul style="margin:6px 0 0; padding-left:18px;">
@@ -169,7 +172,8 @@
   <form method="post" action="/finance/disburse/{{ m.id }}/post"
         onsubmit="return confirm({{ (('วันที่ในบันทึกอยู่ในปีงบ ' ~ date_fy ~ ' แต่รายการจะลงทะเบียนปีงบ ' ~ m.fiscal_year ~ '
 ยืนยันลงรายการจ่ายเงินเข้าทะเบียนคุมเงิน?') if wrong_fy else 'ลงรายการจ่ายเงินเข้าทะเบียนคุมเงิน?')|tojson|forceescape }});">
-    <button class="btn green" type="submit"><svg class="icon"><use href="#ic-check"/></svg> ลงจ่ายเข้าทะเบียนคุมเงิน</button>
+    {% if lunch_source %}<label for="lunch-paid-date">วันที่จ่ายเงินจริง</label><input id="lunch-paid-date" class="lf-paid-date" name="paid_date" placeholder="วว/ดด/ปปปป" data-date="1" required><p class="muted">ลงบัญชีตามวันที่จ่ายจริง โดยเก็บวันที่บันทึกขอเบิกไว้ตามเดิม</p>{% endif %}
+    <button class="btn green" type="submit" {{ 'data-no-floating-save' if lunch_source }}><svg class="icon"><use href="#ic-check"/></svg> {{ 'บันทึกจ่ายเงินจริง และอัปเดตงวด' if lunch_source else 'ลงจ่ายเข้าทะเบียนคุมเงิน' }}</button>
   </form>
   {% else %}
   <p class="muted">เลือก "เบิกจากบัญชี" ด้านบนก่อน จึงจะลงรายการจ่ายเข้าทะเบียนคุมเงินได้</p>

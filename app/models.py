@@ -2798,3 +2798,15 @@ class LunchMenuSetItem(Base):
     note=Column(String(500),default='')
     groups=Column(String,default='')
     menu_set=relationship('LunchMenuSet',back_populates='items')
+
+
+class LunchDisburseLink(Base):
+    """One school-local finance memo for an explicitly chosen lunch payment unit."""
+    __tablename__ = 'lunch_disburse_link'
+    id = Column(Integer, primary_key=True)
+    source_key = Column(String(50), nullable=False, unique=True)
+    round_id = Column(Integer, ForeignKey('lunch_hire_round.id'), nullable=False, index=True)
+    installment_id = Column(Integer, ForeignKey('lunch_installment.id'), nullable=True)
+    memo_id = Column(Integer, ForeignKey('disburse_memo.id'), nullable=False, unique=True)
+    fingerprint = Column(String(64), nullable=False)
+    payment_date = Column(DateTime, nullable=True)

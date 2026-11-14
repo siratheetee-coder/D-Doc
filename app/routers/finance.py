@@ -14,7 +14,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSON
 from sqlalchemy.orm import Session
 from sqlalchemy import update
 from urllib.parse import quote
-from app.services import disburse_payments as payments
+from app.services import disburse_payments as payments, lunch_claim
 from app.services import disburse_split as splits
 from app.services.finance_txn_text import display_notes as txn_display_notes
 
@@ -896,8 +896,14 @@ def _name_suggest(db) -> dict:
 
 @router.get("/finance/disburse", response_class=HTMLResponse)
 def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | None = None, year: int | None = None,
-                  project: int | None = None, travel: int | None = None, activity: int | None = None):
+                  project: int | None = None, travel: int | None = None, activity: int | None = None, lunch_inst: int | None = None, lunch_round: int | None = None):
     from app.services import travel_claim
+    lunch_source=None
+    if lunch_inst or lunch_round:
+        if proc or project or travel:raise HTTPException(400,'เลือกเรื่องต้นทางอย่างใดอย่างหนึ่ง')
+        lunch_source=lunch_claim.source(db,lunch_inst,lunch_round)
+        old=lunch_claim.existing(db,lunch_source)
+        if old:return RedirectResponse(f'/finance/disburse/{old.id}',303)
     if travel and (proc or project):
         raise HTTPException(400, 'เลือกคำขอไปราชการหรือเรื่องต้นทางอย่างใดอย่างหนึ่ง')
     travel_source = travel_claim.source(db, travel) if travel else None
@@ -906,7 +912,7 @@ def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | N
         if existing:
             return RedirectResponse(f'/finance/disburse/{existing.id}', status_code=303)
     source = db.get(Procurement, proc) if proc else None
-    fy = year or (source.fiscal_year if source else None) or (current_fiscal_year(travel_source.start_date) if travel_source and travel_source.start_date else None) or current_fiscal_year()
+    fy = year or (current_fiscal_year(lunch_source['date']) if lunch_source and lunch_source['date'] else None) or (source.fiscal_year if source else None) or (current_fiscal_year(travel_source.start_date) if travel_source and travel_source.start_date else None) or current_fiscal_year()
     if not 2500 <= fy <= 2800:
         raise HTTPException(400, 'ปีงบประมาณไม่ถูกต้อง')
     query = db.query(DisburseMemo)
@@ -918,7 +924,12 @@ def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | N
     rows = query.order_by(DisburseMemo.id.desc()).all()
     # prefill จากเรื่องจัดซื้อ/จัดจ้าง (ถ้าระบุ ?proc=<id>)
     prefill = None
-    if proc:
+    if lunch_source:
+        src=lunch_source;rnd=src['rnd'];v=rnd.vendor
+        prefill=dict(subject=src['title'],payee=v.name if v else '',amount=src['amount'],wht=src['wht'],fine=src['fine'],
+            budget_source='เงินอาหารกลางวัน',procurement_id=rnd.procurement_id,project_id=db.get(Procurement,rnd.procurement_id).project_id if rnd.procurement_id and db.get(Procurement,rnd.procurement_id) else None,
+            proc_kind='จัดจ้าง',memo_no='',date=src['date'],item_id=None,account_id=src['program'].finance_account_id)
+    elif proc:
         p = source
         if p and p.fiscal_year != fy:
             raise HTTPException(400, 'เรื่องจัดซื้อไม่ตรงกับปีงบที่เลือก')
@@ -962,7 +973,7 @@ def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | N
                  .order_by(Procurement.id.desc()).all(),
         "projects": _plan_projects(db, fy),
         "pj_acts": activity_maps(db),
-        "prefill": prefill, "travel_source": travel_source,
+        "prefill": prefill, "travel_source": travel_source, "lunch_source": lunch_source,
         "names": _name_suggest(db), "eb_expense": EB_EXPENSE,
     })
 
@@ -977,7 +988,14 @@ def disburse_create(db: Session = Depends(get_db), fiscal_year: str = Form(""),
                     item_id: str = Form(""), receiver_name: str = Form(""), register_note: str = Form(""),
                     travel_request_id: str = Form(""), activity_id: str = Form(""), staff_selection: str | None = Form(None), after_save: str = Form(""),
                     split_account: list[str] = Form([]), split_item: list[str] = Form([]), split_amount: list[str] = Form([]),
-                    eb_code: str = Form("")):
+                    eb_code: str = Form(""), lunch_inst: str = Form(""), lunch_round: str = Form("")):
+    lunch_source=None
+    if lunch_inst.strip() or lunch_round.strip():
+        payments.lock(db)
+        lunch_source=lunch_claim.source(db,_to_int(lunch_inst,0),_to_int(lunch_round,0))
+        if travel_request_id.strip():raise HTTPException(400,'เลือกเรื่องต้นทางอย่างใดอย่างหนึ่ง')
+        old=lunch_claim.existing(db,lunch_source)
+        if old:return RedirectResponse(f'/finance/disburse/{old.id}',303)
     travel_id = _to_int(travel_request_id, 0)
     if travel_request_id.strip():
         if not travel_id or _to_int(procurement_id, 0):
@@ -1002,12 +1020,18 @@ def disburse_create(db: Session = Depends(get_db), fiscal_year: str = Form(""),
         receiver_name=receiver_name.strip()[:200], register_note=register_note.strip()[:300],
         travel_request_id=_to_int(travel_request_id, 0) or None,
     )
+    if lunch_source:
+        m.procurement_id=lunch_source['rnd'].procurement_id
+        try:lunch_claim.validate(db,m,lunch_source)
+        except ValueError as exc:raise HTTPException(400,str(exc))
+        if len(splits.parse(split_account,split_item,split_amount))>=2:raise HTTPException(400,'งวดอาหารกลางวันใช้บัญชีเดียว')
     m.activity_id = valid_activity(db, activity_id, m.project_id)
     # หมวด e-Budget: ครูเลือกเอง หรือระบบเดาให้ (เดิมลงจ่ายแล้วไม่มีหมวด ต้องไปไล่เติมย้อนหลังทุกงวด)
     from app.services.ebudget_cat import memo_guess
     m.eb_code = eb_code.strip()[:20] or memo_guess(db, m)
     staff.apply(db, m, staff_selection)
     db.add(m); db.flush()
+    if lunch_source:lunch_claim.attach(db,m,lunch_source)
     commit_doc_no(db, "memo", fy, no, source="finance", ref_id=m.id, date=m.date,
                   subject=((m.subject or "").strip() if (m.subject or "").strip().startswith("ขออนุมัติเบิกจ่าย")
                            else f"ขออนุมัติเบิกจ่าย {(m.subject or '').strip()}".strip()))
@@ -1039,7 +1063,7 @@ def disburse_detail(mid: int, request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("disburse_detail.html", {
         "request": request, "m": m, "school": get_school(db),
         "posted": db.query(FinanceTxn).filter_by(disburse_id=m.id).first() is not None,
-        "payment_info": payments.summary(db, m),
+        "payment_info": payments.summary(db, m), "lunch_source": lunch_claim.for_memo(db,m),
         "payment_candidates": payments.candidates(db, m),
         "split_rows": splits.rows_of(db, m) if splits.is_split(m) else [],
         "accounts": db.query(FinanceAccount).order_by(FinanceAccount.name).all(),
@@ -1071,6 +1095,12 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
     payments.lock(db)
     m = db.get(DisburseMemo, mid)
     if m:
+        lunch_source=lunch_claim.for_memo(db,m)
+        if lunch_source and db.query(FinanceTxn).filter_by(disburse_id=m.id).first():
+            old=(m.amount,m.wht,m.fine,m.account_id,m.item_id,m.project_id,m.date)
+            new=(_to_float(amount,0),_to_float(wht,0),_to_float(fine,0),_to_int(account_id,0) or None,_to_int(item_id,0) or None,_to_int(project_id,0) or None,parse_be_date(date))
+            if old!=new or len(splits.parse(split_account,split_item,split_amount))>=2:
+                return RedirectResponse(f'/finance/disburse/{mid}?payment_message='+quote('รายการนี้เชื่อมงวดอาหารกลางวันและจ่ายแล้ว กรุณายกเลิกการบันทึกจ่ายก่อนแก้ยอด บัญชี หรือวันที่'),303)
         staff.apply(db, m, staff_selection)
         m.memo_no = memo_no.strip(); m.seq = parse_seq(memo_no)
         m.date = parse_be_date(date); m.subject = subject.strip(); m.payee = payee.strip()
@@ -1123,7 +1153,7 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
             db.rollback()
             return RedirectResponse(f"/finance/disburse/{mid}?payment_error=account", status_code=303)
         m.status = "จ่ายแล้ว" if txn else (status.strip() if status.strip() in ("ร่าง", "อนุมัติ") else "อนุมัติ")
-        if txn and not multi and not txn.linked_existing:
+        if txn and not multi and not txn.linked_existing and not lunch_source:
             if m.account_id:
                 txn.account_id = m.account_id
             txn.item_id = m.item_id
@@ -1144,7 +1174,7 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
 
 
 @router.post("/finance/disburse/{mid}/post")
-def disburse_post(mid: int, db: Session = Depends(get_db)):
+def disburse_post(mid: int, db: Session = Depends(get_db), paid_date: str = Form("")):
     """ลงรายการจ่ายเงินจริงเข้าทะเบียนคุมเงิน (ตามบัญชีที่เลือก) + ตั้งสถานะจ่ายแล้ว"""
     payments.lock(db)
     m = db.get(DisburseMemo, mid)
@@ -1156,6 +1186,14 @@ def disburse_post(mid: int, db: Session = Depends(get_db)):
             db.rollback()
             return RedirectResponse(f"/finance/disburse/{mid}?payment_error=account", status_code=303)
         try:
+            lunch_source=lunch_claim.for_memo(db,m)
+            if lunch_source:
+                lunch_claim.validate(db,m,lunch_source,posting=True)
+                pay_date=parse_be_date(paid_date)
+                if not pay_date:raise ValueError('กรุณาระบุวันที่จ่ายเงินจริง')
+                inspected=lunch_source['inst'].inspect_date if lunch_source['inst'] else max((i.inspect_date for i in lunch_source['rnd'].installments if i.inspect_date),default=None)
+                if inspected and pay_date<inspected:raise ValueError('วันที่จ่ายเงินจริงต้องไม่ก่อนวันตรวจรับ')
+                if current_fiscal_year(pay_date)!=m.fiscal_year:raise ValueError('วันที่จ่ายเงินจริงไม่อยู่ในปีงบของบันทึก กรุณาตรวจปีงบก่อนลงจ่าย')
             payments.validate_new(db, m)
         except ValueError as exc:
             db.rollback()
@@ -1164,6 +1202,12 @@ def disburse_post(mid: int, db: Session = Depends(get_db)):
             from app.services.ebudget_cat import memo_guess
             m.eb_code = memo_guess(db, m)
         splits.post(db, m)
+        if lunch_source:
+            db.flush()
+            for t in db.query(FinanceTxn).filter_by(disburse_id=m.id):t.date=pay_date
+    try:lunch_claim.sync_paid(db,m)
+    except ValueError as exc:
+        db.rollback();return RedirectResponse(f'/finance/disburse/{mid}?payment_message='+quote(str(exc)),303)
     m.status = "จ่ายแล้ว"
     db.commit()
     return RedirectResponse(f"/finance/disburse/{mid}?posted=1", status_code=303)
@@ -1185,8 +1229,13 @@ def disburse_link_payment(mid: int, db: Session = Depends(get_db), txn_id: int =
         # Lunch entries already belong to the source total; do not count them twice.
         if t.id not in {x.id for x in info['rows']} and round(info['paid'] + t.amount - info['total'], 2) > 0:
             raise ValueError('ยอดรวมเกินยอดของเรื่อง กรุณาตรวจรายการจ่ายเดิม')
+        src=lunch_claim.for_memo(db,m)
+        if src:
+            lunch_claim.validate(db,m,src)
+            if src['stale']:raise ValueError('ข้อมูลงวดเปลี่ยนแล้ว กรุณาปรับข้อมูลจากงวดล่าสุดก่อนเชื่อม')
         t.disburse_id = m.id
         t.linked_existing = True
+        lunch_claim.sync_paid(db,m)
         m.status = 'จ่ายแล้ว'
         db.commit()
     except ValueError as exc:
@@ -1215,6 +1264,9 @@ def disburse_delete(mid: int, db: Session = Depends(get_db)):
     payments.lock(db)
     m = db.get(DisburseMemo, mid)
     if m:
+        src=lunch_claim.for_memo(db,m)
+        if src and db.query(FinanceTxn).filter_by(disburse_id=m.id,linked_existing=False).first():
+            return RedirectResponse(f'/finance/disburse/{mid}?payment_message='+quote('กรุณายกเลิกการบันทึกจ่ายอาหารกลางวันก่อนลบบันทึก'),303)
         if db.query(WithholdingCertificate).filter_by(memo_id=m.id).first():
             return RedirectResponse(f'/finance/withholding/memo/{m.id}?source_locked=1',status_code=303)
         owned_ids = db.query(FinanceTxn.id).filter(FinanceTxn.disburse_id==mid, FinanceTxn.linked_existing.isnot(True))
@@ -1229,6 +1281,7 @@ def disburse_delete(mid: int, db: Session = Depends(get_db)):
                 from app.services.receipt_money import release_for_deleted_txn
                 release_for_deleted_txn(db,t)
                 db.delete(t)
+        if src:db.delete(src['link'])
         db.delete(m); db.commit()
     return RedirectResponse("/finance/disburse", status_code=303)
 
@@ -2948,3 +3001,24 @@ def travel_claim_queue(request: Request, page: int = 1, db: Session = Depends(ge
     return templates.TemplateResponse('finance_travel_claims.html',{
         'request':request,'rows':rows,'count':count,'page':page,'pages':pages,
         'be_date':be_date_input,'fy_of':current_fiscal_year})
+
+
+@router.post('/finance/disburse/{mid}/lunch-refresh')
+def lunch_memo_refresh(mid:int,db:Session=Depends(get_db)):
+    payments.lock(db);m=db.get(DisburseMemo,mid)
+    if not m:return RedirectResponse('/finance/disburse',303)
+    src=lunch_claim.for_memo(db,m)
+    if src and not db.query(FinanceTxn).filter_by(disburse_id=mid).first():
+        m.amount,m.wht,m.fine=src['amount'],src['wht'],src['fine']
+        src['link'].fingerprint=src['fingerprint'];m.status='ร่าง';db.commit()
+    return RedirectResponse(f'/finance/disburse/{mid}?saved=1',303)
+
+
+@router.post('/finance/disburse/{mid}/lunch-cancel-payment')
+def lunch_memo_cancel(mid:int,db:Session=Depends(get_db)):
+    payments.lock(db);m=db.get(DisburseMemo,mid)
+    if not m:return RedirectResponse('/finance/disburse',303)
+    try:lunch_claim.cancel_payment(db,m);db.commit()
+    except ValueError as exc:
+        db.rollback();return RedirectResponse(f'/finance/disburse/{mid}?payment_message='+quote(str(exc)),303)
+    return RedirectResponse(f'/finance/disburse/{mid}?payment_message='+quote('ยกเลิกการบันทึกจ่ายแล้ว งวดกลับเป็นตรวจรับแล้ว และคืนยอดในทะเบียนคุมเงิน'),303)

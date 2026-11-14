@@ -43,8 +43,13 @@ def _fp_proc(p) -> str:
 
 
 def _fp_memo(m) -> str:
-    return "|".join([m.subject or "", m.payee or "", f"{float(m.amount or 0):.2f}", f"{float(m.vat or 0):.2f}",
+    value = "|".join([m.subject or "", m.payee or "", f"{float(m.amount or 0):.2f}", f"{float(m.vat or 0):.2f}",
                      f"{float(m.wht or 0):.2f}", f"{float(m.fine or 0):.2f}", str(m.account_id or "")])
+    from sqlalchemy.orm import object_session
+    from app.models import LunchDisburseLink
+    db=object_session(m)
+    link=db.query(LunchDisburseLink).filter_by(memo_id=m.id).first() if db and m.id else None
+    return value+('|lunch:'+link.fingerprint if link else '')
 
 
 def _fp_loan(ln) -> str:

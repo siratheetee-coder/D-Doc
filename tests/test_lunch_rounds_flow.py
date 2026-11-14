@@ -83,16 +83,16 @@ def test_next_installment_and_its_next_step(env, prog):
     page = lambda: env.get(f'/lunch/round/{rid}/plan').text       # noqa: E731
 
     html = page()
-    assert 'จ่ายแล้ว <b>0</b> จาก 3 งวด' in html and 'ถึงคิว: <b>งวดที่ 1</b>' in html
-    assert 'ขั้นต่อไป: <b>ส่งมอบงาน</b>' in html and 'บันทึกว่าส่งมอบแล้ว' in html
+    assert 'จ่ายแล้ว <b>0</b> จาก 3 งวด' in html and 'กำลังดำเนินการ · งวดที่ 1' in html
+    assert 'lf-flow' in html and 'บันทึกส่งมอบงาน' in html
 
     env.post(f'/lunch/installment/{ids[0]}/update', data={'status': 'ตรวจรับแล้ว'})
     html = page()
-    assert 'ขั้นต่อไป: <b>ขอเบิกและจ่ายเงิน</b>' in html and f'/lunch/installment/{ids[0]}/disburse-doc' in html
+    assert 'ทำเรื่องขอเบิกในการเงิน' in html and f'/finance/disburse?lunch_inst={ids[0]}' in html
 
     env.post(f'/lunch/installment/{ids[0]}/update', data={'status': 'จ่ายแล้ว'})
     html = page()
-    assert 'จ่ายแล้ว <b>1</b> จาก 3 งวด' in html and 'ถึงคิว: <b>งวดที่ 2</b>' in html
+    assert 'จ่ายแล้ว <b>1</b> จาก 3 งวด' in html and 'กำลังดำเนินการ · งวดที่ 2' in html
 
     for i in ids[1:]:
         env.post(f'/lunch/installment/{i}/update', data={'status': 'จ่ายแล้ว'})

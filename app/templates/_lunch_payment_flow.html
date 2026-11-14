@@ -1,0 +1,9 @@
+{% macro payment_flow(status, claimed=False, round_only=False) %}
+{% set level={'ส่งมอบแล้ว':1,'ตรวจรับแล้ว':2,'จ่ายแล้ว':4}.get(status,0) %}
+{% if claimed and level==2 %}{% set level=3 %}{% endif %}
+<ol class="lf-flow" aria-label="ขั้นตอนงวดอาหารกลางวัน">
+{% for label,icon in [('ส่งมอบ','package'),('ตรวจรับ','clipboard'),('ขอเบิก','file'),('จ่ายแล้ว','coins')] %}
+{% if not round_only or loop.index<=2 %}<li class="{{ 'done' if loop.index<=level else 'current' if loop.index==level+1 else '' }}"><span class="lf-dot"><svg class="icon" aria-hidden="true"><use href="#ic-{{ 'check' if loop.index<=level else icon }}"/></svg></span><small>{{ 'รอจ่าย' if loop.index==4 and level<4 else label }}</small></li>{% endif %}
+{% endfor %}
+</ol>
+{% endmacro %}
