@@ -2175,3 +2175,54 @@ async def calendar_review_apply(rid:int,request:Request,db:Session=Depends(get_d
     except ValueError as e:
         db.rollback();return _calendar_error(f'/lunch/round/{rid}/calendar-review',e)
     return RedirectResponse(f'/lunch/round/{rid}/plan?calendar_updated={n}#installments',303)
+
+
+# Explicit served-day selection shares the same safeguards and stale-data check
+# as automatic calendar realignment. No financial records are generated here.
+@router.get('/lunch/installment/{iid}/dates')
+def installment_dates(iid:int,request:Request,db:Session=Depends(get_db)):
+    i=db.get(LunchInstallment,iid)
+    if not i:return JSONResponse({'error':'ไม่พบงวดนี้'},status_code=404)
+    rnd=i.round
+    linked=db.query(LunchLedger).filter_by(installment_id=i.id).first() is not None
+    readonly=(request.session.get('director') and not request.session.get('owner')) or rnd.status=='จ่ายแล้ว' or i.status not in ('ร่าง','') or linked
+    previous=db.query(LunchInstallment).filter_by(round_id=rnd.id).order_by(LunchInstallment.seq,LunchInstallment.id).all()
+    prior=previous[:next(n for n,x in enumerate(previous) if x.id==i.id)]
+    lower=([rnd.start_date.date()] if rnd.start_date else [])+[x.end_date.date()+timedelta(days=1) for x in prior if x.end_date]
+    minimum=max(lower) if lower else None
+    return JSONResponse(dict(id=i.id,seq=i.seq,days=int(i.days or len(lcal.stored_days(i,rnd.program))),readonly=bool(readonly),
+        selected=[d.isoformat() for d in lcal.stored_days(i,rnd.program)],
+        calendar=sc.state(db,rnd.program.year),minimum=minimum.isoformat() if minimum else '',
+        round_end=rnd.end_date.date().isoformat() if rnd.end_date else '',
+        preview_url=f'/lunch/installment/{iid}/dates-preview'))
+
+
+async def _selected_dates_page(iid,request,db,confirm=False):
+    import json
+    i=db.get(LunchInstallment,iid)
+    if not i:return RedirectResponse('/lunch',303)
+    rnd=i.round;form=await request.form()
+    try:
+        selected=json.loads(form.get('selected_dates','[]'))
+        if not isinstance(selected,list) or len(selected)>366:raise ValueError('รายการวันที่ไม่ถูกต้อง')
+        if confirm:
+            n=lcal.apply(db,rnd,form.get('token',''),iid,selected);db.commit()
+            return RedirectResponse(f'/lunch/round/{rnd.id}/plan?calendar_updated={n}#inst-{iid}',303)
+        review=lcal.preview(db,rnd,iid,selected)
+        return templates.TemplateResponse('lunch_calendar_review.html',dict(request=request,r=rnd,p=rnd.program,
+            review=review,manual=True,selected_dates=json.dumps(selected),selected_iid=iid,
+            review_title=f'ตรวจวันที่ที่เลือก · งวด {i.seq}',new_label='หลังแก้ไข',
+            confirm_action=f'/lunch/installment/{iid}/dates-confirm',
+            calendar_link=sc.settings_link(rnd.program.year,f'/lunch/round/{rnd.id}/plan#installments')))
+    except (ValueError,TypeError) as e:
+        db.rollback();return _calendar_error(f'/lunch/round/{rnd.id}/plan',e)
+
+
+@router.post('/lunch/installment/{iid}/dates-preview',response_class=HTMLResponse)
+async def installment_dates_preview(iid:int,request:Request,db:Session=Depends(get_db)):
+    return await _selected_dates_page(iid,request,db)
+
+
+@router.post('/lunch/installment/{iid}/dates-confirm')
+async def installment_dates_confirm(iid:int,request:Request,db:Session=Depends(get_db)):
+    return await _selected_dates_page(iid,request,db,confirm=True)

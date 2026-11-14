@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
-{% block title %}แก้วันในงวดหลังปรับปฏิทิน{% endblock %}
+{% block title %}{{ review_title|default('แก้วันในงวดหลังปรับปฏิทิน') }}{% endblock %}
 {% block content %}
-<div class="hero"><div><div class="hero-sub">อาหารกลางวัน · ปีการศึกษา {{ p.year }}</div><span class="hero-title">แก้วันในงวดหลังปรับปฏิทิน</span><div class="hero-meta">รอบที่ {{ r.seq }} · มีวันที่เปลี่ยน {{ review.changed }} งวด</div></div><a class="btn gray" href="/lunch/round/{{ r.id }}/plan#installments">กลับหน้างวด</a></div>
+<div class="hero"><div><div class="hero-sub">อาหารกลางวัน · ปีการศึกษา {{ p.year }}</div><span class="hero-title">{{ review_title|default('แก้วันในงวดหลังปรับปฏิทิน') }}</span><div class="hero-meta">รอบที่ {{ r.seq }} · มีวันที่เปลี่ยน {{ review.changed }} งวด</div></div><a class="btn gray" href="/lunch/round/{{ r.id }}/plan#installments">กลับหน้างวด</a></div>
 {% if request.query_params.get('err') %}<div class="alert danger">{{ request.query_params.get('err') }}</div>{% endif %}
 <div class="card">
-  <p>หลังแก้วันเรียนหรือวันหยุดในปฏิทิน ให้เทียบวันที่เดิมกับวันที่ตามปฏิทินด้านล่าง แล้วกดยืนยันเพื่อแก้วันที่ในงวด ระบบจะนับให้ครบจำนวนวันเดิมและเลื่อนงวดถัดไปต่อเนื่องกัน</p>
+  {% if manual %}<p>ตรวจวันที่ที่เลือกและผลต่องวดถัดไปก่อนยืนยัน ระบบจะเลื่อนเฉพาะงวดถัดไปที่วันที่ชนกัน โดยคงจำนวนวันและวงเงินเดิม</p>{% else %}<p>หลังแก้วันเรียนหรือวันหยุดในปฏิทิน ให้เทียบวันที่เดิมกับวันที่ตามปฏิทินด้านล่าง แล้วกดยืนยันเพื่อแก้วันที่ในงวด ระบบจะนับให้ครบจำนวนวันเดิมและเลื่อนงวดถัดไปต่อเนื่องกัน</p>{% endif %}
   <div class="alert warn">งวดที่ส่งมอบ ตรวจรับ หรือจ่ายแล้วจะคงเดิม ยอดเงินและยอดนักเรียนที่บันทึกไว้จะไม่ถูกลบ หากเปลี่ยนวันที่ของงวดที่เคยอนุมัติแล้ว ต้องตรวจและส่งอนุมัติใหม่</div>
   {% if review.required_end %}
   <div class="cr-end-alert" role="alert" data-required-end>
@@ -17,17 +17,17 @@
   <div class="cr-tools"><a class="btn gray sm" href="{{ calendar_link }}"><svg class="icon"><use href="#ic-calendar"/></svg> ตั้งค่าปฏิทินวันเรียน</a>
   {% if not review.required_end %}<a class="btn gray sm" href="/lunch/round/{{ r.id }}/edit"><svg class="icon"><use href="#ic-edit"/></svg> ดูช่วงวันที่รอบจัดจ้าง</a>{% endif %}</div>
   {% if review.display_errors %}<div class="alert danger" role="alert"><b>ยังยืนยันแก้วันในงวดไม่ได้</b><ul>{% for error in review.display_errors %}<li>{{ error }}</li>{% endfor %}</ul></div>{% endif %}
-  <p class="cr-key"><span class="cr-tag cr-tag-old">เดิม</span> วันที่ที่บันทึกไว้ <span class="cr-tag cr-tag-new">ตามปฏิทิน</span> วันที่ที่จะใช้หลังยืนยัน <span class="muted">วันที่เปลี่ยนจะแสดงตัวหนา</span></p>
-  <div class="table-wrap"><table class="cr-table"><thead><tr><th>งวด</th><th class="cr-old-head"><span class="cr-tag cr-tag-old">เดิม</span></th><th class="cr-new-head"><span class="cr-tag cr-tag-new">ตามปฏิทิน</span></th><th>วัน / วงเงิน</th><th>สิ่งที่เปลี่ยน</th></tr></thead><tbody>
+  <p class="cr-key"><span class="cr-tag cr-tag-old">เดิม</span> วันที่ที่บันทึกไว้ <span class="cr-tag cr-tag-new">{{ new_label|default('ตามปฏิทิน') }}</span> วันที่ที่จะใช้หลังยืนยัน <span class="muted">วันที่เปลี่ยนจะแสดงตัวหนา</span></p>
+  <div class="table-wrap"><table class="cr-table"><thead><tr><th>งวด</th><th class="cr-old-head"><span class="cr-tag cr-tag-old">เดิม</span></th><th class="cr-new-head"><span class="cr-tag cr-tag-new">{{ new_label|default('ตามปฏิทิน') }}</span></th><th>วัน / วงเงิน</th><th>สิ่งที่เปลี่ยน</th></tr></thead><tbody>
   {% for row in review.rows %}<tr class="{{ 'cr-changed' if row.changed else '' }}"><td>{{ row.inst.seq }}</td>
     <td class="cr-old"><span class="cr-date {{ 'cr-date-changed' if row.changed and row.inst.start_date and row.start and row.inst.start_date.date() != row.start else '' }}">{{ be_date(row.inst.start_date) if row.inst.start_date else '-' }}</span><span class="cr-until">ถึง</span><span class="cr-date {{ 'cr-date-changed' if row.changed and row.inst.end_date and row.end and row.inst.end_date.date() != row.end else '' }}">{{ be_date(row.inst.end_date) if row.inst.end_date else '-' }}</span></td>
     <td class="cr-new"><span class="cr-date {{ 'cr-date-changed' if row.changed and row.inst.start_date and row.start and row.inst.start_date.date() != row.start else '' }}">{{ be_date(row.start) if row.start else '-' }}</span><span class="cr-until">ถึง</span><span class="cr-date {{ 'cr-date-changed' if row.changed and row.inst.end_date and row.end and row.inst.end_date.date() != row.end else '' }}">{{ be_date(row.end) if row.end else '-' }}</span></td>
     <td>{{ row.inst.days }} วัน<br>{{ '{:,.2f}'.format(row.inst.amount or 0) }} บาท</td><td>
-    {% if row.reason %}<span class="muted">{{ row.reason }}</span>{% elif row.changed %}<b class="cr-change-label">วันที่เปลี่ยน</b>{% else %}<span class="muted">ตรงกับปฏิทินแล้ว</span>{% endif %}
+    {% if row.reason %}<span class="muted">{{ row.reason }}</span>{% elif row.changed %}<b class="cr-change-label">วันที่เปลี่ยน</b>{% else %}<span class="muted">{{ 'คงวันที่เดิม' if manual else 'ตรงกับปฏิทินแล้ว' }}</span>{% endif %}
     {% if row.removed %}<small class="cr-removed">ข้าม: {% for d in row.removed %}{{ be_date(d) }}{% if not loop.last %}, {% endif %}{% endfor %}</small>{% endif %}
     {% if row.added %}<small class="cr-added">เพิ่ม: {% for d in row.added %}{{ be_date(d) }}{% if not loop.last %}, {% endif %}{% endfor %}</small>{% endif %}</td></tr>{% endfor %}
   </tbody></table></div>
-  {% if review.changed and not review.errors %}<form method="post" action="/lunch/round/{{ r.id }}/calendar-review" class="cr-confirm"><input type="hidden" name="token" value="{{ review.token }}"><button class="btn" type="submit"><svg class="icon"><use href="#ic-check"/></svg> ยืนยันแก้วันในงวด {{ review.changed }} งวด</button></form>{% elif not review.rows %}<p class="muted">ยังไม่มีงวดในรอบนี้ งวดที่จะสร้างใหม่จะใช้ปฏิทินวันเรียนล่าสุด</p>{% endif %}
+  {% if review.changed and not review.errors %}<form method="post" action="{{ confirm_action|default('/lunch/round/' ~ r.id ~ '/calendar-review') }}" class="cr-confirm">{% if manual %}<input type="hidden" name="selected_dates" value="{{ selected_dates }}">{% endif %}<input type="hidden" name="token" value="{{ review.token }}"><button class="btn" type="submit"><svg class="icon"><use href="#ic-check"/></svg> ยืนยันแก้วันในงวด {{ review.changed }} งวด</button></form>{% elif not review.rows %}<p class="muted">ยังไม่มีงวดในรอบนี้ งวดที่จะสร้างใหม่จะใช้ปฏิทินวันเรียนล่าสุด</p>{% endif %}
 </div>
 <style>
 .cr-tools,.cr-key{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.cr-tools{margin:14px 0}.cr-key{font-size:13px;margin:20px 0 12px}

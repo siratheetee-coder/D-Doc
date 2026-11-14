@@ -192,7 +192,7 @@
 <div class="card" id="installments">
   {% set RP = pay_by_round %}
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"><a class="btn gray sm" href="{{ calendar_link }}"><svg class="icon"><use href="#ic-calendar"/></svg> ตั้งค่าปฏิทินวันเรียน</a><a class="btn soft sm" href="/lunch/round/{{ r.id }}/calendar-review"><svg class="icon"><use href="#ic-check"/></svg> แก้วันในงวดหลังปรับปฏิทิน</a></div>
-  {% if request.query_params.get('calendar_updated') %}<div class="alert">ปรับวันที่ตามปฏิทินแล้ว {{ request.query_params.get('calendar_updated') }} งวด</div>{% endif %}
+  {% if request.query_params.get('calendar_updated') %}<div class="alert">บันทึกวันที่ในงวดแล้ว {{ request.query_params.get('calendar_updated') }} งวด</div>{% endif %}
   <div class="iq-headrow">
     <h2>{{ 'งวดส่งมอบและตรวจรับ' if RP else 'งวดจ่ายเงินทั้งหมด' }}</h2>
     {% if p.operate_mode == 'hire' %}
@@ -325,13 +325,7 @@
       <tr data-iid="{{ i.id }}" id="inst-{{ i.id }}" style="scroll-margin-top:90px;" {% if nxt and i.id == nxt.id %}class="iq-row-next"{% endif %}>
         <td class="iq-no">{{ i.seq }}</td>
         <td><div class="iq-range">{{ be_date(i.start_date) if i.start_date else '-' }} – {{ be_date(i.end_date) if i.end_date else '-' }}
-              {% if i.status != 'จ่ายแล้ว' %}<button type="button" class="iq-edit" onclick="editRange(this)" title="แก้ช่วงวันที่ของงวดนี้"><svg class="icon" aria-hidden="true"><use href="#ic-edit"/></svg> แก้ไขวันที่</button>{% endif %}</div>
-            {% if i.status != 'จ่ายแล้ว' %}<div class="iq-range-edit" hidden>
-              <input name="start_date" value="{{ be_date(i.start_date) if i.start_date else '' }}" data-old="{{ be_date(i.start_date) if i.start_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" aria-label="วันเริ่มงวด" disabled>
-              <span>ถึง</span>
-              <input name="end_date" value="{{ be_date(i.end_date) if i.end_date else '' }}" data-old="{{ be_date(i.end_date) if i.end_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" aria-label="วันสิ้นสุดงวด" disabled>
-              <small>กดบันทึกแล้ว ระบบนับวันทำการและคิดเงินงวดใหม่ให้</small>
-            </div>{% endif %}
+              <button type="button" class="iq-edit" onclick="editRange(this)" title="เปิดปฏิทินวันในงวด"><svg class="icon" aria-hidden="true"><use href="#ic-calendar"/></svg> {{ 'แก้ไขวันที่' if i.status in ('ร่าง','') and r.status != 'จ่ายแล้ว' else 'ดูวันที่' }}</button></div>
             <div class="iq-sub">{{ i.days }} วัน <b>{{ "{:,.2f}".format(i.amount or 0) }}</b> บาท</div>
             {% set ms = meal_sum.get(i.id) %}
             {% if ms and (ms.recorded or i.status != 'จ่ายแล้ว') %}<a class="iq-sub iq-meal-link {{ 'iq-booked' if ms.complete else 'iq-meal-todo' }}" href="/lunch/installment/{{ i.id }}/meals" title="บันทึกยอดนักเรียนรายวันของงวดนี้">{% if ms.complete %}ยอดนักเรียน {{ "{:,}".format(ms.meals) }} คน{% else %}บันทึกยอด {{ ms.recorded }}/{{ ms.days|length }} วัน{% endif %} ›</a>{% endif %}</td>
@@ -376,13 +370,6 @@
   </style>
   <p class="muted" style="font-size:13px; margin:8px 0 0;">แก้สถานะ/วันส่งมอบ/วันตรวจรับ ในตารางแล้วกด "บันทึก" ได้เลย (งวดที่แบ่งอัตโนมัติ ระบบตั้งวันส่งมอบ/ตรวจรับเป็นวันสุดท้ายของงวดให้ เปลี่ยนได้)</p>
   <script>
-    function editRange(b){
-      var box = b.closest('td').querySelector('.iq-range-edit'); if(!box) return;
-      var open = box.hidden; box.hidden = !open;
-      box.querySelectorAll('input').forEach(function(el){ el.disabled = !open; if(!open) el.value = el.getAttribute('data-old'); });
-      b.textContent = open ? 'ยกเลิก' : 'แก้';
-      if(open) box.querySelector('input').focus();
-    }
     function saveInst(btn){
       var tr = btn.closest('tr'), iid = tr.getAttribute('data-iid');
       var d = new URLSearchParams(), moved = false;
@@ -881,4 +868,5 @@
     });
   });
 </script>
+{% include 'lunch_dates_dialog.html' %}
 {% endblock %}

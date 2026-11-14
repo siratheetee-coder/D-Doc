@@ -379,6 +379,10 @@ def render_p_order(rnd, school, doc=None) -> str:
 
 def render_p_installment(inst, school, menus=None, doc=None) -> str:
     """08-10 บันทึกควบคุม + ใบส่งมอบงาน + ใบตรวจรับงานจ้าง (การจ้างบุคคล) รายงวด"""
+    if getattr(inst, 'calendar_dates', None) is not None:
+        from app.services.lunch_meals import workdays
+        served = set(workdays(inst))
+        menus = [m for m in (menus or []) if m.date and m.date.date() in served]
     doc, own = _begin(doc)
     rnd = inst.round
     prog = rnd.program

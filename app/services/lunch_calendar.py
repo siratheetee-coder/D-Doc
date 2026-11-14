@@ -39,25 +39,54 @@ def round_days(rnd):
             result.update(stored_days(i,rnd.program))
     return sorted(result)
 
-def preview(db,rnd):
+def preview(db,rnd,installment_id=None,selected=None):
     db.refresh(rnd)
     items=db.query(LunchInstallment).populate_existing().filter_by(round_id=rnd.id).order_by(LunchInstallment.seq,LunchInstallment.id).all()
     available=sc.open_dates(db,rnd.program.year)
     meal_rows=db.query(LunchMealCount).filter_by(program_id=rnd.program_id).all()
     recorded={r.date.date() for r in meal_rows if r.date}
     led_ids={x.installment_id for x in db.query(LunchLedger).filter(LunchLedger.installment_id.in_([i.id for i in items]))} if items else set()
+    manual=installment_id is not None
+    chosen=None
+    if manual:
+        if installment_id not in {i.id for i in items}:raise ValueError('ไม่พบงวดในรอบนี้')
+        try:
+            chosen=sorted(date.fromisoformat(d) for d in selected)
+        except (TypeError,ValueError):raise ValueError('กรุณาเลือกวันที่ให้ถูกต้อง')
+        if len(chosen)!=len(set(chosen)):raise ValueError('มีวันที่ซ้ำ กรุณาตรวจการเลือกวันใหม่')
+        current=next(i for i in items if i.id==installment_id)
+        if len(chosen)!=int(current.days or len(stored_days(current,rnd.program))):
+            raise ValueError('กรุณาเลือกวันให้ครบจำนวนวันเดิมของงวด')
+        if not set(chosen).issubset(available):
+            raise ValueError('เลือกได้เฉพาะวันเรียนตามปฏิทินโรงเรียน หากเป็นวันชดเชยให้ตั้งค่าปฏิทินก่อน')
+        if chosen and rnd.start_date and chosen[0]<rnd.start_date.date():
+            raise ValueError('วันที่เลือกต้องไม่ก่อนวันเริ่มรอบจัดจ้าง')
+    reached=False
     rows=[];errors=[];end_errors=[];required_end=None;cursor=rnd.start_date.date() if rnd.start_date else None
     for i in items:
         before=stored_days(i,rnd.program);target=int(i.days or len(before));reason='';after=before
         protected=rnd.status=='จ่ายแล้ว' or i.status not in ('ร่าง','') or i.id in led_ids
         if not i.start_date or not i.end_date or target<=0:
             errors.append(f'งวด {i.seq} ยังไม่มีช่วงวันที่หรือจำนวนวันครบถ้วน');reason='ข้อมูลช่วงวันที่ไม่ครบ'
+        elif manual and not reached and i.id!=installment_id:
+            reason='คงวันที่เดิม'
+            cursor=i.end_date.date()+timedelta(days=1)
         elif protected:
+            if manual and i.id==installment_id:
+                reached=True
+                errors.append(f'งวด {i.seq} ดำเนินการแล้ว เปิดดูได้อย่างเดียว')
             reason='คงเดิม: ส่งมอบ ตรวจรับ หรือจ่ายแล้ว'
             if cursor and cursor>i.start_date.date():errors.append(f'การเลื่อนงวดก่อนหน้าจะชนกับงวด {i.seq} ที่ดำเนินการแล้ว')
             cursor=i.end_date.date()+timedelta(days=1)
         else:
-            start=cursor or i.start_date.date();pos=bisect_left(available,start);after=available[pos:pos+target]
+            if manual and i.id==installment_id:
+                reached=True;after=chosen
+                if after and cursor and after[0]<cursor:
+                    errors.append(f'วันที่เลือกชนกับงวดก่อนหน้า กรุณาเลือกวันหลังสิ้นสุดงวดก่อนหน้า')
+            elif manual and (not cursor or i.start_date.date()>=cursor):
+                after=before;reason='คงวันที่เดิม'
+            else:
+                start=cursor or i.start_date.date();pos=bisect_left(available,start);after=available[pos:pos+target]
             if len(after)!=target:
                 errors.append(f'วันเรียนไม่พอสำหรับงวด {i.seq} กรุณาตรวจปฏิทิน');after=before
             if (set(before)-set(after)) & recorded:
@@ -70,16 +99,16 @@ def preview(db,rnd):
         rows.append(dict(inst=i,before=before,after=after,protected=protected,reason=reason,
             changed=not protected and before!=after,start=after[0] if after else None,end=after[-1] if after else None,
             added=sorted(set(after)-set(before)),removed=sorted(set(before)-set(after))))
-    payload=[rnd.id,rnd.start_date,rnd.end_date,rnd.status,sc.state(db,rnd.program.year),
+    payload=[installment_id,chosen,rnd.id,rnd.start_date,rnd.end_date,rnd.status,sc.state(db,rnd.program.year),
         [(i.id,i.start_date,i.end_date,i.days,i.amount,i.status,i.deliver_date,i.inspect_date,i.calendar_dates) for i in items],
         [(r.id,r.date,r.class_id,r.count) for r in meal_rows],sorted(x for x in led_ids if x is not None)]
     token=hashlib.sha256(json.dumps(payload,sort_keys=True,default=str).encode()).hexdigest()
     return dict(rows=rows,errors=list(dict.fromkeys(errors)),display_errors=list(dict.fromkeys(e for e in errors if e not in end_errors)),token=token,required_end=required_end,changed=sum(r['changed'] for r in rows))
 
-def apply(db,rnd,expected):
+def apply(db,rnd,expected,installment_id=None,selected=None):
     from app.services.subsidy import lock
     lock(db);db.info.pop(('school-calendar',int(rnd.program.year)),None)
-    plan=preview(db,rnd)
+    plan=preview(db,rnd,installment_id,selected)
     if expected!=plan['token']:raise ValueError('ปฏิทินหรือข้อมูลงวดเปลี่ยนแล้ว กรุณาตรวจผลกระทบใหม่')
     if plan['errors']:raise ValueError(' · '.join(plan['errors']))
     count=0

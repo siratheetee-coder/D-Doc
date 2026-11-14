@@ -289,6 +289,10 @@ def _meal_sheet(doc, inst, sname, meals):
 
 
 def render_installment_doc(inst, school, menus, meals=None) -> str:
+    if getattr(inst, 'calendar_dates', None) is not None:
+        from app.services.lunch_meals import workdays
+        served = set(workdays(inst))
+        menus = [m for m in (menus or []) if m.date and m.date.date() in served]
     doc = Document(); set_a4(doc)
     _font(doc)
     rnd = inst.round

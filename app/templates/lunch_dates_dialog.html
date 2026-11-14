@@ -1,0 +1,14 @@
+<dialog id="lunch-dates" class="ld-dialog" aria-labelledby="ld-title">
+  <div class="ld-head"><div><span class="ld-eyebrow">อาหารกลางวัน · วันในงวด</span><h2 id="ld-title">เลือกวันที่จัดอาหาร</h2></div><button type="button" class="ld-close" aria-label="ปิดปฏิทิน">✕</button></div>
+  <div id="ld-message" class="ld-note" role="status">กำลังโหลดปฏิทิน…</div>
+  <div class="ld-body" hidden>
+    <div class="ld-calendar"><div class="ld-month-nav"><button type="button" id="ld-prev" aria-label="เดือนก่อนหน้า">‹</button><h3 id="ld-month"></h3><button type="button" id="ld-next" aria-label="เดือนถัดไป">›</button></div>
+      <div class="ld-week" aria-hidden="true"><span>จ.</span><span>อ.</span><span>พ.</span><span>พฤ.</span><span>ศ.</span><span>ส.</span><span>อา.</span></div><div id="ld-grid" class="ld-grid"></div>
+      <div class="ld-legend"><span><i class="ld-dot selected"></i>วันที่เลือก</span><span><i class="ld-dot"></i>วันเรียน</span><span><i class="ld-dot closed"></i>วันหยุด / ไม่มีเรียน</span></div>
+    </div>
+    <aside class="ld-summary"><span class="ld-eyebrow">วันที่จัดอาหารในงวดนี้</span><div class="ld-count"><strong id="ld-count">0 / 0</strong><span>วันเรียน</span></div><p id="ld-range"></p><div id="ld-chips" aria-label="วันที่เลือกทั้งหมด"></div><button type="button" id="ld-reset">คืนวันที่เดิม</button><p class="ld-help">เลือกให้ครบจำนวนวันเดิม ระบบจะตรวจวันที่ชนกับงวดอื่นก่อนบันทึก</p></aside>
+  </div>
+  <form method="post" id="ld-form" class="ld-footer"><input type="hidden" name="selected_dates" id="ld-selected"><p>เปลี่ยนเฉพาะวันในงวดนี้<br><small>ไม่เปลี่ยนปฏิทินโรงเรียนและวงเงินที่ตกลงไว้</small></p><div><button type="button" class="btn gray ld-cancel">ยกเลิก</button><button type="submit" class="btn" id="ld-preview" disabled>ดูผลการเปลี่ยนวันที่ →</button></div></form>
+</dialog>
+<link rel="stylesheet" href="/static/lunch_dates.css?v=1">
+<script src="/static/lunch_dates.js?v=1" defer></script>
