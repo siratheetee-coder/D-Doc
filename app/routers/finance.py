@@ -111,7 +111,12 @@ def finance_dashboard(request: Request, db: Session = Depends(get_db), year: int
     from app.services.finance_setup import setup_steps as finance_setup_steps
     fy = year or current_fiscal_year()
     accounts = db.query(FinanceAccount).order_by(FinanceAccount.name).all()
-    total_bal = sum(account_balance_year(a, fy) for a in accounts)
+    if not 2500 <= fy <= 2800:raise HTTPException(400,'ปีงบประมาณไม่ถูกต้อง')
+    balances=[dict(account=a,balance=account_balance_year(a,fy)) for a in accounts]
+    total_bal = sum(row['balance'] for row in balances)
+    cards=finance_tasks(db,fy)
+    from app.services.finance_overview import overview
+    dashboard=overview(db,fy,cards)
     txns = db.query(FinanceTxn).filter_by(fiscal_year=fy).all()
     total_in = sum(t.amount or 0 for t in txns if t.kind == "in" and not t.no_count)    # โอนภายในไม่ใช่รายรับ
     total_out = sum(t.amount or 0 for t in txns if t.kind == "out" and not t.no_count)
@@ -122,9 +127,9 @@ def finance_dashboard(request: Request, db: Session = Depends(get_db), year: int
         "total_in": total_in, "total_out": total_out,
         "n_disburse": db.query(DisburseMemo).filter_by(fiscal_year=fy).count(),
         "n_receipt": db.query(Receipt).filter_by(fiscal_year=fy).count(),
-        "task_cards": finance_tasks(db, fy),
+        "task_cards": cards, "dashboard": dashboard, "account_rows": balances,
         "setup": finance_setup_steps(db, fy, get_school(db)),
-        "recent_disburse": db.query(DisburseMemo).order_by(DisburseMemo.id.desc()).limit(5).all(),
+        "recent_disburse": dashboard["recent"],
         "health": _health_counts(db, fy),
     })
 

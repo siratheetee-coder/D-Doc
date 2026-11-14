@@ -1,242 +1,59 @@
 {% extends "base.html" %}
-{% block title %}งานการเงิน{% endblock %}
-{% block content %}
-<style>
-  /* การ์ดเมนูแบบกะทัดรัด จัดเป็นกลุ่ม (เดิม 17 ใบยาวต่อกัน) */
-  .nav-sec-h { margin:6px 0 10px; font-size:16px; color:#334155; }
-  .nav-compact { grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:12px; margin-bottom:18px; }
-  .nav-compact .nav-card { padding:14px 16px; gap:6px; }
-  .nav-compact .nav-card .nc-ic { width:36px; height:36px; border-radius:10px; }
-  .nav-compact .nav-card .nc-ic .icon { width:18px; height:18px; }
-  .nav-compact .nav-card h3 { font-size:15.5px; }
-  .nav-compact .nav-card .nc-desc { font-size:13px; line-height:1.45; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-  .nav-compact .nav-card .nc-go { display:none; }
-  @media (max-width:640px) { .nav-compact { grid-template-columns:1fr 1fr; } .nav-compact .nav-card .nc-desc { display:none; } }
-</style>
 {% from "_empty.html" import empty_state %}
-<div class="hero" style="background:linear-gradient(120deg,#15803d,#16a34a 55%,#4ade80); box-shadow:0 10px 26px rgba(22,163,74,.28);">
-  <div>
-    <div class="hero-sub">ทะเบียนคุมเงิน ขอเบิกจ่าย ใบเสร็จ รายงาน</div>
-    <span class="hero-title">งานการเงิน</span>
-    <div class="hero-meta">{{ school.name or "" }} ปีงบประมาณ {{ fiscal_year }}</div>
+{% macro task_row(c) %}
+<details class="fd-task fd-tone-{{ c.tone }}" id="fd-{{ c.key }}" data-task="{{ 'travel-claim' if c.key=='travel' else c.key }}">
+  <summary><span class="fd-task-icon"><svg class="icon"><use href="#ic-{{ c.icon }}"/></svg></span><b>{{ c.label }}</b><span class="fd-task-count">{{ c.count }} <small>รายการ</small></span><span class="fd-task-go">{{ c.action }} <svg class="icon"><use href="#ic-arrow-right"/></svg></span></summary>
+  <div class="fd-task-body">{% for item in c['items'] %}<a class="fd-task-item" href="{{ item.href }}"><span>{{ item.title }}<small>{{ item.detail }}{% if item.due %} · ครบกำหนด {{ thai_date(item.due) }}{% endif %}</small></span><svg class="icon"><use href="#ic-arrow-right"/></svg></a>{% endfor %}
+    {% if c.key not in ('claim',) %}<a class="fd-link fd-more-link" href="{{ c.href }}">{{ 'ดูบันทึกขอเบิกทั้งหมด' if c.key in ('ready','draft','review') else 'เปิดรายการทั้งหมด' }} <svg class="icon"><use href="#ic-arrow-right"/></svg></a>{% endif %}
   </div>
-  <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-    <form method="get" action="/finance">
-      <select name="year" onchange="submitReplace(this.form)" style="color:var(--text);">
-        {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบ {{ y }}</option>{% endfor %}
-      </select>
-    </form>
-    <a class="btn" href="/finance/disburse?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-file"/></svg> ออกบันทึกขอเบิกจ่าย</a>
-  </div>
+</details>
+{% endmacro %}
+{% block title %}ภาพรวมงานการเงิน{% endblock %}
+{% block content %}
+<div class="fd-page">
+<header class="fd-header"><div><h1>ภาพรวมงานการเงิน</h1><p>{{ school.name or '' }}</p></div><div class="fd-header-actions">
+  <form method="get" action="/finance"><label class="fd-sr" for="fd-year">ปีงบประมาณ</label><select id="fd-year" name="year" onchange="submitReplace(this.form)">{% for y in years %}<option value="{{ y }}" {{ 'selected' if y==fiscal_year }}>ปีงบประมาณ {{ y }}</option>{% endfor %}</select><noscript><button class="btn sm">เลือกปี</button></noscript></form>
+  <a class="btn gray" href="/finance/accounts?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-coins"/></svg> รับ–จ่ายเงิน</a><a class="btn" href="/finance/disburse?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-plus"/></svg> สร้างบันทึกขอเบิก</a>
+</div></header>
+{% if request.query_params.get('carry_err') %}{% set ce=request.query_params.get('carry_err').split('\n') %}<div class="alert warn" role="alert"><b>{{ ce[0] }}</b><ul>{% for line in ce[1:] %}<li>{{ line }}</li>{% endfor %}<li>ข้อมูลยังไม่ถูกเปลี่ยน</li></ul></div>{% endif %}
+{% if request.query_params.get('carried') %}<div class="alert">✔ คัดลอกยอดคงเหลือสิ้นปีงบ {{ request.query_params.get('carried') }} ไปตั้งเป็นยอดยกมาของปีงบ {{ fiscal_year }} แล้ว (ข้อมูลปีเก่ายังอยู่ครบ เลือกดูได้จากช่องเลือกปี)</div>{% endif %}
+
+{% if not setup.complete %}<details class="fd-setup" id="fd-setup"><summary><b>ตั้งค่าแล้ว {{ setup.done }}/{{ setup.total }} ขั้น</b><progress value="{{ setup.done }}" max="{{ setup.total }}" aria-label="ความคืบหน้าการตั้งค่า"></progress><span class="fd-setup-next">ขั้นถัดไป: {{ setup.next.title }}</span><span class="fd-link">ทำต่อ <svg class="icon"><use href="#ic-arrow-right"/></svg></span></summary><div class="fd-setup-body">{% set setup_key='fin' %}{% set setup_video='/guide#video-finance' %}{% set setup_title='เริ่มต้นงานการเงินและโครงการ' %}{% include '_setup_checklist.html' %}</div></details>{% endif %}
+
+<section class="fd-stats" aria-label="สรุปการเงินปีงบประมาณ {{ fiscal_year }}">
+  <div class="fd-stat"><img src="/static/images/finance3d/wallet-paid.png" width="64" height="64" alt=""><div><span>เงินคงเหลือรวม</span><strong class="{{ 'fd-negative' if total_bal<0 }}">{{ '{:,.2f}'.format(total_bal) }}</strong><small>ทุกบัญชี · บาท</small></div></div>
+  <div class="fd-stat"><span class="fd-stat-art"><img src="/static/images/finance3d/document-money.png" width="64" height="64" alt=""><i class="fd-in"><svg class="icon"><use href="#ic-download"/></svg></i></span><div><span>รับปีนี้</span><strong>{{ '{:,.2f}'.format(total_in) }}</strong><small>ปีงบ {{ fiscal_year }} · บาท</small></div></div>
+  <div class="fd-stat"><span class="fd-stat-art"><img src="/static/images/finance3d/document-money.png" width="64" height="64" alt=""><i class="fd-out"><svg class="icon"><use href="#ic-upload"/></svg></i></span><div><span>จ่ายปีนี้</span><strong>{{ '{:,.2f}'.format(total_out) }}</strong><small>ปีงบ {{ fiscal_year }} · บาท</small></div></div>
+  <a class="fd-stat fd-stat-action" href="#fd-ready"><img src="/static/images/finance3d/wallet-pending.png" width="64" height="64" alt=""><div><span>รอจ่ายเงินจริง</span><strong>{{ dashboard.ready }} <em>เรื่อง</em></strong><small>อนุมัติแล้ว · เปิดรายการ <svg class="icon"><use href="#ic-arrow-right"/></svg></small></div></a>
+</section>
+
+<div class="fd-main-grid">
+<section class="fd-panel fd-work" id="finance-tasks" aria-labelledby="fd-task-title"><div class="fd-panel-head"><h2 id="fd-task-title">งานที่ต้องจัดการ <span class="fd-count">{{ dashboard.count }} รายการ</span></h2><a class="fd-link" href="#fd-other-tasks" data-fd-open>ดูทุกกลุ่ม <svg class="icon"><use href="#ic-arrow-right"/></svg></a></div>
+  <p class="fd-scope">เงินยืมและไปราชการรวมทุกปี · บันทึกขอเบิกตามปีงบ {{ fiscal_year }}</p>
+  {% for c in dashboard.active[:4] %}{{ task_row(c) }}{% else %}<div class="fd-empty"><svg class="icon"><use href="#ic-check"/></svg><div><b>ไม่มีงานค้างในกลุ่มที่ติดตาม</b><small>เริ่มบันทึกรับ–จ่ายหรือสร้างบันทึกขอเบิกได้จากปุ่มด้านบน</small></div></div>{% endfor %}
+  {% if not dashboard.ready %}<p class="fd-muted" id="fd-ready">ยังไม่มีบันทึกที่อนุมัติแล้วรอจ่ายเงินจริง</p>{% endif %}
+  <details class="fd-other-tasks" id="fd-other-tasks"><summary>ดูงานกลุ่มอื่น / กลุ่มที่ไม่มีงานค้าง</summary>{% for c in dashboard.active[4:] %}{{ task_row(c) }}{% endfor %}{% for c in dashboard.groups if not c.count %}<div class="fd-zero" data-task="{{ 'travel-claim' if c.key=='travel' else c.key }}"><svg class="icon"><use href="#ic-check"/></svg><span>{{ c.label }}</span><small>0 รายการ</small></div>{% endfor %}</details>
+  <p class="fd-note"><svg class="icon"><use href="#ic-info"/></svg> บันทึกขอเบิกยังไม่ถือว่าจ่ายเงินแล้ว</p>
+</section>
+
+<section class="fd-panel fd-accounts" aria-labelledby="fd-accounts-title"><div class="fd-panel-head"><h2 id="fd-accounts-title">ยอดคงเหลือแยกบัญชี</h2><a class="fd-link" href="/finance/accounts?year={{ fiscal_year }}">ดูทุกบัญชี <svg class="icon"><use href="#ic-arrow-right"/></svg></a></div>
+  {% if account_rows %}<div class="fd-account-list">{% for row in account_rows[:6] %}<a class="fd-account" href="/finance/accounts/{{ row.account.id }}?year={{ fiscal_year }}"><span><i class="fd-account-dot fd-dot-{{ loop.index0%4 }}"></i>{{ row.account.name }}</span><strong class="{{ 'fd-negative' if row.balance<0 }}">{{ '{:,.2f}'.format(row.balance) }}</strong></a>{% endfor %}</div><div class="fd-account-total"><span>รวม</span><strong class="{{ 'fd-negative' if total_bal<0 }}">{{ '{:,.2f}'.format(total_bal) }} <small>บาท</small></strong></div>{% if account_rows|length>6 %}<p class="fd-muted">แสดง 6 จาก {{ account_rows|length }} บัญชี · ยอดรวมรวมทุกบัญชีแล้ว</p>{% endif %}
+  {% else %}<div class="fd-empty"><svg class="icon"><use href="#ic-coins"/></svg><div><b>ยังไม่มีบัญชีเงิน</b><small>เพิ่มบัญชีก่อนบันทึกรับ–จ่าย</small><a href="/finance/accounts">เพิ่มบัญชีเงิน →</a></div></div>{% endif %}
+</section>
+
+<section class="fd-panel fd-recent" aria-labelledby="fd-recent-title"><div class="fd-panel-head"><h2 id="fd-recent-title">บันทึกขอเบิกล่าสุด</h2><a class="fd-link" href="/finance/disburse?year={{ fiscal_year }}">ดูทั้งหมด <svg class="icon"><use href="#ic-arrow-right"/></svg></a></div>
+  {% if recent_disburse %}<div class="fd-recent-list"><div class="fd-recent-head"><span>เรื่อง · ปีงบ {{ fiscal_year }}</span><span>ยอดขอเบิก</span><span>สถานะ</span></div>{% for m in recent_disburse[:3] %}{% set status=dashboard.statuses[m.id] %}<a class="fd-memo" href="/finance/disburse/{{ m.id }}"><span class="fd-memo-title"><svg class="icon"><use href="#ic-file"/></svg><span><b>{{ m.memo_no or 'ยังไม่ระบุเลขที่' }}</b><small>{{ m.subject or 'ไม่ระบุเรื่อง' }}</small></span></span><strong>{{ '{:,.2f}'.format(m.amount or 0) }}</strong><span class="fd-badge fd-badge-{{ status.tone }}">{{ status.label }}</span></a>{% endfor %}</div>{% else %}<div class="fd-empty"><svg class="icon"><use href="#ic-file"/></svg><div><b>ยังไม่มีบันทึกขอเบิกปีงบ {{ fiscal_year }}</b><small>บันทึกปีอื่นยังอยู่ เลือกดูได้จากช่องปีงบประมาณ</small><a href="/finance/disburse?year={{ fiscal_year }}">สร้างบันทึกขอเบิก →</a></div></div>{% endif %}
+</section>
+
+<aside class="fd-side"><section class="fd-panel fd-health {{ 'fd-health-fix' if health and health.fix else 'fd-health-warn' if health and health.check else 'fd-health-unknown' if not health else '' }}"><img src="/static/images/home3d/f_health.png" width="58" height="58" alt="" loading="lazy"><div><h2>ตรวจข้อมูลการเงิน</h2>{% if health %}{% if health.fix or health.check or health.notice %}<div class="fd-health-counts">{% if health.fix %}<span>ควรแก้ {{ health.fix }}</span>{% endif %}{% if health.check %}<span>ควรเช็ค {{ health.check }}</span>{% endif %}{% if health.notice %}<span>ควรสังเกต {{ health.notice }}</span>{% endif %}</div>{% else %}<b class="fd-health-ok">ข้อมูลเรียบร้อย · ผ่าน {{ health.passed }} ข้อ</b>{% endif %}{% else %}<p>ยังไม่มีผลตรวจ กรุณาเปิดตรวจอีกครั้ง</p>{% endif %}<small>ตรวจข้อมูลก่อนออกรายงาน</small></div><a class="btn gray sm" href="/finance/health?year={{ fiscal_year }}">เปิดผลตรวจ</a></section>
+  <details class="fd-panel fd-year-tools" id="fd-year-tools"><summary><svg class="icon"><use href="#ic-calendar"/></svg> จัดการปีงบประมาณ <span>⌄</span></summary><div><h3>ยกยอดไปปีงบถัดไป</h3><p>คัดลอกยอดคงเหลือสิ้นปีงบ {{ fiscal_year }} ไปตั้งเป็นยอดยกมาปีงบ {{ next_year }} โดยไม่ลบข้อมูลปีเก่า กดซ้ำจะอัปเดตยอดให้ตรงเสมอ</p><form method="post" action="/finance/carry-forward" onsubmit="return confirm('คัดลอกยอดคงเหลือสิ้นปีงบ {{ fiscal_year }} ไปเป็นยอดยกมาปีงบ {{ next_year }}?');"><input type="hidden" name="year" value="{{ fiscal_year }}"><button class="btn sm" type="submit" data-no-floating-save>ยกยอดไปปีงบ {{ next_year }} <svg class="icon"><use href="#ic-arrow-right"/></svg></button></form></div></details>
+</aside>
 </div>
 
-{% if request.query_params.get("carry_err") %}{% set _ce = request.query_params.get("carry_err").split("\n") %}
-<div class="alert warn" role="alert"><div><b>{{ _ce[0] }}</b>
-  <ul style="margin:6px 0 0; padding-left:18px;">{% for line in _ce[1:] %}<li>{{ line }}</li>{% endfor %}<li>ข้อมูลยังไม่ถูกเปลี่ยน</li></ul></div></div>{% endif %}
-{% if request.query_params.get("carried") %}<div class="alert">✔ คัดลอกยอดคงเหลือสิ้นปีงบ {{ request.query_params.get("carried") }} ไปตั้งเป็นยอดยกมาของปีงบ {{ fiscal_year }} แล้ว (ข้อมูลปีเก่ายังอยู่ครบ เลือกดูได้จากช่องเลือกปี)</div>{% endif %}
-
-<div class="card">
-  <div class="stat">
-    <div class="box"><div><div class="lab">เงินคงเหลือรวมทุกบัญชี</div><div class="num">{{ "{:,.2f}".format(total_bal) }}</div></div>
-      <span class="ic-wrap ic-green"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
-    <div class="box"><div><div class="lab">รับ (ปีนี้)</div><div class="num">{{ "{:,.0f}".format(total_in) }}</div></div>
-      <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-download"/></svg></span></div>
-    <div class="box"><div><div class="lab">จ่าย (ปีนี้)</div><div class="num">{{ "{:,.0f}".format(total_out) }}</div></div>
-      <span class="ic-wrap ic-amber"><svg class="icon"><use href="#ic-upload"/></svg></span></div>
-    <div class="box"><div><div class="lab">บันทึกขอเบิกจ่าย</div><div class="num">{{ n_disburse }}</div></div>
-      <span class="ic-wrap ic-green"><svg class="icon"><use href="#ic-file"/></svg></span></div>
-  </div>
+{% set menu_groups=[('งานประจำ',[('accounts','ทะเบียนคุมเงิน','บัญชีรับ–จ่ายและยอดคงเหลือ','/finance/accounts?year=' ~ fiscal_year),('disburse','บันทึกขอเบิกจ่าย','สร้างบันทึกและติดตามการจ่ายเงินจริง','/finance/disburse?year=' ~ fiscal_year),('receipts','ทะเบียนใบเสร็จ/ใบสำคัญ','เก็บหลักฐานการรับและจ่ายเงิน','/finance/receipts'),('loans','เงินยืม','สัญญายืมและการส่งใช้','/finance/loans?year=' ~ fiscal_year),('revenue','นำส่งรายได้แผ่นดิน','ติดตามและจัดทำหนังสือนำส่ง','/finance/revenue'),('checks','ทะเบียนคุมการจ่ายเงิน','เช็ค/โอนและผู้รับเงิน','/finance/checks?year=' ~ fiscal_year),('projects','ทะเบียนคุมโครงการ','งบและยอดจ่ายจริงรายโครงการ','/finance/projects')]),('รายงานและสมุดบัญชี',[('cashbook','สมุดเงินสด','สมุดเงินสดและบัญชีแยกประเภท','/finance/cashbook?year=' ~ fiscal_year),('daily','เงินคงเหลือประจำวัน','ออกรายงานยอดเงินคงเหลือ','/finance/cash-report'),('report','รายงานการเงิน','สรุปรับ–จ่ายตามประเภทเงิน','/finance/report?year=' ~ fiscal_year),('quarter','รายงานรายไตรมาส','รายงานส่งเขตพื้นที่','/finance/quarter?year=' ~ fiscal_year),('audit','รายงานแบบ สตง.','จัดทำรายงานการเงิน','/finance/audit?year=' ~ fiscal_year),('bank','งบกระทบยอดธนาคาร','เทียบสมุดบัญชีกับ statement','/finance/bank-recon?year=' ~ fiscal_year),('ebudget','ช่วยกรอก E-Budget','จัดตัวเลขสำหรับกรอก e-Budget','/finance/ebudget?year=' ~ fiscal_year)]),('ตั้งค่าและตรวจสอบ',[('health','ตรวจสุขภาพข้อมูลการเงิน','ตรวจสิ่งที่ควรแก้และควรเช็ค','/finance/health?year=' ~ fiscal_year),('subsidy','คำนวณเงินอุดหนุน','คำนวณยอดตามจำนวนนักเรียน','/finance/subsidy'),('wht','ภาษีหัก ณ ที่จ่าย','ออกหนังสือรับรองจากรายการจ่าย','/finance/withholding?year=' ~ fiscal_year),('import','นำเข้าข้อมูล','นำรายการรับ–จ่ายเข้าจาก Excel','/finance/import')])] %}
+<section class="fd-shortcuts"><div class="fd-panel-head"><h2>ทางลัดงานที่ใช้บ่อย</h2><a class="fd-link" href="#fd-all-tools" data-fd-open>ดูงานการเงินทั้งหมด <svg class="icon"><use href="#ic-arrow-right"/></svg></a></div><nav class="fd-shortcut-grid" aria-label="งานการเงินที่ใช้บ่อย">{% for icon,label,href in [('accounts','ทะเบียนคุมเงิน','/finance/accounts?year=' ~ fiscal_year),('disburse','บันทึกขอเบิกจ่าย','/finance/disburse?year=' ~ fiscal_year),('loans','เงินยืม','/finance/loans?year=' ~ fiscal_year),('daily','เงินคงเหลือประจำวัน','/finance/cash-report'),('bank','กระทบยอดธนาคาร','/finance/bank-recon?year=' ~ fiscal_year),('ebudget','ช่วยกรอก E-Budget','/finance/ebudget?year=' ~ fiscal_year)] %}<a class="fd-shortcut" href="{{ href }}"><img src="/static/images/home3d/f_{{ icon }}.png" width="48" height="48" alt="" loading="lazy"><span>{{ label }}</span></a>{% endfor %}</nav></section>
+<details class="fd-panel fd-all-tools" id="fd-all-tools"><summary>งานการเงินทั้งหมด <small>ทะเบียน รายงาน และตัวช่วย</small><span>⌄</span></summary><div class="fd-tool-groups">{% for heading,items in menu_groups %}<section><h3>{{ heading }}</h3>{% for icon,label,description,href in items %}<a class="fd-tool" href="{{ href }}"><img src="/static/images/home3d/f_{{ icon }}.png" width="34" height="34" alt="" loading="lazy"><span><b>{{ label }}</b><small>{{ description }}</small></span><svg class="icon"><use href="#ic-arrow-right"/></svg></a>{% endfor %}</section>{% endfor %}</div></details>
 </div>
-
-{# ตรวจสุขภาพข้อมูลการเงิน (app/services/finance_health.py) มีปัญหา = แถบเด่น เรียบร้อย = แถบเขียวเล็ก ๆ #}
-{% if health %}
-<a class="fhb {{ 'fhb-bad' if health.fix else ('fhb-warn' if health.check else 'fhb-ok') }}" href="/finance/health?year={{ fiscal_year }}">
-  <span class="fhb-ic"><svg class="icon"><use href="#{{ 'ic-alert' if health.fix or health.check else 'ic-check' }}"/></svg></span>
-  <span class="fhb-txt"><b>ตรวจสุขภาพข้อมูลการเงิน</b>
-    {% if health.fix or health.check or health.notice %}
-    <span class="fhb-chips">{% if health.fix %}<i class="c-fix">ควรแก้ {{ health.fix }}</i>{% endif %}{% if health.check %}<i class="c-check">ควรเช็ค {{ health.check }}</i>{% endif %}{% if health.notice %}<i class="c-notice">ควรสังเกต {{ health.notice }}</i>{% endif %}</span>
-    {% else %}<span class="fhb-sub">ข้อมูลเรียบร้อย ผ่านทั้ง {{ health.passed }} ข้อ</span>{% endif %}
-  </span>
-  <span class="fhb-go">ไปดู <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-</a>
-<style>
-  .fhb { display:flex; align-items:center; gap:14px; padding:14px 18px; border-radius:16px; margin:0 0 16px; text-decoration:none;
-         color:var(--text); box-shadow:0 4px 14px rgba(15,23,42,.06); transition:transform .15s; }
-  .fhb:hover { transform:translateY(-1px); }
-  .fhb-bad { background:linear-gradient(120deg,#fff1f2,#ffe4e6 60%,#fef3c7); }
-  .fhb-warn { background:linear-gradient(120deg,#fffbeb,#fef3c7); }
-  .fhb-ok { background:linear-gradient(120deg,#ecfdf5,#d1fae5); }
-  .fhb-ic { width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex:none; background:#fff; }
-  .fhb-bad .fhb-ic { color:#e11d48; } .fhb-warn .fhb-ic { color:#d97706; } .fhb-ok .fhb-ic { color:#059669; }
-  .fhb-txt { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
-  .fhb-sub { font-size:14px; color:#065f46; }
-  .fhb-chips { display:flex; gap:6px; flex-wrap:wrap; }
-  .fhb-chips i { font-style:normal; font-size:13px; font-weight:600; padding:2px 10px; border-radius:999px; background:#fff; }
-  .fhb-chips .c-fix { color:#e11d48; } .fhb-chips .c-check { color:#b45309; } .fhb-chips .c-notice { color:#1d4ed8; }
-  .fhb-go { display:inline-flex; align-items:center; gap:4px; font-weight:600; font-size:14px; white-space:nowrap; }
-</style>
-{% endif %}
-
-{# รายการเริ่มต้นใช้งาน: ระบบติ๊กเองจากข้อมูลจริง ครบแล้วหายเอง (app/services/finance_setup.py) #}
-{% set setup_key = 'fin' %}{% set setup_video = '/guide#video-finance' %}{% set setup_title = 'เริ่มต้นงานการเงินและโครงการ' %}
-{% include '_setup_checklist.html' %}
-
-{% set task_scope = 'เงินยืมและคำขอไปราชการรอเบิกรวมทุกปี · บันทึกเบิกจ่ายตามปีงบที่เลือก · แสดงตัวอย่างกลุ่มละไม่เกิน 5 รายการ' %}
-{% include '_dashboard_tasks.html' %}
-
-<h3 class="nav-sec-h">งานประจำ</h3>
-<div class="nav-grid nav-compact">
-  <a class="nav-card" href="/finance/accounts">
-    <div class="nc-head"><img src="/static/images/home3d/f_accounts.png" alt="" style="flex:none;width:40px;height:40px;border-radius:11px;box-shadow:0 4px 10px rgba(15,23,42,.15);"><h3>ทะเบียนคุมเงิน</h3></div>
-    <p class="nc-desc">บัญชีเงินฝาก/ประเภทเงิน คุมยอดรับ-จ่าย-คงเหลือแต่ละบัญชี</p>
-    <span class="nc-go">เปิดทะเบียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/finance/disburse?year={{ fiscal_year }}">
-    <div class="nc-head"><img src="/static/images/home3d/f_disburse.png" alt="" style="flex:none;width:40px;height:40px;border-radius:11px;box-shadow:0 4px 10px rgba(15,23,42,.15);"><h3>บันทึกขอเบิกจ่าย</h3></div>
-    <p class="nc-desc">ออกบันทึกขออนุมัติเบิกจ่าย พร้อมลงบัญชีให้อัตโนมัติ</p>
-    <span class="nc-go">ออกบันทึก <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/finance/receipts">
-    <div class="nc-head"><img src="/static/images/home3d/f_receipts.png" alt="" style="flex:none;width:40px;height:40px;border-radius:11px;box-shadow:0 4px 10px rgba(15,23,42,.15);"><h3>ทะเบียนใบเสร็จ/ใบสำคัญ</h3></div>
-    <p class="nc-desc">บันทึกใบเสร็จรับเงิน/ใบสำคัญรับเงิน คุมหลักฐานการจ่าย</p>
-    <span class="nc-go">เปิดทะเบียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/finance/loans">
-    <div class="nc-head"><img src="/static/images/home3d/f_loans.png" alt="" style="flex:none;width:40px;height:40px;border-radius:11px;box-shadow:0 4px 10px rgba(15,23,42,.15);"><h3>เงินยืม</h3></div>
-    <p class="nc-desc">สัญญายืมเงิน ติดตามกำหนดส่งใช้ และใบรับใบสำคัญ</p>
-    <span class="nc-go">เปิดทะเบียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/finance/revenue">
-    <div class="nc-head"><img src="/static/images/home3d/f_revenue.png" alt="" style="flex:none;width:40px;height:40px;border-radius:11px;box-shadow:0 4px 10px rgba(15,23,42,.15);"><h3>นำส่งรายได้แผ่นดิน</h3></div>
-    <p class="nc-desc">ดูยอดค้างนำส่ง ออกบันทึกขออนุมัติและหนังสือนำส่ง</p>
-    <span class="nc-go">เปิดหน้า <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/finance/checks">
-    <div class="nc-head"><img src="/static/images/home3d/f_checks.png" alt="" style="flex:none;width:40px;height:40px;border-radius:11px;box-shadow:0 4px 10px rgba(15,23,42,.15);"><h3>ทะเบียนคุมการจ่ายเงิน</h3></div>
-    <p class="nc-desc">คุมการจ่ายด้วยเช็ค/โอน พร้อมเลขอ้างอิงและผู้รับเงิน</p>
-    <span class="nc-go">เปิดทะเบียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/finance/projects">
-    <div class="nc-head"><img src="/static/images/home3d/f_projects.png" alt="" style="flex:none;width:40px;height:40px;border-radius:11px;box-shadow:0 4px 10px rgba(15,23,42,.15);"><h3>ทะเบียนคุมโครงการ</h3></div>
-    <p class="nc-desc">คุมงบรายโครงการตามแผนปฏิบัติการ ผูกกับเงินที่จ่ายจริง</p>
-    <span class="nc-go">เปิดทะเบียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-</div>
-<h3 class="nav-sec-h">รายงานและสมุดบัญชี</h3>
-<div class="nav-grid nav-compact">
-  <a class="nav-card" href="/finance/cashbook">
-    <div class="nc-head"><img src="/static/images/home3d/f_cashbook.png" alt="" style="flex:none;width:40px;height:40px;border-radius:11px;box-shadow:0 4px 10px rgba(15,23,42,.15);"><h3>สมุดเงินสด</h3></div>
-    <p class="nc-desc">สมุดเงินสด + บัญชีแยกประเภท ระบบคุมยอดคงเหลือให้อัตโนมัติ</p>
-    <span class="nc-go">เปิดสมุด <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/finance/cash-report">
-    <div class="nc-head"><img src="/static/images/home3d/f_daily.png" alt="" style="flex:none;width:40px;height:40px;border-radius:11px;box-shadow:0 4px 10px rgba(15,23,42,.15);"><h3>เงินคงเหลือประจำวัน</h3></div>
-    <p class="nc-desc">รายงานเงินคงเหลือประจำวัน พร้อมช่องลงนามกรรมการเก็บรักษาเงิน</p>
-    <span class="nc-go">ออกรายงาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/finance/report">
-    <div class="nc-head"><img src="/static/images/home3d/f_report.png" alt="" style="flex:none;width:40px;height:40px;border-radius:11px;box-shadow:0 4px 10px rgba(15,23,42,.15);"><h3>รายงานการเงิน</h3></div>
-    <p class="nc-desc">สรุปรับ-จ่ายตามประเภทเงิน ดาวน์โหลด Excel/Word</p>
-    <span class="nc-go">ดูรายงาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/finance/quarter">
-    <div class="nc-head"><img src="/static/images/home3d/f_quarter.png" alt="" style="flex:none;width:40px;height:40px;border-radius:11px;box-shadow:0 4px 10px rgba(15,23,42,.15);"><h3>รายงานรายไตรมาส</h3></div>
-    <p class="nc-desc">สรุปยอดยกมา รับ-จ่ายในไตรมาส และคงเหลือ ส่งเขตพื้นที่</p>
-    <span class="nc-go">ออกรายงาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/finance/audit">
-    <div class="nc-head"><img src="/static/images/home3d/f_audit.png" alt="" style="flex:none;width:40px;height:40px;border-radius:11px;box-shadow:0 4px 10px rgba(15,23,42,.15);"><h3>รายงานแบบ สตง.</h3></div>
-    <p class="nc-desc">รายงานการเงินรูปแบบที่ตรวจสอบได้ตามแนว สตง.</p>
-    <span class="nc-go">ออกรายงาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/finance/bank-recon">
-    <div class="nc-head"><img src="/static/images/home3d/f_bank.png" alt="" style="flex:none;width:40px;height:40px;border-radius:11px;box-shadow:0 4px 10px rgba(15,23,42,.15);"><h3>งบกระทบยอดธนาคาร</h3></div>
-    <p class="nc-desc">กระทบยอดสมุดบัญชีกับ statement ธนาคารรายเดือน</p>
-    <span class="nc-go">ทำงบกระทบยอด <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/finance/ebudget">
-    <div class="nc-head"><img src="/static/images/home3d/f_ebudget.png" alt="" style="flex:none;width:40px;height:40px;border-radius:11px;box-shadow:0 4px 10px rgba(15,23,42,.15);"><h3>ช่วยกรอก e-Budget</h3></div>
-    <p class="nc-desc">จัดตัวเลขให้ตรงช่องของระบบบัญชีการศึกษาขั้นพื้นฐาน สพฐ.</p>
-    <span class="nc-go">เปิดตัวช่วย <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-</div>
-<h3 class="nav-sec-h">ตั้งค่าและตรวจสอบ</h3>
-<div class="nav-grid nav-compact">
-  <a class="nav-card" href="/finance/health?year={{ fiscal_year }}">
-    <div class="nc-head"><img src="/static/images/home3d/f_health.png" alt="" style="flex:none;width:40px;height:40px;border-radius:11px;box-shadow:0 4px 10px rgba(15,23,42,.15);"><h3>ตรวจสุขภาพข้อมูลการเงิน</h3></div>
-    <p class="nc-desc">ระบบไล่ตรวจข้อมูลให้ บอกสิ่งที่ควรแก้ ควรเช็ค ควรสังเกต พร้อมพาไปหน้าที่แก้ได้</p>
-    <span class="nc-go">ตรวจเลย <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/finance/subsidy">
-    <div class="nc-head"><img src="/static/images/home3d/f_subsidy.png" alt="" style="flex:none;width:40px;height:40px;border-radius:11px;box-shadow:0 4px 10px rgba(15,23,42,.15);"><h3>คำนวณเงินอุดหนุน</h3></div>
-    <p class="nc-desc">คิดยอดที่ควรได้รับแต่ละงวด (70% และ 30%) ตามรอบ DMC</p>
-    <span class="nc-go">คำนวณ <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/finance/withholding?year={{ fiscal_year }}">
-    <div class="nc-head"><img src="/static/images/home3d/f_wht.png" alt="" style="flex:none;width:40px;height:40px;border-radius:11px;box-shadow:0 4px 10px rgba(15,23,42,.15);"><h3>ภาษีหัก ณ ที่จ่าย</h3></div>
-    <p class="nc-desc">ออกหนังสือรับรองจากบันทึกขอเบิกหรือรายการจ่ายเดิม</p>
-    <span class="nc-go">เปิดรายการ <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/finance/import">
-    <div class="nc-head"><img src="/static/images/home3d/f_import.png" alt="" style="flex:none;width:40px;height:40px;border-radius:11px;box-shadow:0 4px 10px rgba(15,23,42,.15);"><h3>นำเข้าข้อมูล</h3></div>
-    <p class="nc-desc">นำรายการรับ-จ่ายเข้าจากไฟล์ Excel ตามแม่แบบของระบบ</p>
-    <span class="nc-go">นำเข้า <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-</div>
-
-<div class="row">
-  <div class="card" style="flex:1; min-width:320px;">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-      <h2 style="margin:0;">บัญชี/ประเภทเงิน</h2>
-      <a class="btn sm" href="/finance/accounts"><svg class="icon"><use href="#ic-arrow-right"/></svg> จัดการ</a>
-    </div>
-    {% if accounts %}
-    <div class="table-wrap"><table style="margin-top:12px;">
-      <thead><tr><th>บัญชี</th><th class="right">คงเหลือ</th></tr></thead>
-      <tbody>
-        {% for a in accounts %}
-        <tr><td><a href="/finance/accounts/{{ a.id }}?year={{ fiscal_year }}">{{ a.name }}</a></td>
-            <td class="right"><b>{{ "{:,.2f}".format(acct_balance_year(a, fiscal_year)) }}</b></td></tr>
-        {% endfor %}
-      </tbody>
-    </table></div>
-    {% else %}{{ empty_state('ยังไม่มีบัญชี', 'เพิ่มบัญชีเงิน เช่น เงินอุดหนุน รายได้สถานศึกษา หรือนำเข้าจาก Excel ที่หน้านำเข้าข้อมูล', '/finance/accounts', 'เพิ่มบัญชี', 'ic-coins') }}{% endif %}
-  </div>
-  <div class="card" style="flex:1; min-width:320px;">
-    <h2>บันทึกขอเบิกจ่ายล่าสุด</h2>
-    {% if recent_disburse %}
-    <div class="table-wrap"><table><tbody>
-      {% for m in recent_disburse %}
-      <tr><td><a href="/finance/disburse/{{ m.id }}">{{ m.memo_no or "-" }}</a></td>
-          <td>{{ m.subject or "-" }}</td>
-          <td class="right">{{ "{:,.2f}".format(m.amount or 0) }}</td></tr>
-      {% endfor %}
-    </tbody></table></div>
-    {% else %}<p class="muted">ยังไม่มี</p>{% endif %}
-    <br><a class="btn sm" href="/finance/disburse?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-plus"/></svg> ออกบันทึกขอเบิกจ่าย</a>
-  </div>
-</div>
-
-
-<div class="card">
-  <h2><svg class="icon"><use href="#ic-coins"/></svg> ยกยอดไปปีงบถัดไป</h2>
-  <p class="muted" style="margin-top:0;">เมื่อขึ้นปีงบใหม่ กดปุ่มนี้เพื่อ <b>คัดลอกยอดคงเหลือสิ้นปีงบ {{ fiscal_year }}</b> ของทุกบัญชี ไปตั้งเป็น <b>ยอดยกมาของปีงบ {{ fiscal_year + 1 }}</b> โดย <b>ไม่ลบข้อมูลปีเก่า</b> (เลือกดูย้อนหลังได้จากช่องเลือกปี) กดซ้ำได้ ระบบจะอัปเดตยอดให้ตรงเสมอ</p>
-  <form method="post" action="/finance/carry-forward"
-        onsubmit="return confirm('คัดลอกยอดคงเหลือสิ้นปีงบ {{ fiscal_year }} ไปเป็นยอดยกมาปีงบ {{ fiscal_year + 1 }}?');">
-    <input type="hidden" name="year" value="{{ fiscal_year }}">
-    <button class="btn" type="submit"><svg class="icon"><use href="#ic-arrow-right"/></svg> ยกยอดไปปีงบ {{ fiscal_year + 1 }}</button>
-  </form>
-</div>
-<style>
-  /* การ์ดเมนูแบบกะทัดรัด จัดเป็นกลุ่ม (เดิม 17 ใบยาวต่อกัน) */
-  .nav-sec-h { margin:6px 0 10px; font-size:16px; color:#334155; }
-  .nav-compact { grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:12px; margin-bottom:18px; }
-  .nav-compact .nav-card { padding:14px 16px; gap:6px; }
-  .nav-compact .nav-card .nc-ic { width:36px; height:36px; border-radius:10px; }
-  .nav-compact .nav-card .nc-ic .icon { width:18px; height:18px; }
-  .nav-compact .nav-card h3 { font-size:15.5px; }
-  .nav-compact .nav-card .nc-desc { font-size:13px; line-height:1.45; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-  .nav-compact .nav-card .nc-go { display:none; }
-  @media (max-width:640px) { .nav-compact { grid-template-columns:1fr 1fr; } .nav-compact .nav-card .nc-desc { display:none; } }
-</style>
+<link rel="stylesheet" href="/static/finance_dashboard.css?v=1">
+<script src="/static/finance_dashboard.js?v=1" defer></script>
 {% endblock %}

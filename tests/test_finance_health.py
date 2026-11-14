@@ -449,5 +449,5 @@ def test_disburse_memo_warns_when_date_in_other_fiscal_year(env):
     finally:
         db.close()
     html = env.get(f"/finance/disburse/{mid}").text
-    assert f"รายการจ่ายนี้อยู่ในทะเบียนปีงบ {fy - 1} แต่วันที่จ่ายอยู่ในปีงบ {fy}" in html
+    assert f"รายการจ่ายนี้อยู่ในทะเบียนปีงบ {fy - 1} แต่วันที่ในบันทึกอยู่ในปีงบ {fy}" in html
     assert f'href="/finance/health?year={fy - 1}"' in html
