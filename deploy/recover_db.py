@@ -4,7 +4,8 @@
 
 ใช้แทน .recover ของ sqlite3 (บางเครื่องคอมไพล์มาไม่มี sqlite_dbpage)
 
-    python3 recover_db.py <ฐานที่เสีย> <ฐานใหม่>
+    python3 recover_db.py <ฐานที่เสีย> <ฐานใหม่> [--with-wal]
+    --with-wal = อ่านไฟล์ <ฐาน>-wal ข้างกันด้วย (ข้อมูลล่าสุดที่ยังไม่ checkpoint) ใช้กับสำเนาเท่านั้น
 
 - ไม่แก้ไฟล์ต้นทาง (เปิดแบบ immutable อ่านอย่างเดียว)
 - สร้างตารางจาก schema เดิม แล้วไล่อ่านทีละตาราง ถ้าอ่านสะดุดกลางทาง จะอ่านต่อจาก rowid ถัดไป
@@ -17,13 +18,16 @@ from pathlib import Path
 
 
 def main():
-    if len(sys.argv) != 3:
+    args = [a for a in sys.argv[1:] if a != "--with-wal"]
+    with_wal = "--with-wal" in sys.argv
+    if len(args) != 2:
         print(__doc__)
         sys.exit(2)
-    src_p, dst_p = Path(sys.argv[1]), Path(sys.argv[2])
+    src_p, dst_p = Path(args[0]), Path(args[1])
     if dst_p.exists():
         sys.exit(f"มีไฟล์ {dst_p} อยู่แล้ว ลบก่อน")
-    src = sqlite3.connect(f"file:{src_p}?immutable=1", uri=True)
+    # --with-wal: อ่านรวม <ฐาน>-wal ที่วางข้างกัน (ใช้กับสำเนาเท่านั้น เพราะต้องสร้าง -shm ได้)
+    src = sqlite3.connect(f"file:{src_p}?mode=ro" if with_wal else f"file:{src_p}?immutable=1", uri=True)
     dst = sqlite3.connect(dst_p)
     log = open(str(dst_p) + ".conflicts.txt", "w", encoding="utf-8")
 
