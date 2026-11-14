@@ -1,0 +1,38 @@
+{% set wrong_fy = date_fy and date_fy != m.fiscal_year %}
+{% set legacy_paid = proc and proc.paid_before_system and not posted %}
+{% set needs_approval = lunch_source and ap_state and ap_state.code not in ('approved','signed') %}
+{% set stale_source = lunch_source and lunch_source.stale %}
+{% set can_pay = not posted and not legacy_paid and not payment_info.managed and payment_info.remaining > 0 and m.account_id and not needs_approval and not stale_source %}
+<section class="dm-payment {{ 'dm-paid' if posted else '' }}" aria-labelledby="dm-payment-title">
+  <div class="dm-state"><span class="dm-state-icon"><svg class="icon" aria-hidden="true"><use href="#ic-{{ 'check' if posted else 'coins' }}"/></svg></span><div><h2 id="dm-payment-title">{{ 'บันทึกจ่ายเงินจริงแล้ว' if posted else 'ยังไม่ได้บันทึกจ่ายเงินจริง' }}</h2><p>{% if posted %}ลงทะเบียนคุมเงินแล้ว{% if posted_txn %} · วันที่ {{ be_date(posted_txn.date) }}{% endif %}{% if lunch_source %} · อัปเดตงวดอาหารกลางวันแล้ว{% endif %}{% else %}การบันทึกขอเบิกยังไม่ตัดยอดในทะเบียนคุมเงิน{% endif %}</p></div>
+    {% if ap_state and ap_state.code in ('approved','signed') %}<span class="dm-approved"><svg class="icon"><use href="#ic-check"/></svg> ผอ. อนุมัติแล้ว</span>{% endif %}
+  </div>
+  <div class="dm-summary"><div class="dm-amounts"><div><small>ยอดขอเบิก</small><strong>{{ '{:,.2f}'.format(m.amount or 0) }} <span>บาท</span></strong></div><div><small>จ่ายสุทธิ</small><strong>{{ '{:,.2f}'.format((m.amount or 0)-(m.wht or 0)-(m.fine or 0)) }} <span>บาท</span></strong></div></div>
+    <div class="dm-action">{% if posted %}<a class="btn green" href="#payment-records"><svg class="icon"><use href="#ic-coins"/></svg> ดูรายการจ่ายในทะเบียนคุมเงิน</a>
+    {% elif legacy_paid %}<a class="btn gray" href="/procurement/{{ proc.id }}?keep=1">ตรวจสถานะจ่ายก่อนเริ่มใช้ระบบ</a>
+    {% elif payment_info.managed %}<a class="btn gray" href="#existing-payments">เชื่อมรายการจ่ายจากอาหารกลางวัน</a>
+    {% elif payment_info.remaining <= 0 %}<a class="btn gray" href="#payment-records">ตรวจรายการจ่ายเดิม</a>
+    {% elif not m.account_id %}<button class="btn gray" type="button" data-dm-edit="acctSel">เลือกบัญชีที่จะจ่าย</button>
+    {% elif stale_source %}<a class="btn gray" href="#dm-source">ตรวจข้อมูลงวดที่เปลี่ยน</a>
+    {% elif needs_approval %}<a class="btn gray" href="#approval">ส่งบันทึกให้ ผอ. อนุมัติก่อนจ่าย</a>
+    {% else %}<button class="btn green dm-pay-button" type="button" data-dm-open data-no-floating-save><svg class="icon"><use href="#ic-coins"/></svg> บันทึกจ่ายเงินจริง <svg class="icon"><use href="#ic-arrow-right"/></svg></button>{% endif %}</div>
+  </div>
+  {% if not posted %}<div class="dm-footnote">{% if legacy_paid %}เรื่องพัสดุนี้ทำเครื่องหมายว่าจ่ายแล้วก่อนเริ่มใช้ระบบ ถ้าลงจ่ายอีก เงินในทะเบียนคุมเงินจะถูกตัดซ้ำ{% elif payment_info.managed %}เรื่องนี้ลงจ่ายผ่านงานอาหารกลางวัน ให้บันทึกจ่ายที่หน้าอาหารกลางวัน แล้วเลือกเชื่อมรายการเดิมด้านล่าง เพื่อไม่ตัดเงินซ้ำ{% elif payment_info.remaining <= 0 %}เรื่องนี้มียอดจ่ายครบหรือเกินยอดแล้ว กรุณาตรวจรายการจ่ายเดิมก่อน{% elif needs_approval %}รอผลอนุมัติบันทึกขอเบิกก่อนบันทึกจ่ายเงินจริง{% endif %} <a href="#existing-payments">เคยบันทึกจ่ายไว้แล้ว? เชื่อมรายการเดิมที่นี่</a></div>{% endif %}
+  <div id="dm-unsaved" class="alert warn" role="alert" hidden>มีข้อมูลที่แก้ไขยังไม่ได้บันทึก กรุณาบันทึกการแก้ไขก่อน เพื่อให้ยอดเงินและบัญชีในหน้าตรวจยืนยันตรงกับข้อมูลล่าสุด <button type="button" class="btn gray sm" data-dm-edit="memo_no">ไปบันทึกการแก้ไข</button></div>
+  {% if posted and lunch_source and not payment_info.own[0].linked_existing %}<details class="dm-manage"><summary>จัดการการบันทึกจ่าย</summary><form method="post" action="/finance/disburse/{{ m.id }}/lunch-cancel-payment" onsubmit="return confirm('ยกเลิกการบันทึกจ่าย คืนยอดในทะเบียนคุมเงิน และให้งวดกลับเป็นตรวจรับแล้ว?');"><button class="btn gray sm" type="submit">ยกเลิกการบันทึกจ่ายงวดนี้</button></form></details>{% endif %}
+  {% if posted and posted_txn and posted_txn.date and posted_txn.fiscal_year != date_fy %}<div class="alert warn"><b>รายการจ่ายนี้อยู่ในทะเบียนปีงบ {{ posted_txn.fiscal_year }} แต่วันที่ในบันทึกอยู่ในปีงบ {{ date_fy }}</b> ตรวจวันที่และปีงบที่<a href="/finance/health?year={{ posted_txn.fiscal_year }}">หน้าตรวจสุขภาพข้อมูลการเงิน</a></div>{% endif %}
+</section>
+{% if can_pay %}
+<dialog id="disburse-payment-dialog" class="dm-dialog" aria-labelledby="dm-dialog-title">
+  <div class="dm-dialog-head"><div><span>บันทึกขอเบิก {{ m.memo_no or m.id }}</span><h2 id="dm-dialog-title">ยืนยันบันทึกจ่ายเงินจริง</h2></div><button type="button" data-dm-close class="dm-close" aria-label="ปิดหน้าต่าง">✕</button></div>
+  <form method="post" action="/finance/disburse/{{ m.id }}/post" id="dm-payment-form">
+    <div class="dm-dialog-body">
+      {% if lunch_source %}<label for="lunch-paid-date">วันที่จ่ายเงินจริง <span class="dm-required">*</span></label><input id="lunch-paid-date" name="paid_date" placeholder="วว/ดด/ปปปป" data-date="1" required autocomplete="off"><small class="dm-hint">ลงบัญชีตามวันที่จ่ายจริง โดยเก็บวันที่บันทึกขอเบิกไว้ตามเดิม</small>{% else %}<label>วันที่ลงรายการจ่าย</label><div class="dm-readonly">{{ be_date(m.date) if m.date else 'ใช้วันที่ปัจจุบันเมื่อยืนยัน' }}</div><small class="dm-hint">ใช้วันที่ที่บันทึกไว้ในรายละเอียดขอเบิก</small>{% endif %}
+      <label>บัญชีที่จ่าย</label>{% if split_rows %}<div class="dm-readonly">{% for row in split_rows %}<div>{{ row.name }} · {{ '{:,.2f}'.format(row.amount) }} บาท</div>{% endfor %}</div>{% else %}{% set account=accounts|selectattr('id','equalto',m.account_id)|first %}<div class="dm-readonly">{{ account.name if account else 'ไม่พบบัญชีที่เลือก กรุณาตรวจรายละเอียด' }}</div>{% endif %}
+      <div class="dm-breakdown"><div><span>ยอดขอเบิก</span><b>{{ '{:,.2f}'.format(m.amount or 0) }} บาท</b></div><div><span>หักภาษี ณ ที่จ่าย</span><b>{{ '{:,.2f}'.format(m.wht or 0) }} บาท</b></div><div><span>ค่าปรับ</span><b>{{ '{:,.2f}'.format(m.fine or 0) }} บาท</b></div><div class="dm-net"><span>จ่ายสุทธิ</span><b>{{ '{:,.2f}'.format((m.amount or 0)-(m.wht or 0)-(m.fine or 0)) }} บาท</b></div></div>
+      <div class="dm-confirm-note"><svg class="icon"><use href="#ic-info"/></svg><span>เมื่อยืนยัน ระบบจะลงรายการจ่ายในทะเบียนคุมเงิน{% if lunch_source %} และเปลี่ยนสถานะงวดเป็นจ่ายแล้ว{% else %} และเปลี่ยนสถานะบันทึกเป็นจ่ายแล้ว{% endif %}</span></div>
+      {% if wrong_fy %}<div class="alert warn" role="alert"><b>วันที่ในบันทึกนี้อยู่ในปีงบ {{ date_fy }} แต่บันทึกนี้เป็นปีงบ {{ m.fiscal_year }}</b><p>รายการจะลงทะเบียนปีงบ {{ m.fiscal_year }} กรุณาตรวจปีงบและวันที่ก่อนยืนยัน ถ้าต้องแก้ไข ให้ปิดหน้าต่างแล้วแก้รายละเอียดก่อน</p></div>{% endif %}
+    </div><div class="dm-dialog-foot"><button class="btn gray" type="button" data-dm-close>ย้อนกลับ</button><button class="btn green" type="submit" data-no-floating-save id="dm-confirm"><svg class="icon"><use href="#ic-check"/></svg> ยืนยันบันทึกจ่าย</button></div>
+  </form>
+</dialog>
+{% endif %}
