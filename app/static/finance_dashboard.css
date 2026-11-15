@@ -7,3 +7,7 @@
 .fd-task-body{max-height:360px;overflow:auto}
 
 .fd-health-unknown{background:#f8fafc;border-color:#e2e8f0}
+
+/* Independent desktop stacks prevent a tall account list from leaving a gap above recent memos. */
+.fd-column{display:flex;flex-direction:column;gap:15px;min-width:0}
+@media(max-width:1150px){.fd-column{display:contents}.fd-main-grid .fd-accounts{grid-row:2}.fd-main-grid .fd-recent{grid-row:3}.fd-main-grid .fd-side{grid-row:4}}
