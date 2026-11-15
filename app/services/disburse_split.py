@@ -10,7 +10,7 @@ disburse_split.py - บันทึกขอเบิก 1 ฉบับ แย�
     ยอดโครงการรวมจากรายการเงิน จึงนับ 30,000 ไม่ซ้ำ
   - ภาษี ณ ที่จ่ายและค่าปรับ: หนังสือรับรองใบเดียวตามยอดรวม แบ่งลงแต่ละบัญชีตามสัดส่วน
     เศษสตางค์ยกให้แถวสุดท้าย ผลรวมจึงเท่ายอดเดิมพอดี (เจ้าของเลือก 2026-10-31)
-  - วันจ่ายวันเดียวทั้งฉบับ ใช้วันที่ของบันทึก
+  - วันจ่ายวันเดียวทั้งฉบับ เลือกวันที่จ่ายจริงแยกจากวันที่ขอเบิก
 """
 from datetime import datetime
 
@@ -111,13 +111,13 @@ def txn_note(memo, n=None, total=None) -> str:
     return payment_note(memo, n, total)
 
 
-def post(db, memo) -> None:
+def post(db, memo, paid_date=None) -> None:
     """ลงจ่ายเข้าทะเบียนคุมเงิน 1 รายการต่อแหล่งเงิน"""
     rows = rows_of(db, memo)
     many = len(rows) > 1
     for i, r in enumerate(rows, 1):
         db.add(FinanceTxn(account_id=r["account_id"], fiscal_year=memo.fiscal_year, kind="out", item_id=r["item_id"],
-                          amount=r["amount"], date=memo.date or datetime.now(), category="เบิกจ่าย",
+                          amount=r["amount"], date=paid_date or memo.date or datetime.now(), category="เบิกจ่าย",
                           ref=memo.memo_no or "", note=txn_note(memo, i if many else None, len(rows)),
                           disburse_id=memo.id, eb_code=memo.eb_code or ""))
 
@@ -135,9 +135,12 @@ def sync(db, memo, txns) -> None:
     if any(t.linked_existing for t in txns):
         raise ValueError("รายการนี้ใช้ยอดจ่ายเดิม หากต้องการแยกหลายบัญชี ให้ยกเลิกการเชื่อมก่อน")
     rows = rows_of(db, memo)
+    dates = {t.date for t in txns}
+    if len(rows) > len(txns) and (len(dates) != 1 or None in dates):
+        raise ValueError("รายการจ่ายเดิมมีวันที่ต่างกันหรือไม่ระบุวัน กรุณาตรวจรายการจ่ายก่อนเพิ่มแหล่งเงิน")
+    paid_date = txns[0].date if txns else None
     for t, r in zip(txns, rows):
-        same = (t.account_id == r["account_id"] and round(t.amount or 0, 2) == round(r["amount"], 2)
-                and not (memo.date and (not t.date or memo.date.date() != t.date.date())))
+        same = (t.account_id == r["account_id"] and round(t.amount or 0, 2) == round(r["amount"], 2))
         if not same and _tied(db, t):
             raise ValueError("รายการจ่ายนี้เชื่อมใบเสร็จหรือทะเบียนเช็คอยู่ ยกเลิกการเชื่อมก่อนจึงแก้บัญชี ยอด หรือวันที่ได้")
     for t in txns[len(rows):]:
@@ -146,7 +149,6 @@ def sync(db, memo, txns) -> None:
     many = len(rows) > 1
     for i, (t, r) in enumerate(zip(txns, rows), 1):
         t.account_id, t.item_id, t.amount = r["account_id"], r["item_id"], r["amount"]
-        t.date = memo.date or t.date
         t.ref = memo.memo_no or t.ref
         t.note = txn_note(memo, i if many else None, len(rows))
         t.eb_code = memo.eb_code or t.eb_code
@@ -155,6 +157,6 @@ def sync(db, memo, txns) -> None:
         db.delete(t)
     for i, r in enumerate(rows[len(txns):], len(txns) + 1):
         db.add(FinanceTxn(account_id=r["account_id"], fiscal_year=memo.fiscal_year, kind="out", item_id=r["item_id"],
-                          amount=r["amount"], date=memo.date or datetime.now(), category="เบิกจ่าย",
+                          amount=r["amount"], date=paid_date or memo.date or datetime.now(), category="เบิกจ่าย",
                           ref=memo.memo_no or "", note=txn_note(memo, i if many else None, len(rows)),
                           disburse_id=memo.id, eb_code=memo.eb_code or ""))

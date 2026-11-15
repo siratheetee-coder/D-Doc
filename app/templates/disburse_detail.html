@@ -43,7 +43,7 @@
 {{ case_staff(request, m, False) }}
     <div class="row">
       <div><label>เลขที่บันทึก</label><input name="memo_no" value="{{ m.memo_no }}"></div>
-      <div><label>วันที่</label><input name="date" value="{{ be_date(m.date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
+      <div><label>วันที่บันทึกขอเบิก</label><input name="date" value="{{ be_date(m.date) }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
       <div><label>สถานะ</label>
         {% if posted %}
         <input value="จ่ายแล้ว ลงทะเบียนคุมเงินแล้ว" readonly>

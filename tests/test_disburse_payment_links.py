@@ -73,8 +73,8 @@ def test_second_memo_cannot_overpay(env):
         a,p,m=seed(db);mid=m.id
         other=DisburseMemo(fiscal_year=2570,account_id=a.id,procurement_id=p.id,amount=700)
         db.add(other);db.commit();oid=other.id
-    env.post(f'/finance/disburse/{mid}/post')
-    result=env.post(f'/finance/disburse/{oid}/post',follow_redirects=False)
+    env.post(f'/finance/disburse/{mid}/post',data={'paid_date':'15/11/2569'})
+    result=env.post(f'/finance/disburse/{oid}/post',data={'paid_date':'15/11/2569'},follow_redirects=False)
     assert 'payment_message=' in result.headers['location']
     with tn.session_for(sid) as db:
         assert not db.query(FinanceTxn).filter_by(disburse_id=oid).first()

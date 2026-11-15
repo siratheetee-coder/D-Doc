@@ -43,7 +43,8 @@ def context(db,kind,rid):
         for key in ('payee','tax_id','address','income_type','ref_no','base_amount','tax_amount'):initial[key]=getattr(cert,key)
     if kind=='memo':
         initial.update(payee=source.payee or '',base_amount=float(source.amount or 0)-float(source.vat or 0),tax_amount=float(source.wht or 0))
-    return dict(kind=kind,rid=rid,source=source,certificate=cert,values=initial,
+    from app.services.disburse_dates import certificate_date
+    return dict(kind=kind,rid=rid,source=source,certificate=cert,values=initial, payment_date=certificate_date(source) if kind=='memo' else source.date,
                 posted=kind=='payment' or bool(db.query(FinanceTxn.id).filter_by(disburse_id=rid).first()),
                 source_href=f'/finance/disburse/{rid}' if kind=='memo' else f'/finance/accounts/{source.account_id}?year={source.fiscal_year}#txn-history')
 

@@ -345,7 +345,9 @@ def write_wht_4235(doc, school, memo, *, payee_tax_id="", payee_address="",
     use_tax_line = juristic or float(memo.vat or 0) > 0
     ref = (ref_no if ref_no is not None else (memo.memo_no or "")).strip()
     sch_tax = (getattr(school, "tax_id", "") or "").strip()
-    pay_date = thai_date_short(memo.date) if memo.date else ""
+    from app.services.disburse_dates import certificate_date
+    actual_date = certificate_date(memo)
+    pay_date = thai_date_short(actual_date) if actual_date else ""
 
     _p(doc, "หนังสือรับรองการหักภาษี ณ ที่จ่าย", align="center", bold=True, size=18, after=0)
     _p(doc, "แบบ 4235", align="right", bold=True, size=16, after=4)

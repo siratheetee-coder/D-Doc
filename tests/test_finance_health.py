@@ -422,7 +422,7 @@ def test_search_box_on_every_page(env):
 
 
 def test_disburse_memo_warns_when_date_in_other_fiscal_year(env):
-    """บันทึกขอเบิกปีงบ fy-1 แต่ลงวันที่ ต.ค. (ปีงบ fy): เตือนก่อนลงจ่าย แต่ไม่บังคับ ลงจ่ายได้ตามปกติ"""
+    """บันทึกขอเบิกปีงบ fy-1 แต่ลงวันที่ ต.ค. (ปีงบ fy): วันที่ขอเบิกแยกจากวันจ่ายจริง และเตือนข้อมูลเก่าที่วันจ่ายไม่ตรงปีงบ"""
     from app.models import FinanceAccount, DisburseMemo, FinanceTxn
     from app.thai_utils import current_fiscal_year
     fy = current_fiscal_year()
@@ -441,13 +441,19 @@ def test_disburse_memo_warns_when_date_in_other_fiscal_year(env):
     assert f'action="/finance/disburse/{mid}/post"' in html, "ยังกดลงจ่ายได้ (เตือนเฉย ๆ)"
     assert "วันที่ในบันทึกนี้อยู่ในปีงบ" not in env.get(f"/finance/disburse/{ok_id}").text, "ปีงบตรงกัน ไม่เตือน"
 
-    env.post(f"/finance/disburse/{mid}/post")
+    invalid = env.post(f"/finance/disburse/{mid}/post", data={"paid_date": f"03/10/{fy - 1}"}, follow_redirects=False)
+    assert 'payment_message=' in invalid.headers['location']
+    env.post(f"/finance/disburse/{mid}/post", data={"paid_date": f"03/10/{fy - 2}"})
     db = _db()
     try:
         t = db.query(FinanceTxn).filter_by(disburse_id=mid).one()
-        assert t.fiscal_year == fy - 1, "ไม่บังคับ: ลงตามปีงบของบันทึกเหมือนเดิม"
+        assert t.fiscal_year == fy - 1
+        assert t.date == datetime(fy - 545, 10, 3)
+        assert "แต่วันที่จ่ายจริงอยู่ในปีงบ" not in env.get(f"/finance/disburse/{mid}").text
+        # Legacy inconsistent records remain visible for review; existing data is not migrated.
+        t.date = datetime(fy - 544, 10, 3); db.commit()
     finally:
         db.close()
     html = env.get(f"/finance/disburse/{mid}").text
-    assert f"รายการจ่ายนี้อยู่ในทะเบียนปีงบ {fy - 1} แต่วันที่ในบันทึกอยู่ในปีงบ {fy}" in html
+    assert f"รายการจ่ายนี้อยู่ในทะเบียนปีงบ {fy - 1} แต่วันที่จ่ายจริงอยู่ในปีงบ {fy}" in html
     assert f'href="/finance/health?year={fy - 1}"' in html

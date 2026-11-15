@@ -284,7 +284,7 @@ def test_http_memo_teaches_the_project_category_and_the_ledger_links_back():
         src = r.json()["sources"]
         assert [(x["account_id"], x["item_id"], x["why"]) for x in src] == [(acc_id, it_id, USED_BEFORE)]
 
-        r = c.post(f"/finance/disburse/{mid}/post", follow_redirects=False)
+        r = c.post(f"/finance/disburse/{mid}/post", data={"paid_date": "15/11/2569"}, follow_redirects=False)
         assert r.status_code in (302, 303)
         r = c.get(f"/finance/accounts/{acc_id}?year={FY}")
         assert r.status_code == 200

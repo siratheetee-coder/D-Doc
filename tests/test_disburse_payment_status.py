@@ -20,7 +20,7 @@ def test_payment_status_follows_ledger(env):
         db.get(DisburseMemo, mid).status = 'จ่ายแล้ว'; db.commit()
     assert f'action="{url}/post"' in env.get(url).text
     for _ in range(2):
-        assert env.post(url+'/post').status_code == 200
+        assert env.post(url+'/post',data={'paid_date':'15/11/2569'}).status_code == 200
     with tn.session_for(sid) as db:
         rows = db.query(FinanceTxn).filter_by(disburse_id=mid).all()
         assert len(rows) == 1
