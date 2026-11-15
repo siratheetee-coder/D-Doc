@@ -1,0 +1,9 @@
+/* Opt-in record cards: native links preserve keyboard, new-tab and context-menu behavior. */
+[data-detail-card]{position:relative;isolation:isolate;transition:box-shadow .15s ease}
+[data-detail-card] a.detail-card-link{position:static;z-index:auto}
+[data-detail-card] .detail-card-link::after{content:"";position:absolute;inset:0;z-index:2;border-radius:inherit;cursor:pointer}
+/* Keep independent controls above the primary link, without wrapping links or forms in an anchor. */
+[data-detail-card] :is(a:not(.detail-card-link),button,input,select,textarea,label,summary,[contenteditable="true"]){position:relative;z-index:3}
+[data-detail-card]:hover{box-shadow:0 0 0 1px #94a3b8,0 6px 18px #0f172a12}
+[data-detail-card]:has(.detail-card-link:focus-visible){outline:3px solid #60a5fa;outline-offset:3px}
+@media(prefers-reduced-motion:reduce){[data-detail-card]{transition:none}}

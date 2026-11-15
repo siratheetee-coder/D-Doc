@@ -210,10 +210,10 @@
   {% set k = {'ร่าง':0,'อนุมัติ':1,'ตรวจรับแล้ว':2,'เบิกจ่ายแล้ว':3}.get(p.status, 0) %}
   {% set late = p.status == 'อนุมัติ' and p.delivery_due_date and p.delivery_due_date < today_dt %}
   {% set bar = '#ef4444' if late else ['#94a3b8','#f59e0b','#3b82f6','#22c55e'][k] %}
-  <div class="rgc{{ ' late' if late }}" style="--bar:{{ bar }};" data-st="{{ 'late' if late else ['draft','approved','inspected','paid'][k] }}">
+  <div class="rgc{{ ' late' if late }}" style="--bar:{{ bar }};" data-st="{{ 'late' if late else ['draft','approved','inspected','paid'][k] }}" data-detail-card>
     <img class="rgc-ic" src="/static/images/home3d/{{ 'p_hire' if p.proc_type == 'จ้าง' else 'p_buy' }}.png" alt="">
     <div class="rgc-main">
-      <a class="rgc-t" href="/procurement/{{ p.id }}">{{ p.proc_type }}{{ p.subject }}</a>
+      <a class="rgc-t detail-card-link" href="/procurement/{{ p.id }}">{{ p.proc_type }}{{ p.subject }}</a>
       <div class="rgc-meta">
         <span><b>{% if p.order_no %}เลขที่ {{ p.order_no }}{% else %}ยังไม่ออกใบสั่ง{% endif %}</b></span>
         <span>{{ thai_date(p.order_date) if p.order_date else "ยังไม่ระบุวันที่" }}</span>
