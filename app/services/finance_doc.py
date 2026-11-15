@@ -261,7 +261,7 @@ def _disburse_tail(doc, school, memo, net):
     # ลงนามเจ้าหน้าที่การเงิน
     fin = (school.finance_officer_name or school.officer_name or "").strip()
     d = memo.date
-    when = f"{d.day}/{_MONTHS[d.month]}/{d.year + 543}" if d else "......../................/........"
+    when = thai_date(d) if d else "........ ................ ........"
     _sign_table(doc, [[("", "center")], [
         ("ลงชื่อ ......................................", "center"),
         (f"({fin})" if fin else "(......................................)", "center"),
