@@ -1,29 +1,21 @@
 {% extends "base.html" %}
 {% block title %}งานวิชาการ{% endblock %}
 {% block content %}
-<div class="hero">
-  <div>
-    <div class="hero-sub">ผลการเรียน ปพ.5 สมุดรายงาน ปพ.6</div>
-    <span class="hero-title">งานวิชาการ</span>
-    <div class="hero-meta">{{ school.name or "" }} ปีการศึกษา {{ year }}</div>
-  </div>
-</div>
+<div class="ah-page">
+<header class="ah-header"><div class="ah-heading"><span class="ah-cap"><svg class="icon"><use href="#ic-book"/></svg></span><div><h1>ภาพรวมงานวิชาการ</h1><p>{{ school.name or '' }}</p></div></div><div class="ah-header-actions">
+<form method="get" action="/academic"><input type="hidden" name="term" value="{{ term }}"><label class="ah-sr" for="ah-year">ปีการศึกษา</label><select id="ah-year" name="year" onchange="submitReplace(this.form)">{% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>ปีการศึกษา {{ y }}</option>{% endfor %}</select><noscript><button class="btn sm">เลือกปี</button></noscript></form>
+<a class="btn gray ah-video" href="/guide#video-academic"><span aria-hidden="true">▶</span> ดูวิดีโอวิธีใช้งาน</a></div></header>
 
 {# รายการเริ่มต้นงานวิชาการ (app/services/academic_setup.py) แทนกล่อง "เริ่มใช้งานงานวิชาการ" เดิม
    ที่เป็นข้อความตายตัว ครูไม่เห็น (setup = None) #}
-{% if setup %}{% set setup_key = 'acad' %}{% set setup_video = '/guide#video-academic' %}{% set setup_title = 'เริ่มต้นงานวิชาการ ปีการศึกษา ' ~ year %}
-{% include '_setup_checklist.html' %}{% endif %}
+{% if setup and not setup.complete %}{% set setup_key = 'acad' %}{% set setup_video = '/guide#video-academic' %}{% set setup_title = 'เริ่มต้นงานวิชาการ ปีการศึกษา ' ~ year %}
+<details class="ah-setup"><summary><b>ตั้งค่าแล้ว {{ setup.done }}/{{ setup.total }} ขั้น</b><progress value="{{ setup.done }}" max="{{ setup.total }}" aria-label="ความคืบหน้าการตั้งค่า"></progress><span>ดูขั้นตอนเริ่มใช้งาน <svg class="icon"><use href="#ic-arrow-right"/></svg></span></summary><div class="ah-setup-body">{% include '_setup_checklist.html' %}</div></details>{% endif %}
 
-<div class="card">
-  <div class="stat">
-    <div class="box"><div><div class="lab">ห้องเรียน ปี {{ year }}</div><div class="num">{{ n_classes }}</div></div>
-      <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-users"/></svg></span></div>
-    <div class="box"><div><div class="lab">นักเรียนในห้อง</div><div class="num">{{ n_students }}</div></div>
-      <span class="ic-wrap ic-green"><svg class="icon"><use href="#ic-users"/></svg></span></div>
-    <div class="box"><div><div class="lab">รายวิชา</div><div class="num">{{ n_subjects }}</div></div>
-      <span class="ic-wrap ic-amber"><svg class="icon"><use href="#ic-clipboard"/></svg></span></div>
-  </div>
-</div>
+<section class="ah-stats" aria-label="สรุปงานวิชาการปีการศึกษา {{ year }}">
+<a class="ah-stat" href="/academic/classes?year={{ year }}"><img src="/static/images/academic3d/classroom.png" width="78" height="78" alt=""><div><span>ห้องเรียน</span><strong>{{ n_classes }} <small>ห้อง</small></strong></div></a>
+<a class="ah-stat" href="/academic/classes?year={{ year }}"><img src="/static/images/academic3d/students.png" width="78" height="78" alt=""><div><span>นักเรียน{{ 'ในห้องที่ดูแล' if is_teacher else 'ทั้งหมด' }}</span><strong>{{ n_students }} <small>คน</small></strong></div></a>
+<a class="ah-stat" href="/academic/subjects?year={{ year }}"><img src="/static/images/academic3d/subjects.png" width="78" height="78" alt=""><div><span>รายวิชา{{ 'ที่สอน' if is_teacher else '' }}</span><strong>{{ n_subjects }} <small>วิชา</small></strong></div></a>
+</section>
 
 {% macro dcell(done, total, href) %}
   {% if total == 0 %}<td><span class="p-dash">-</span></td>
@@ -38,8 +30,8 @@
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
     <h2 style="margin:0;"><svg class="icon"><use href="#ic-clipboard"/></svg> งานของฉัน</h2>
     <div class="seg">
-      <a class="seg-btn {{ 'on' if term==1 }}" href="/academic?term=1">ภาคเรียนที่ 1</a>
-      <a class="seg-btn {{ 'on' if term==2 }}" href="/academic?term=2">ภาคเรียนที่ 2</a>
+      <a class="seg-btn {{ 'on' if term==1 }}" href="/academic?year={{ year }}&term=1">ภาคเรียนที่ 1</a>
+      <a class="seg-btn {{ 'on' if term==2 }}" href="/academic?year={{ year }}&term=2">ภาคเรียนที่ 2</a>
     </div>
   </div>
   {% from '_subject_icon.html' import subject_key %}
@@ -113,9 +105,9 @@
 {% endif %}
 
 {% if progress and not is_teacher %}
-<div class="card">
+<section class="card ah-progress" aria-labelledby="ah-progress-title">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-    <h2 style="margin:0;"><svg class="icon"><use href="#ic-clipboard"/></svg> ความคืบหน้าการประเมิน</h2>
+    <h2 id="ah-progress-title" style="margin:0;"><svg class="icon"><use href="#ic-clipboard"/></svg> ความคืบหน้าการประเมิน</h2>
     <div style="display:flex; align-items:center; gap:10px;">
       <div class="seg">
         <a class="seg-btn {{ 'on' if term==1 }}" href="/academic?year={{ year }}&term=1">ภาคเรียนที่ 1</a>
@@ -157,7 +149,7 @@
     </tbody>
   </table>
   </div>
-</div>
+</section>
 <style>
   .dash-wrap{ border:1px solid #ece9fb; border-radius:14px; overflow:hidden;
     box-shadow:0 6px 18px -12px rgba(79,70,229,.35); }
@@ -193,242 +185,41 @@
 
 
 
+{% macro menu_card(icon,title,description,href) %}
+<a class="ah-menu" href="{{ href }}"><img src="{{ icon }}" alt="" width="64" height="64" loading="lazy"><span><b>{{ title }}</b><small>{{ description }}</small></span><svg class="icon ah-arrow" aria-hidden="true"><use href="#ic-arrow-right"/></svg></a>
+{% endmacro %}
+{% set art='/static/images/academic3d/' %}{% set oldart='/static/images/home3d/' %}
 {% if is_teacher %}
-<div class="tgrid">
-  <a class="tcard" style="--c:#4880FF; --c2:#6f9bff;" href="/academic/attendance?mode={{ att_mode }}">
-    <span class="tc-ic"><svg class="icon"><use href="#ic-calendar"/></svg></span>
-    <h3>เช็กชื่อ / เวลาเรียน</h3>
-    <ul class="tc-list">
-      <li>กดแล้วเข้าหน้าติ๊กเช็กชื่อของเดือนนี้เลย</li>
-      <li>มา / ป่วย / ลา / ขาด</li>
-      <li>ครูประจำชั้น: เช็กเวลาเรียนโดยรวม</li>
-    </ul>
-    <span class="tc-go">เช็กชื่อเลย <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="tcard" style="--c:#7c3aed; --c2:#a78bfa;" href="/academic/grades">
-    <span class="tc-ic"><svg class="icon"><use href="#ic-edit"/></svg></span>
-    <h3>กรอกคะแนน ปพ.5</h3>
-    <ul class="tc-list">
-      <li>กรอกคะแนนทั้งห้องในตารางเดียว</li>
-      <li>คิดเกรดให้อัตโนมัติ</li>
-      <li>ออก ปพ.5</li>
-    </ul>
-    <span class="tc-go">กรอกคะแนน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="tcard" style="--c:#16a34a; --c2:#4ade80;" href="/academic/eval">
-    <span class="tc-ic"><svg class="icon"><use href="#ic-check"/></svg></span>
-    <h3>ประเมิน ปพ.6</h3>
-    <ul class="tc-list">
-      <li>อ่านคิดวิเคราะห์</li>
-      <li>คุณลักษณะอันพึงประสงค์</li>
-      <li>กิจกรรมพัฒนาผู้เรียน</li>
-      <li>ออกสมุดรายงาน ปพ.6</li>
-    </ul>
-    <span class="tc-go">ประเมิน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="tcard" style="--c:#4f46e5; --c2:#818cf8;" href="/academic/timetable">
-    <span class="tc-ic"><svg class="icon"><use href="#ic-calendar"/></svg></span>
-    <h3>ตารางเรียน</h3>
-    <ul class="tc-list">
-      <li>ตั้งโครงคาบเรียนเอง</li>
-      <li>กรอกตารางรายห้อง (ครูดึงอัตโนมัติ)</li>
-      <li>ดูตารางรายครู + เตือนคาบซ้อน</li>
-      <li>พิมพ์ตารางห้อง/ครู</li>
-    </ul>
-    <span class="tc-go">เปิดตารางเรียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="tcard" style="--c:#0d9488; --c2:#2dd4bf;" href="/academic/lesson-plans">
-    <span class="tc-ic"><svg class="icon"><use href="#ic-file"/></svg></span>
-    <h3>แผนการสอน</h3>
-    <ul class="tc-list">
-      <li>ครูส่งแผน (ลิงก์ Drive) เข้าระบบ</li>
-      <li>แจ้งหัวหน้าฝ่ายวิชาการทางอีเมล</li>
-      <li>หัวหน้าฝ่ายตรวจ/ให้แก้ได้</li>
-    </ul>
-    <span class="tc-go">ส่ง/ตรวจแผน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="tcard" style="--c:#ea580c; --c2:#fb923c;" href="/me/leave">
-    <span class="tc-ic"><svg class="icon"><use href="#ic-file"/></svg></span>
-    <h3>ส่งใบลา</h3>
-    <ul class="tc-list">
-      <li>ลาป่วย / ลากิจ / ลาคลอด</li>
-      <li>ระบบแจ้งหัวหน้าฝ่ายบุคคลทางอีเมล</li>
-      <li>ผอ. อนุมัติ + ลงนามให้ในระบบ</li>
-    </ul>
-    <span class="tc-go">ส่งใบลา <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="tcard" style="--c:#db2777; --c2:#f472b6;" href="/me/travel">
-    <span class="tc-ic"><svg class="icon"><use href="#ic-send"/></svg></span>
-    <h3>ขอไปราชการ</h3>
-    <ul class="tc-list">
-      <li>แจ้งเรื่อง/สถานที่/ช่วงวันไปราชการ</li>
-      <li>แนบใบไปราชการ + เอกสารประกอบ</li>
-      <li>ผอ. อนุมัติ + ลงนามให้ในระบบ</li>
-    </ul>
-    <span class="tc-go">ขอไปราชการ <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="tcard" style="--c:#0891b2; --c2:#22d3ee;" href="/general/assembly">
-    <span class="tc-ic"><svg class="icon"><use href="#ic-calendar"/></svg></span>
-    <h3>บันทึกการเข้าแถว</h3>
-    <ul class="tc-list">
-      <li>พิมพ์ชื่อนักเรียน แล้วคลิกลงเวลา</li>
-      <li>บอกสาย/มาทันให้อัตโนมัติ</li>
-      <li>พิมพ์ตารางรายวันได้</li>
-    </ul>
-    <span class="tc-go">บันทึกการเข้าแถว <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-</div>
-<style>
-  .tgrid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(270px,1fr)); gap:20px; margin-bottom:22px; }
-  .tcard{ display:flex; flex-direction:column; gap:12px; padding:26px 24px; border-radius:20px;
-    min-height:236px; background:linear-gradient(140deg,var(--c),var(--c2)); color:#fff;
-    text-decoration:none; box-shadow:0 12px 30px rgba(16,24,40,.20);
-    transition:transform .15s ease, box-shadow .15s ease; position:relative; overflow:hidden; }
-  .tcard::after{ content:""; position:absolute; right:-40px; top:-40px; width:150px; height:150px;
-    background:rgba(255,255,255,.10); border-radius:50%; }
-  .tcard:hover{ transform:translateY(-6px); box-shadow:0 20px 40px rgba(16,24,40,.30); }
-  .tc-ic{ width:58px; height:58px; border-radius:16px; display:flex; align-items:center; justify-content:center;
-    background:rgba(255,255,255,.22); color:#fff; position:relative; z-index:1; }
-  .tc-ic .icon{ width:30px; height:30px; }
-  .tcard h3{ margin:0; font-size:21px; font-weight:800; color:#fff; }
-  .tc-list{ margin:0; padding-left:18px; flex:1; color:rgba(255,255,255,.94);
-    font-size:14px; line-height:1.7; }
-  .tc-list li{ margin:0 0 2px; }
-  .tc-go{ display:inline-flex; align-items:center; gap:6px; font-weight:700; color:#fff; font-size:15.5px;
-    transition:gap .15s ease; }
-  .tcard:hover .tc-go{ gap:11px; }
-  .tc-go .icon{ width:16px; height:16px; }
-  .tgrid > .tcard{ animation:riseIn .42s cubic-bezier(.22,.75,.3,1) backwards; }
-  .tgrid > .tcard:nth-child(1){ animation-delay:.05s; } .tgrid > .tcard:nth-child(2){ animation-delay:.10s; }
-  .tgrid > .tcard:nth-child(3){ animation-delay:.15s; } .tgrid > .tcard:nth-child(4){ animation-delay:.20s; }
-  .tgrid > .tcard:nth-child(5){ animation-delay:.25s; } .tgrid > .tcard:nth-child(6){ animation-delay:.30s; }
-  .tgrid > .tcard:nth-child(7){ animation-delay:.35s; }
-  @media (prefers-reduced-motion: reduce){
-    .tcard, .tc-go{ transition:none; } .tcard:hover{ transform:none; } .tgrid > .tcard{ animation:none; } }
-</style>
+<section class="ah-group"><h2><svg class="icon"><use href="#ic-edit"/></svg> บันทึกและประเมินผล</h2><nav class="ah-menu-grid" aria-label="บันทึกและประเมินผล">
+{{ menu_card(oldart ~ 'calendar.png','เช็กชื่อ · เวลาเรียน','บันทึกเวลาเรียนของห้องและวิชาที่ดูแล','/academic/attendance?mode=' ~ att_mode) }}
+{{ menu_card(art ~ 'pp5.png','กรอกคะแนน ปพ.5','บันทึกคะแนนและออกเอกสาร','/academic/grades') }}
+{{ menu_card(art ~ 'pp6.png','ประเมิน ปพ.6','ประเมินผลและออกสมุดพก','/academic/eval') }}
+</nav></section>
+<section class="ah-group"><h2><svg class="icon"><use href="#ic-book"/></svg> งานครู</h2><nav class="ah-menu-grid" aria-label="งานครู">
+{{ menu_card(oldart ~ 'clock.png','ตารางเรียน','ดูคาบเรียนและตารางครูผู้สอน','/academic/timetable') }}
+{{ menu_card(oldart ~ 'myplans.png','แผนการสอน','ส่งแผนและบันทึกหลังสอน','/academic/lesson-plans') }}
+{{ menu_card(oldart ~ 'leave.png','ส่งใบลา','ติดตามคำขอลาของฉัน','/me/leave') }}
+{{ menu_card(oldart ~ 'trip.png','ขอไปราชการ','ส่งคำขอและติดตามผล','/me/travel') }}
+{{ menu_card(oldart ~ 'assembly.png','บันทึกการเข้าแถว','เช็กการเข้าแถวและพิมพ์ตาราง','/general/assembly') }}
+</nav></section>
 {% else %}
-<div class="nav-grid">
-  <a class="nav-card" href="/academic/classes">
-    <div class="nc-head">
-      <span class="nc-ic"><svg class="icon"><use href="#ic-users"/></svg></span>
-      <h3>ห้องเรียน</h3>
-    </div>
-    <ul class="nc-list">
-      <li>ตั้งห้องเรียนรายปี</li>
-      <li>ครูประจำชั้น / ครูคู่ชั้น</li>
-      <li>ดึงนักเรียนจากทะเบียนกลาง</li>
-      <li>กำหนดครูผู้สอนรายวิชา</li>
-    </ul>
-    <span class="nc-go">เปิดห้องเรียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/academic/subjects">
-    <div class="nc-head">
-      <span class="nc-ic"><svg class="icon"><use href="#ic-clipboard"/></svg></span>
-      <h3>รายวิชา</h3>
-    </div>
-    <ul class="nc-list">
-      <li>รายวิชาแต่ละชั้น</li>
-      <li>สร้างรายวิชาพื้นฐาน 8 กลุ่มสาระในคลิกเดียว</li>
-      <li>รหัสวิชาตามหลักสูตรแกนกลาง</li>
-      <li>ตั้งสัดส่วนคะแนนรายวิชา</li>
-    </ul>
-    <span class="nc-go">เปิดรายวิชา <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/academic/calendar">
-    <div class="nc-head">
-      <span class="nc-ic"><svg class="icon"><use href="#ic-calendar"/></svg></span>
-      <h3>ปฏิทิน + เวลาเรียน</h3>
-    </div>
-    <ul class="nc-list">
-      <li>ตั้งวันเปิดเรียนแต่ละเดือน</li>
-      <li>เช็กชื่อรายวัน มา/ป่วย/ลา/ขาด</li>
-      <li>ปุ่ม "มาทุกวัน" ไม่ต้องกดทีละช่อง</li>
-      <li>รวมยอด + ร้อยละให้อัตโนมัติ</li>
-    </ul>
-    <span class="nc-go">ตั้งปฏิทิน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/academic/grades">
-    <div class="nc-head">
-      <span class="nc-ic"><svg class="icon"><use href="#ic-edit"/></svg></span>
-      <h3>กรอกคะแนน ปพ.5</h3>
-    </div>
-    <ul class="nc-list">
-      <li>กรอกคะแนนทั้งห้องในตารางเดียว</li>
-      <li>คิดเกรดให้อัตโนมัติ</li>
-      <li>ออก ปพ.5</li>
-    </ul>
-    <span class="nc-go">กรอกคะแนน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/academic/eval">
-    <div class="nc-head">
-      <span class="nc-ic"><svg class="icon"><use href="#ic-check"/></svg></span>
-      <h3>ประเมิน ปพ.6</h3>
-    </div>
-    <ul class="nc-list">
-      <li>อ่านคิดวิเคราะห์</li>
-      <li>คุณลักษณะอันพึงประสงค์</li>
-      <li>กิจกรรมพัฒนาผู้เรียน</li>
-      <li>ออกสมุดรายงาน ปพ.6</li>
-    </ul>
-    <span class="nc-go">ประเมิน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/academic/pp7">
-    <div class="nc-head">
-      <span class="nc-ic"><svg class="icon"><use href="#ic-file"/></svg></span>
-      <h3>ใบรับรอง ปพ.7</h3>
-    </div>
-    <ul class="nc-list">
-      <li>ใบรับรองผลการศึกษา</li>
-      <li>เลือกห้องหรือค้นชื่อนักเรียน</li>
-      <li>ใช้สมัครเรียนต่อ ขอทุน ย้ายโรงเรียน</li>
-      <li>ดาวน์โหลดฉบับที่เคยออกได้</li>
-    </ul>
-    <span class="nc-go">ออกใบรับรอง <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/academic/timetable">
-    <div class="nc-head">
-      <span class="nc-ic"><svg class="icon"><use href="#ic-calendar"/></svg></span>
-      <h3>ตารางเรียน</h3>
-    </div>
-    <ul class="nc-list">
-      <li>ตั้งโครงคาบเรียนเอง</li>
-      <li>กรอกตารางรายห้อง (ครูดึงอัตโนมัติ)</li>
-      <li>ดูตารางรายครู + เตือนคาบซ้อน</li>
-      <li>พิมพ์ตารางห้อง/ครู</li>
-    </ul>
-    <span class="nc-go">เปิดตารางเรียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/academic/lesson-plans">
-    <div class="nc-head">
-      <span class="nc-ic"><svg class="icon"><use href="#ic-file"/></svg></span>
-      <h3>แผนการสอน</h3>
-    </div>
-    <ul class="nc-list">
-      <li>ครูส่งแผน (ลิงก์ Drive) เข้าระบบ</li>
-      <li>แจ้งหัวหน้าฝ่ายวิชาการทางอีเมล</li>
-      <li>หัวหน้าฝ่ายตรวจ/ให้แก้ได้</li>
-    </ul>
-    <span class="nc-go">ส่ง/ตรวจแผน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  <a class="nav-card" href="/academic/supervision">
-    <div class="nc-head"><span class="nc-ic"><svg class="icon"><use href="#ic-clipboard"/></svg></span><h3>การนิเทศภายใน</h3></div>
-    <ul class="nc-list"><li>แบบเยี่ยมชั้นเรียน</li><li>นิเทศการจัดการเรียนรู้</li><li>บันทึกผลและพิมพ์เอกสาร</li></ul>
-    <span class="nc-go">เปิดงานนิเทศ <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  {% if request.session.get("owner") %}
-  <a class="nav-card" href="/academic/teacher-accounts">
-    <div class="nc-head">
-      <span class="nc-ic"><svg class="icon"><use href="#ic-users"/></svg></span>
-      <h3>บัญชีครู</h3>
-    </div>
-    <ul class="nc-list">
-      <li>สร้างไอดีให้ครูแต่ละคน</li>
-      <li>ครูเช็กชื่อ/กรอกคะแนน/ประเมิน</li>
-      <li>เฉพาะวิชา-ห้องที่ตัวเองสอน</li>
-    </ul>
-    <span class="nc-go">จัดการ <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
-  </a>
-  {% endif %}
-</div>
+<section class="ah-group"><h2><svg class="icon"><use href="#ic-settings"/></svg> ตั้งค่าการเรียน</h2><nav class="ah-menu-grid{{ ' ah-four' if request.session.get('owner') }}" aria-label="ตั้งค่าการเรียน">
+{{ menu_card(art ~ 'classroom.png','ห้องเรียน','จัดห้องและรายชื่อนักเรียน','/academic/classes?year=' ~ year) }}
+{{ menu_card(art ~ 'subjects.png','รายวิชา','เพิ่มวิชาและโครงสร้างคะแนน','/academic/subjects?year=' ~ year) }}
+{{ menu_card(oldart ~ 'clock.png','ตารางเรียน','จัดคาบเรียนและครูผู้สอน','/academic/timetable') }}
+{% if request.session.get('owner') %}{{ menu_card(oldart ~ 'mod_hr.png','บัญชีครู','จัดการสิทธิ์ครูผู้สอน','/academic/teacher-accounts') }}{% endif %}
+</nav></section>
+<section class="ah-group"><h2><svg class="icon"><use href="#ic-check"/></svg> บันทึกและประเมินผล</h2><nav class="ah-menu-grid" aria-label="บันทึกและประเมินผล">
+{{ menu_card(oldart ~ 'calendar.png','ปฏิทิน · เวลาเรียน','ตั้งวันเรียนและเช็กชื่อ','/academic/calendar') }}
+{{ menu_card(art ~ 'pp5.png','กรอกคะแนน ปพ.5','บันทึกคะแนนและออกเอกสาร','/academic/grades') }}
+{{ menu_card(art ~ 'pp6.png','ประเมิน ปพ.6','ประเมินผลและออกสมุดพก','/academic/eval') }}
+</nav></section>
+<section class="ah-group"><h2><svg class="icon"><use href="#ic-file"/></svg> เอกสารและงานครู</h2><nav class="ah-menu-grid" aria-label="เอกสารและงานครู">
+{{ menu_card(art ~ 'pp7.png','ใบรับรอง ปพ.7','ออกใบรับรองผลการเรียน','/academic/pp7') }}
+{{ menu_card(oldart ~ 'myplans.png','แผนการสอน','ส่งแผนและบันทึกหลังสอน','/academic/lesson-plans') }}
+{{ menu_card(oldart ~ 'plans.png','การนิเทศภายใน','บันทึกผลการนิเทศและพิมพ์เอกสาร','/academic/supervision') }}
+</nav></section>
 {% endif %}
+</div>
+<link rel="stylesheet" href="/static/academic_home.css?v=1">
 {% endblock %}
