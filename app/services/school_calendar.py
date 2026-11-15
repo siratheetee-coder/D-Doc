@@ -20,7 +20,7 @@ def safe_return(value):
     return ''
 
 def settings_link(year,back=''):
-    params={'year':year}
+    params={'year':year,'view':'days'}
     if safe_return(back):params['return_to']=safe_return(back)
     return '/settings/calendar?'+urlencode(params)
 
@@ -74,7 +74,7 @@ def may_read(request,db):
 def redirect(request,year,flag='',back=''):
     from fastapi.responses import RedirectResponse
     base='/settings/calendar' if request.url.path.startswith('/settings/') else '/academic/calendar'
-    params={'year':year}
+    params={'year':year,'view':'days'}
     ret=safe_return(back)
     if ret:params['return_to']=ret
     url=base+'?'+urlencode(params)

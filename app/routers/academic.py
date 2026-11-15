@@ -2891,7 +2891,7 @@ async def assess_save(request: Request, db: Session = Depends(get_db),
 # ---------------- ปฏิทินการศึกษา ----------------
 @router.get("/settings/calendar", response_class=HTMLResponse)
 @router.get("/academic/calendar", response_class=HTMLResponse)
-def calendar_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
+def calendar_page(request: Request, db: Session = Depends(get_db), year: int | None = None, view: str = "events", month: int | None = None, event: int | None = None):
     from app.services import school_calendar as sc
     if not sc.may_read(request,db):raise HTTPException(403,"ไม่มีสิทธิ์เข้าถึงปฏิทินโรงเรียน")
     y = year or _acad_year(db)
@@ -2917,11 +2917,15 @@ def calendar_page(request: Request, db: Session = Depends(get_db), year: int | N
     holidays = sorted(db.query(AcadHoliday).filter_by(year=y).all(),
                       key=lambda r: (r.month is None, TH_MONTH_ORDER.get(r.month or 0, 99),
                                      r.day or 0))
+    from app.services import school_events
+    activity_calendar=school_events.context(db,request,y,month,event)
     return templates.TemplateResponse("academic_calendar.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "months": months, "any_set": bool(saved), "holidays": holidays,
         "setting": setting, "be_date": be_date_input, "month_list": sc.MONTHS,
         "lunar_names": LUNAR_HOLIDAY_NAMES, "calendar_base":"/settings/calendar",
+        "activity_calendar":activity_calendar,"calendar_view":"days" if view=="days" else "events",
+        "event_form":getattr(request.state,"school_event_form",None),"event_error":getattr(request.state,"school_event_error",""),
         "return_to":sc.safe_return(request.query_params.get("return_to")),"can_edit_calendar":sc.may_edit(request,db),
     })
 
@@ -4116,3 +4120,54 @@ def attendance_term_docx(request: Request, cid: int, term: int,
 
 from app.routers.academic_lessons import router as lesson_router
 router.include_router(lesson_router)
+
+
+@router.post('/settings/calendar/events/save')
+@router.post('/academic/calendar/events/save')
+async def school_event_save(request: Request, db: Session = Depends(get_db)):
+    from app.services import school_events as ev
+    from app.models import SchoolEvent
+    from sqlalchemy import update
+    if not ev.editable(request,db):raise HTTPException(403,'ไม่มีสิทธิ์แก้ไขกิจกรรมโรงเรียน')
+    form=await request.form();eid=_to_int(form.get('event_id'),0)
+    row=db.get(SchoolEvent,eid) if eid else None
+    if eid and not row:raise HTTPException(404,'ไม่พบกิจกรรม')
+    try:
+        data=ev.validate(form,db)
+        if row:
+            if row.year!=data['year']:raise ValueError('แก้กิจกรรมในปีการศึกษาเดิมเท่านั้น')
+            version=_to_int(form.get('version'),0)
+            changed=db.execute(update(SchoolEvent).where(SchoolEvent.id==eid,SchoolEvent.version==version).values(**data,version=version+1))
+            if changed.rowcount!=1:raise ValueError('กิจกรรมนี้ถูกแก้ไขแล้ว กรุณาเปิดข้อมูลล่าสุดก่อนบันทึกอีกครั้ง')
+        else:
+            row=SchoolEvent(**data,created_by=request.session.get('uid'));db.add(row);db.flush();eid=row.id
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        y=_to_int(form.get('year'),_acad_year(db))
+        if not 2500<=y<=2800:y=_acad_year(db)
+        request.state.school_event_form={**dict(form),'levels':form.getlist('levels'),'classes':form.getlist('classes')}
+        request.state.school_event_error=str(exc)
+        response=calendar_page(request,db,year=y,event=eid or None)
+        response.status_code=400
+        return response
+    base='/academic/calendar' if request.url.path.startswith('/academic/') else '/settings/calendar'
+    return RedirectResponse(f'{base}?year={data["year"]}&month={data["start_at"].month}&event={eid}&saved_event=1',303)
+
+
+@router.post('/settings/calendar/events/{eid}/delete')
+@router.post('/academic/calendar/events/{eid}/delete')
+async def school_event_delete(eid: int,request: Request,db: Session = Depends(get_db)):
+    from app.services import school_events as ev
+    from app.models import SchoolEvent
+    from sqlalchemy import delete
+    if not ev.editable(request,db):raise HTTPException(403,'ไม่มีสิทธิ์ลบกิจกรรมโรงเรียน')
+    row=db.get(SchoolEvent,eid)
+    if not row:raise HTTPException(404,'ไม่พบกิจกรรม')
+    form=await request.form();y=row.year;month=row.start_at.month
+    result=db.execute(delete(SchoolEvent).where(SchoolEvent.id==eid,SchoolEvent.version==_to_int(form.get('version'),0)))
+    if result.rowcount!=1:
+        db.rollback();raise HTTPException(409,'กิจกรรมถูกแก้ไขแล้ว กรุณาเปิดหน้าล่าสุดก่อนลบ')
+    db.commit()
+    base='/academic/calendar' if request.url.path.startswith('/academic/') else '/settings/calendar'
+    return RedirectResponse(f'{base}?year={y}&month={month}&deleted_event=1',303)

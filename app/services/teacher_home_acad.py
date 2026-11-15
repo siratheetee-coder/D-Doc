@@ -108,9 +108,10 @@ def week_events(db, year, today, days=7):
 def build(db, pid):
     from app.routers.academic import _Scope, _acad_year
     from app.thai_utils import current_term
-    today = date.today()
+    from app.thai_utils import thai_today
+    today = thai_today()
     out = dict(today_label=f"วัน{TH_WD[today.weekday()]}ที่ {today.day} {TH_MS[today.month]}",
-               lessons=[], sum=None, events=[], cal=[], homeroom=False)
+               lessons=[], sum=None, events=[], cal=[], homeroom=False, activities=[], today_iso=today.isoformat())
     try:
         sc = _Scope(int(pid), db)
         year = _acad_year(db)
@@ -120,6 +121,11 @@ def build(db, pid):
             out["sum"] = summary(db, sc, year, current_term())
         out["events"] = week_events(db, year, today)
         out["cal"] = year_events(db, year)
+        from app.services.school_events import home_events
+        activity_days, upcoming = home_events(db,year,pid)
+        out["cal"].extend(activity_days)
+        out["activities"] = upcoming
+        out["academic_year"] = year
     except Exception:
         import logging
         logging.getLogger(__name__).exception("teacher_home_acad")

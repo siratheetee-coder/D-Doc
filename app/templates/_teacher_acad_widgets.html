@@ -77,39 +77,3 @@
   <div class="ta-prog">ภาพรวม<span><i style="width:{{ ta.sum.pct }}%;"></i></span>{{ ta.sum.pct }}%</div>
 </section>
 {% endif %}
-
-<section class="ta-card">
-  <div class="ta-head"><img class="ta-img" src="/static/images/home3d/calendar.png" alt="">
-    <div class="ta-title">ปฏิทินโรงเรียน<small id="tcMonth"></small></div>
-    <button type="button" class="tc-nav" id="tcPrev" aria-label="เดือนก่อน">‹</button><button type="button" class="tc-nav" id="tcNext" aria-label="เดือนถัดไป">›</button></div>
-  <div class="tc-grid" id="tcGrid"></div>
-  <div class="tc-legend"><span><i style="background:#fb7185"></i>วันหยุด</span><span><i style="background:#22c55e"></i>เปิดภาคเรียน</span><span><i style="background:#6366f1"></i>ปิดภาคเรียน</span></div>
-  <div id="tcList"></div>
-  <a class="btn gray sm" href="/academic/calendar" style="margin-top:10px;">ปฏิทินทั้งปี →</a>
-  <script type="application/json" id="tcData">{{ ta.cal|tojson }}</script>
-  <script>
-  (function(){
-    var ev={};try{JSON.parse(document.getElementById('tcData').textContent).forEach(function(e){(ev[e.d]=ev[e.d]||[]).push(e);});}catch(e){}
-    var MN=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
-    var t=new Date(),y=t.getFullYear(),m=t.getMonth();
-    var pad=function(n){return(n<10?'0':'')+n;},iso=function(Y,M,D){return Y+'-'+pad(M+1)+'-'+pad(D);},today=iso(y,m,t.getDate());
-    function draw(){
-      document.getElementById('tcMonth').textContent=MN[m]+' '+(y+543);
-      var g=document.getElementById('tcGrid');g.replaceChildren();
-      ['จ','อ','พ','พฤ','ศ','ส','อา'].forEach(function(h){var e=document.createElement('b');e.textContent=h;g.append(e);});
-      var first=(new Date(y,m,1).getDay()+6)%7,n=new Date(y,m+1,0).getDate(),list=[];
-      for(var i=0;i<first;i++)g.append(document.createElement('span'));
-      for(var d=1;d<=n;d++){var k=iso(y,m,d),c=document.createElement('span'),wd=(first+d-1)%7;c.textContent=d;
-        if(wd>=5)c.className='we';var es=ev[k];
-        if(es){c.classList.add('k-'+es[0].kind);c.title=es.map(function(e){return e.name;}).join(', ');es.forEach(function(e){list.push([d,e]);});}
-        if(k===today)c.classList.add('td');g.append(c);}
-      var L=document.getElementById('tcList');L.replaceChildren();
-      if(!list.length){var p=document.createElement('p');p.className='ta-empty';p.textContent='เดือนนี้ไม่มีวันหยุดหรือวันเปิดปิดภาคเรียน';L.append(p);}
-      list.forEach(function(x){var r=document.createElement('div');r.className='tc-ev k-'+x[1].kind;var b=document.createElement('b');b.textContent=x[0];var s=document.createElement('span');s.textContent=x[1].name;r.append(b,s);L.append(r);});
-    }
-    document.getElementById('tcPrev').onclick=function(){m--;if(m<0){m=11;y--;}draw();};
-    document.getElementById('tcNext').onclick=function(){m++;if(m>11){m=0;y++;}draw();};
-    draw();
-  })();
-  </script>
-</section>

@@ -1,0 +1,180 @@
+{% if return_to %}<p><a class="btn gray" href="{{ return_to }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับไป{{ "หน้างวดอาหารกลางวัน" if "/plan" in return_to else "เพิ่ม / แก้ไขรอบอาหารกลางวัน" }}</a></p>{% endif %}
+<div class="alert warn" role="note">ปฏิทินนี้ใช้ร่วมกันทั้งโรงเรียน การแก้วันเรียนมีผลกับวิชาการและการคำนวณรอบอาหารกลางวันใหม่ งวดเดิมต้องตรวจผลกระทบก่อนปรับวันที่</div>
+
+{% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกแล้ว</div>{% endif %}
+{% if request.query_params.get('filled') %}<div class="alert">✔ กรอกปฏิทินทั้งปีให้แล้ว (ตัดวันหยุดและวันนอกภาคเรียนออก) ตรวจแล้วกด "บันทึกปฏิทิน" ด้านล่าง</div>{% endif %}
+{% set sd = request.query_params.get('seeded') %}
+{% if sd %}<div class="alert">{% if sd == '0' %}วันหยุดครบอยู่แล้ว ไม่ได้เพิ่มซ้ำ{% else %}✔ ใส่วันหยุดให้ {{ sd }} รายการ <b>วันพระยังต้องกรอกวันที่เอง</b>{% endif %}</div>{% endif %}
+
+<div class="card">
+  <form method="get" action="{{ calendar_base }}" class="row" style="align-items:flex-end; margin:0;">
+    <input type="hidden" name="view" value="days"><input type="hidden" name="return_to" value="{{ return_to }}"><div><label>ปีการศึกษา</label>
+      <select name="year" onchange="submitReplace(this.form)">
+        {% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>{{ y }}</option>{% endfor %}
+      </select></div>
+  </form>
+  <p class="muted" style="font-size:13px; margin:10px 0 0;">
+    ทำตามลำดับ: <b>1)</b> กรอกวันเปิด-ปิดภาคเรียน → <b>2)</b> ตรวจวันหยุด (กรอกวันพระเอง) →
+    <b>3)</b> กด <b>"กรอกปฏิทินการศึกษา"</b> ระบบจะกรอกให้ทั้งปี
+    วันเรียนที่บันทึกไว้ใช้ร่วมกันทั้งวิชาการและอาหารกลางวัน รวมถึงวันเรียนชดเชยที่เลือกเพิ่มเอง</p>
+</div>
+
+<div class="card">
+  <h2 style="margin:0 0 6px;"><svg class="icon"><use href="#ic-calendar"/></svg> ภาคเรียน</h2>
+  <p class="muted" style="font-size:13px; margin:0 0 10px;">ใส่วันเปิด-ปิดของแต่ละภาค (วว/ดด/ปปปป พ.ศ.) ระบบจะตัดวันปิดภาคเรียนออกให้อัตโนมัติ</p>
+  <form data-school-calendar-form method="post" action="{{ calendar_base }}/terms" class="row" style="align-items:flex-end;">
+    <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="return_to" value="{{ return_to }}">
+    <div><label>ภาคเรียนที่ 1 เปิด</label><input name="t1_start" data-date="1" inputmode="numeric" maxlength="10" placeholder="16/05/{{ year }}" value="{{ be_date(setting.t1_start) if setting and setting.t1_start else '' }}"></div>
+    <div><label>ปิด</label><input name="t1_end" data-date="1" inputmode="numeric" maxlength="10" placeholder="10/10/{{ year }}" value="{{ be_date(setting.t1_end) if setting and setting.t1_end else '' }}"></div>
+    <div><label>ภาคเรียนที่ 2 เปิด</label><input name="t2_start" data-date="1" inputmode="numeric" maxlength="10" placeholder="01/11/{{ year }}" value="{{ be_date(setting.t2_start) if setting and setting.t2_start else '' }}"></div>
+    <div><label>ปิด</label><input name="t2_end" data-date="1" inputmode="numeric" maxlength="10" placeholder="31/03/{{ year + 1 }}" value="{{ be_date(setting.t2_end) if setting and setting.t2_end else '' }}"></div>
+    <div><button class="btn" type="submit">บันทึกภาคเรียน</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+    <h2 style="margin:0;">วันหยุด <span class="muted" style="font-size:15px;">ปีการศึกษา {{ year }}</span></h2>
+    <form data-school-calendar-form method="post" action="{{ calendar_base }}/seed-holidays" style="margin:0;">
+      <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="return_to" value="{{ return_to }}">
+      <button class="btn soft" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> ใส่วันหยุดราชการ</button>
+    </form>
+  </div>
+  <div class="alert warn" style="margin:10px 0;"><svg class="icon"><use href="#ic-alert"/></svg>
+    <b>วันพระต้องกรอกวันที่เอง</b> เนื่องจากเลื่อนทุกปีตามปฏิทินจันทรคติ โปรดกรอกวันพระเอง
+  </div>
+  <form data-school-calendar-form method="post" action="{{ calendar_base }}/holidays">
+    <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="return_to" value="{{ return_to }}">
+    {# ปุ่มนี้ต้องเป็น submit ตัวแรกของฟอร์ม: กด Enter ในช่องกรอกจะได้ "บันทึก" ไม่ใช่ "ลบ"
+       (ถ้าไม่มี เบราว์เซอร์จะเลือกปุ่มลบแถวแรกเป็นปุ่มปริยาย = ลบทิ้งโดยไม่ตั้งใจ) #}
+    <button type="submit" aria-hidden="true" tabindex="-1"
+            style="position:absolute; width:0; height:0; padding:0; border:0; overflow:hidden;"></button>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>วันที่</th><th>เดือน</th><th>ชื่อวันหยุด</th><th>ประเภท</th><th>ลบ</th></tr></thead>
+      <tbody>
+      {% for h in holidays %}
+        <tr>
+          <td><input name="d_{{ h.id }}" value="{{ h.day or '' }}" inputmode="numeric" style="width:60px; text-align:center;"></td>
+          <td><select name="m_{{ h.id }}" style="width:110px;">
+            <option value="">-</option>
+            {% for mn, ms in month_list %}<option value="{{ mn }}" {{ 'selected' if h.month==mn }}>{{ ms }}</option>{% endfor %}
+          </select></td>
+          <td><input name="n_{{ h.id }}" value="{{ h.name }}" style="width:100%; min-width:220px;"></td>
+          <td>{% if h.kind == 'lunar' %}<span class="pill danger">วันพระ กรอกวันที่เอง</span>
+              {% elif h.kind == 'fixed' %}<span class="muted" style="font-size:12.5px;">ราชการ</span>
+              {% else %}<span class="muted" style="font-size:12.5px;">อื่น ๆ</span>{% endif %}</td>
+          {# ปุ่มลบเป็น submit ที่มี name -> เบราว์เซอร์ส่งเฉพาะปุ่มที่กด ฝั่งเซิร์ฟเวอร์อ่าน del_<id> เหมือนเดิม #}
+          <td class="center"><button class="btn sm red" type="submit" name="del_{{ h.id }}" value="1"
+                onclick="return confirm('ลบวันหยุด &quot;{{ h.name }}&quot; ?');">ลบ</button></td>
+        </tr>
+      {% endfor %}
+        <tr style="background:#fafbfd;">
+          <td><input name="new_day" placeholder="วัน" inputmode="numeric" style="width:60px; text-align:center;"></td>
+          <td><select name="new_month" style="width:110px;"><option value="">-</option>
+            {% for mn, ms in month_list %}<option value="{{ mn }}">{{ ms }}</option>{% endfor %}</select></td>
+          <td><input name="new_name" placeholder="ชื่อวันหยุด เช่น วันหยุดชดเชย" style="width:100%; min-width:220px;"></td>
+          {# ปุ่มนี้ submit ฟอร์มเดียวกัน -> เพิ่มแถวใหม่ (และเซฟที่แก้ไว้ด้วย) แล้ว redirect กลับ #}
+          <td colspan="2" class="center"><button class="btn sm" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มวันหยุด</button></td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+    <button class="btn soft" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกที่แก้ไข</button>
+  </form>
+</div>
+
+<form data-school-calendar-form method="post" action="{{ calendar_base }}/save">
+  <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="return_to" value="{{ return_to }}">
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+      <h2 style="margin:0;">วันเปิดเรียน <span class="muted" style="font-size:15px;">รวมทั้งปี <b id="grand">0</b> วัน</span></h2>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        {# formaction เปลี่ยนปลายทางเฉพาะปุ่มนี้ ไม่ต้องซ้อนฟอร์ม #}
+        <button class="btn" type="submit" formaction="{{ calendar_base }}/autofill"
+                onclick="return confirm('กรอกปฏิทินทั้งปีจากภาคเรียนและวันหยุดที่ตั้งไว้?\n(วันที่เคยแก้เองในปฏิทินจะถูกเขียนทับ)');">
+          <svg class="icon"><use href="#ic-star"/></svg> กรอกปฏิทินการศึกษา</button>
+        <button class="btn soft gray" type="button" onclick="clearAll()">ล้างทั้งหมด</button>
+      </div>
+    </div>
+    <p class="muted" style="font-size:13px; margin:6px 0 0;">
+      "กรอกปฏิทินการศึกษา" = วันจันทร์-ศุกร์ <b>ลบวันหยุดที่ตั้งไว้</b> และ <b>ลบวันนอกภาคเรียน</b> ให้ทั้งปี
+      กรอกแล้วยังคลิกแก้รายวันได้ แล้วกด "บันทึกปฏิทิน"</p>
+    <div class="acal-grid">
+      {% for m in months %}
+      <div class="acal-month" data-month="{{ m.num }}">
+        <div class="acal-head">
+          <b>{{ m.name }}</b>
+          <span class="muted"><b class="acal-count">0</b> วันที่</span>
+        </div>
+        <div class="acal-days">
+          <i class="acal-wd">จ</i><i class="acal-wd">อ</i><i class="acal-wd">พ</i><i class="acal-wd">พฤ</i><i class="acal-wd">ศ</i><i class="acal-wd we">ส</i><i class="acal-wd we">อา</i>
+          {% for _ in range(m.lead) %}<span></span>{% endfor %}
+          {% for d in m.days %}
+          <button type="button" class="acal-day{{ ' on' if d.open }}{{ ' we' if d.wd in ('ส','อา') }}{{ ' hol' if d.hol }}{{ ' off' if d.off }}"
+                  data-day="{{ d.d }}"
+                  title="{{ d.wd }} {{ d.d }}{% if d.hol %} {{ d.hol }}{% elif d.off %} นอกภาคเรียน{% endif %}">{{ d.d }}</button>
+          {% endfor %}
+        </div>
+        <input type="hidden" name="m_{{ m.num }}" class="acal-val">
+      </div>
+      {% endfor %}
+    </div>
+    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:10px; font-size:12px; color:var(--muted);">
+      <span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:var(--brand);vertiacal-align:-1px;"></span> วันเรียน</span>
+      <span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:#fdecec;border:1px solid #f5a3a3;vertiacal-align:-1px;"></span> วันหยุด (ชี้ดูชื่อได้)</span>
+      <span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:#f4f4f5;vertiacal-align:-1px;"></span> นอกภาคเรียน</span>
+      <span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:#dc2626;vertiacal-align:-1px;"></span> ตั้งให้เรียนทับวันหยุด</span>
+    </div>
+    <button class="btn" type="submit" style="margin-top:14px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกปฏิทิน</button>
+  </div>
+</form>
+
+<style>
+  .acal-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:12px; margin-top:10px; }
+  .acal-month { border:1px solid var(--border); border-radius:12px; padding:10px 10px 12px; background:#fff; }
+  .acal-head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; font-size:15px; }
+  .acal-days { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+  .acal-wd { font-style:normal; font-size:10px; color:var(--muted); text-align:center; padding-bottom:2px; }
+  .acal-wd.we { color:#c2410c; }
+  .acal-day { border:1px solid var(--border); background:#fff; border-radius:7px; padding:5px 0;
+             cursor:pointer; font-size:13px; font-weight:600; color:var(--text);
+             transition:background .1s, border-color .1s; }
+  .acal-day.we { background:#fafafa; color:#c2410c; }
+  .acal-day.off { background:#f4f4f5; color:#a1a1aa; }      /* นอกภาคเรียน */
+  .acal-day.hol { background:#fdecec; border-color:#f5a3a3; color:#b91c1c; }  /* วันหยุด */
+  .acal-day.on { background:var(--brand); border-color:var(--brand); color:#fff; }
+  .acal-day.on.hol { background:#dc2626; border-color:#dc2626; }  /* เปิดเรียนทับวันหยุด = เตือน */
+  .acal-day:hover { border-color:var(--brand); }
+</style>
+<script>
+  // ปุ่มวันเก็บสถานะไว้ที่คลาส .on แล้วรวมเป็น CSV ลง hidden input ตอนเปลี่ยนทุกครั้ง
+  // (ฟอร์ม POST ธรรมดา ไม่ใช้ fetch - JS พังก็ยังบันทึกค่าที่โหลดมาได้)
+  function syncMonth(box){
+    var days = [];
+    box.querySelectorAll('.acal-day.on').forEach(function(b){ days.push(b.dataset.day); });
+    box.querySelector('.acal-val').value = days.join(',');
+    box.querySelector('.acal-count').textContent = days.length;
+    syncGrand();
+  }
+  function syncGrand(){
+    var n = document.querySelectorAll('.acal-day.on').length;
+    document.getElementById('grand').textContent = n;
+  }
+  document.querySelectorAll('.acal-month').forEach(function(box){
+    box.addEventListener('click', function(e){
+      var b = e.target.closest('.acal-day');
+      if (!b) return;
+      b.classList.toggle('on');
+      syncMonth(box);
+    });
+    syncMonth(box);
+  });
+  function clearAll(){
+    document.querySelectorAll('.acal-day.on').forEach(function(b){ b.classList.remove('on'); });
+    document.querySelectorAll('.acal-month').forEach(syncMonth);
+  }
+</script>
+<script>
+(() => { const writable={{ can_edit_calendar|tojson }}; if(!writable){document.querySelectorAll('form[method=post] input,form[method=post] button,form[method=post] select').forEach(e=>e.disabled=true);document.querySelectorAll('.acal-day').forEach(e=>e.disabled=true);} })();
+</script>

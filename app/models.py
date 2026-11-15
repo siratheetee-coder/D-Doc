@@ -2810,3 +2810,7 @@ class LunchDisburseLink(Base):
     memo_id = Column(Integer, ForeignKey('disburse_memo.id'), nullable=False, unique=True)
     fingerprint = Column(String(64), nullable=False)
     payment_date = Column(DateTime, nullable=True)
+
+
+# Activity records are tenant-local and separate from school-day configuration.
+from app.school_event_models import SchoolEvent  # noqa: E402,F401
