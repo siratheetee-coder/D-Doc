@@ -15,8 +15,8 @@
     <a href="/hr/travel-requests/{{ travel_source.id }}">เปิดคำขอต้นทาง</a>
   </div>{% endif %}
   {% if proc_claims and proc_claims.rows %}<div class="dn-rule"><b>เรื่องนี้มีบันทึกขอเบิกแล้ว {{ '{:,.2f}'.format(proc_claims.claimed) }} บาท</b> · เหลือทำขอเบิก {{ '{:,.2f}'.format(proc_claims.remaining) }} บาท ระบบเติมเฉพาะยอดส่วนที่เหลือให้<br>{% for old in proc_claims.rows %}<a href="/finance/disburse/{{ old.id }}">เปิดบันทึกเดิม {{ old.memo_no or old.id }}</a> {% endfor %}</div>{% endif %}
-  <form method="post" action="/finance/disburse">
-    {% if proc_claims %}<input type="hidden" name="claim_version" value="{{ proc_claims.version }}">{% endif %}
+  <form method="post" action="/finance/disburse" onsubmit="if(this.dataset.sent){return false;}this.dataset.sent=1;this.querySelectorAll('button[type=submit]').forEach(b=>{b.disabled=true;b.textContent='กำลังบันทึก…';});">
+    {% if proc_claims %}<input type="hidden" name="claim_version" value="{{ proc_claims.version }}"><input type="hidden" name="more" value="{{ request.query_params.get('more','') }}">{% endif %}
 {{ case_staff(request, prefill, False) }}
     {% if lunch_source %}<input type="hidden" name="lunch_inst" value="{{ lunch_source.inst.id if lunch_source.inst else '' }}"><input type="hidden" name="lunch_round" value="{{ lunch_source.rnd.id if not lunch_source.inst else '' }}">{% endif %}
     <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">

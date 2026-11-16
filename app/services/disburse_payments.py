@@ -90,3 +90,27 @@ def detach_original(db, txn):
             memo.status = 'อนุมัติ'
         txn.disburse_id = None
         txn.linked_existing = False
+
+
+def near(db, memo):
+    """รายการจ่ายที่ยังไม่เชื่อมเอกสาร ยอดเท่ากัน แต่บัญชีหรือหมวดไม่ตรง (เชื่อมทันทีไม่ได้)
+    ใช้เตือนก่อนลงจ่ายใหม่ กันลงจ่ายซ้ำกับรายการที่เคยลงเองในหน้ารับ-จ่าย ระบบไม่เดาเชื่อมให้"""
+    amount = round(float(memo.amount or 0), 2)
+    if amount <= 0 or not math.isfinite(amount):
+        return []
+    exact = {t.id for t in candidates(db, memo)}
+    rows = (db.query(FinanceTxn).filter(FinanceTxn.kind == 'out', FinanceTxn.fiscal_year == memo.fiscal_year,
+            FinanceTxn.disburse_id.is_(None), FinanceTxn.loan_id.is_(None), FinanceTxn.loan_return_id.is_(None),
+            FinanceTxn.no_count.isnot(True)).order_by(FinanceTxn.date.desc(), FinanceTxn.id.desc()).all())
+    return [t for t in rows if t.id not in exact and round(float(t.amount or 0), 2) == amount]
+
+
+def duplicate_number(db, memo_no, fiscal_year, exclude=None):
+    """บันทึกขอเบิกเลขเดียวกันในปีงบเดียวกัน (คืนบันทึกที่ชน หรือ None)"""
+    no = (memo_no or '').strip()
+    if not no:
+        return None
+    q = db.query(DisburseMemo).filter(DisburseMemo.fiscal_year == fiscal_year, DisburseMemo.memo_no == no)
+    if exclude:
+        q = q.filter(DisburseMemo.id != exclude)
+    return q.first()

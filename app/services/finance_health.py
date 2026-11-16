@@ -200,16 +200,23 @@ def project_wrong_year(db, fy, today):
 
 
 def memo_over_procurement(db, fy, today):
-    from app.models import DisburseMemo, Procurement
+    from app.models import DisburseMemo, Procurement, FinanceTxn
     total = defaultdict(float)
-    for m in db.query(DisburseMemo).filter(DisburseMemo.procurement_id.isnot(None)):
+    unpaid = {}
+    paid_ids = {d for (d,) in db.query(FinanceTxn.disburse_id).filter(FinanceTxn.disburse_id.isnot(None))}
+    for m in db.query(DisburseMemo).filter(DisburseMemo.procurement_id.isnot(None)).order_by(DisburseMemo.id):
         total[m.procurement_id] += m.amount or 0
+        if m.id not in paid_ids:
+            unpaid[m.procurement_id] = m          # ฉบับล่าสุดที่ยังไม่มีรายการจ่าย มักเป็นฉบับที่ทำซ้ำ
     rows = []
     for pid, paid in total.items():
         p = db.get(Procurement, pid)
         if p and paid > (p.total_amount or 0) + 0.005:
-            rows.append(_row(f"เลขที่ {p.memo_no or '-'} {p.proc_type or ''}{p.subject or ''}", f"/procurement/{p.id}",
-                             sub=f"ขอเบิกรวม {paid:,.2f} แต่ยอดเรื่อง {p.total_amount or 0:,.2f}",
+            dup = unpaid.get(pid)
+            href = f"/finance/disburse/{dup.id}" if dup else f"/procurement/{p.id}"
+            hint = f" เปิดบันทึก {dup.memo_no or dup.id} ที่ยังไม่ลงจ่าย ตรวจแล้วลบได้ที่ท้ายหน้า" if dup else ""
+            rows.append(_row(f"เลขที่ {p.memo_no or '-'} {p.proc_type or ''}{p.subject or ''}", href,
+                             sub=f"ขอเบิกรวม {paid:,.2f} แต่ยอดเรื่อง {p.total_amount or 0:,.2f}{hint}",
                              amount=paid - (p.total_amount or 0)))
     if rows:
         return _issue("ขอเบิกเกินยอดของเรื่องพัสดุ",

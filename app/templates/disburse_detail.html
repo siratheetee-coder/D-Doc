@@ -16,11 +16,13 @@
   </div>
   {% include '_disburse_payment_panel.html' %}
   {% if request.query_params.get('claim_changed') %}<p class="muted">มีการเพิ่มหรือแก้ไขบันทึกขอเบิกแล้ว เปิดบันทึกเดิมให้ตรวจข้อมูลล่าสุด ระบบไม่ได้สร้างบันทึกซ้ำ</p>{% endif %}
-  {% if request.query_params.get('existing_claim') %}<p class="muted">เปิดบันทึกเดิมของเรื่องนี้ให้แล้ว เพราะมีขอเบิกครบวงเงินแล้ว ระบบไม่ได้สร้างบันทึกซ้ำ</p>{% endif %}
+  {% if request.query_params.get('existing_claim') %}<p class="muted">เรื่องนี้มีบันทึกขอเบิกแล้ว จึงเปิดบันทึกเดิมให้ ระบบไม่ได้สร้างบันทึกซ้ำ</p>{% endif %}
+  {% if proc and (proc.total_amount or 0) > 0 %}{% set claimed_all = proc_claimed or 0 %}{% if (proc.total_amount or 0) - claimed_all > 0.004 %}<p><a class="btn sm gray" href="/finance/disburse?proc={{ proc.id }}&year={{ m.fiscal_year }}&more=1" onclick="return confirm('ออกบันทึกขอเบิกฉบับใหม่ เป็นงวดถัดไปของเรื่องนี้ (ยอดที่ยังไม่ขอเบิก {{ '{:,.2f}'.format((proc.total_amount or 0) - claimed_all) }} บาท) ยืนยันหรือไม่?')">+ เบิกงวดถัดไปของเรื่องนี้</a></p>{% endif %}{% endif %}
   {% if request.query_params.get("saved") %}<div class="alert">✔ บันทึกข้อมูลเรียบร้อยแล้ว</div>{% endif %}
   {% if request.query_params.get("posted") %}<div class="alert">✔ ลงรายการจ่ายเงินเข้าทะเบียนคุมเงินแล้ว</div>{% endif %}
   {% if request.query_params.get("payment_error") %}<div class="alert">กรุณาเลือกบัญชีที่จ่ายเงิน ข้อมูลยังไม่ได้บันทึก</div>{% endif %}
   {% if not posted and m.status == 'จ่ายแล้ว' %}<div class="alert">ยังไม่พบรายการจ่ายในทะเบียนคุมเงินของบันทึกนี้ กรุณาตรวจรายการเดิมก่อนลงจ่าย เพื่อป้องกันการจ่ายซ้ำ</div>{% endif %}
+  {% if request.query_params.get('check_existing') %}<div class="alert warn">พบรายการจ่ายที่อาจเป็นครั้งเดียวกับบันทึกนี้ กรุณาตรวจที่ส่วน "เคยบันทึกจ่ายเงินไว้แล้วหรือไม่?" ก่อนลงจ่าย</div>{% endif %}
   {% if request.query_params.get('payment_message') %}<div class="alert">{{ request.query_params.get('payment_message') }}</div>{% endif %}
   {% if request.query_params.get('linked') %}<div class="alert">เชื่อมรายการจ่ายเดิมแล้ว ยอดเงินคงเหลือไม่เปลี่ยน และไม่ได้สร้างรายการจ่ายเพิ่ม</div>{% endif %}
   {% if request.query_params.get('unlinked') %}<div class="alert">ยกเลิกการเชื่อมแล้ว รายการจ่ายเดิมยังอยู่ในทะเบียนคุมเงิน</div>{% endif %}
@@ -183,6 +185,8 @@
       </select>
       <p><button class="btn" type="submit">เชื่อมรายการจ่ายที่บันทึกไว้แล้ว</button></p>
     </form>
+    {% elif payment_near %}<div class="alert warn">พบรายการจ่ายยอดเท่ากันที่ยังไม่เชื่อมเอกสาร แต่บัญชีหรือหมวดไม่ตรงกับบันทึกนี้ จึงเชื่อมทันทีไม่ได้ หากเป็นการจ่ายครั้งเดียวกัน ให้แก้บัญชี/หมวดของบันทึกนี้ให้ตรงก่อน แล้วเชื่อม
+      <ul style="margin:6px 0 0 18px;padding:0;">{% for t in payment_near[:5] %}<li>{{ be_date(t.date) }} {{ t.ref or '' }} {{ t.note or t.category or '' }} บัญชี {{ t.account.name if t.account else '-' }} {{ '{:,.2f}'.format(t.amount) }} บาท รายการ #{{ t.id }}</li>{% endfor %}</ul></div>
     {% else %}<div class="alert">ยังไม่พบรายการจ่ายเดิมที่ตรงกัน ตรวจบัญชี หมวด ปีงบประมาณ และจำนวนเงิน แล้วบันทึกข้อมูลด้านบนก่อน หากรายการเดิมเชื่อมเอกสารอื่นอยู่แล้ว จะเลือกซ้ำไม่ได้</div>{% endif %}
   {% endif %}
 </div>

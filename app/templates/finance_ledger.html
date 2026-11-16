@@ -240,6 +240,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
   <h2 id="txn-entry" style="scroll-margin-top:90px;"><svg class="icon"><use href="#ic-plus"/></svg> บันทึกรับ / จ่าย</h2>
   {% if request.query_params.get('txn_err') %}<div class="alert warn" role="alert">ยังไม่ได้บันทึก: {{ request.query_params.get('txn_err') }}</div>{% endif %}
   {% if request.query_params.get('moved') %}<div class="alert">✔ ย้ายรายการไปปีงบ {{ request.query_params.get('moved') }} ตามวันที่แล้ว</div>{% endif %}
+  {% if request.query_params.get('memo_match') %}<p class="mp-warn" role="alert">บันทึกแล้ว มีบันทึกขอเบิกยอดเท่ากันที่ยังไม่ลงจ่าย หากเป็นการจ่ายครั้งเดียวกัน ให้เปิดบันทึกนั้นแล้วกด "เชื่อมรายการจ่ายที่บันทึกไว้แล้ว" อย่ากดบันทึกจ่ายซ้ำ <a href="/finance/disburse/{{ request.query_params.get('memo_match')|int }}#existing-payments">เปิดบันทึกขอเบิก →</a></p>{% endif %}
   {% if request.query_params.get('short') in deposit_types %}<p class="mp-warn" role="alert">บันทึกแล้ว แต่{{ deposit_types[request.query_params.get('short')] }}ของบัญชีนี้ติดลบ {{ "{:,.2f}".format(request.query_params.get('short_amt')|float) }} บาท
     ถ้าจ่ายจริงจากที่นี้ ให้บันทึกถอน/ฝากเงินเข้ามาก่อนที่ <a href="#move">ถอน / ฝากเงิน</a> หรือแก้ช่อง "รับเข้า / จ่ายจาก" ให้ถูก</p>{% endif %}
   {% if subsidy_year %}<p>บันทึกรับเงินที่ได้รับโอนจริง แล้วกลับไปเลือกรายการเพื่อเชื่อมกับเงินอุดหนุนของเทอมนี้</p>

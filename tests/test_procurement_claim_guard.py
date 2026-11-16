@@ -89,8 +89,16 @@ def test_http_second_submit_resumes_first_and_partial_create_uses_remaining(env)
         assert repeated.status_code==303 and 'claim_changed=1' in repeated.headers['location']
         assert db.query(m.DisburseMemo).filter_by(procurement_id=p.id).count()==1
         payload['claim_version']=claims.state(db,p)['version']
-        page=env.get(f'/finance/disburse?proc={p.id}&year=2570');assert page.status_code==200
+        # มีบันทึกแล้ว เปิดลิงก์เดิมต้องพาไปบันทึกเดิม ไม่เปิดฟอร์มใหม่
+        reopen=env.get(f'/finance/disburse?proc={p.id}&year=2570',follow_redirects=False)
+        assert reopen.status_code==303 and 'existing_claim=1' in reopen.headers['location']
+        blind=env.post('/finance/disburse',data=dict(payload,memo_no='302/2569',amount='2100'),follow_redirects=False)
+        assert blind.status_code==303 and 'existing_claim=1' in blind.headers['location']
+        page=env.get(f'/finance/disburse?proc={p.id}&year=2570&more=1');assert page.status_code==200
         assert 'เหลือทำขอเบิก 2,100.00' in page.text
+        payload['more']='1'
+        dupno=env.post('/finance/disburse',data=dict(payload,memo_no='301/2569',amount='100'),follow_redirects=False)
+        assert dupno.status_code==409
         invalid=env.post('/finance/disburse',data=dict(payload,memo_no='302/2569',amount='3100'),follow_redirects=False)
         assert invalid.status_code==409
         second=env.post('/finance/disburse',data=dict(payload,memo_no='302/2569',amount='2100'),follow_redirects=False)
@@ -99,4 +107,25 @@ def test_http_second_submit_resumes_first_and_partial_create_uses_remaining(env)
         assert again.status_code==303
         db.expire_all();assert db.query(m.DisburseMemo).filter_by(procurement_id=p.id).count()==2
         assert claims.state(db,p)['claimed']==3100 and db.query(m.FinanceTxn).count()==0
+    finally:db.close()
+
+
+def test_post_stops_when_same_amount_was_entered_in_ledger(env):
+    """ลงจ่ายในหน้ารับ-จ่ายไปแล้ว (คนละหมวด) แล้วกดบันทึกจ่ายในบันทึกขอเบิก ต้องหยุดให้ตรวจก่อน"""
+    import app.tenancy as tn
+    db=tn.session_for(next(iter(tn._engines)))
+    try:
+        a,p=source(db)
+        memo=m.DisburseMemo(fiscal_year=2570,procurement_id=p.id,memo_no='401/2569',subject=p.subject,
+            date=datetime(2026,10,5),amount=3100,account_id=a.id,status='อนุมัติ')
+        manual=m.FinanceTxn(account_id=a.id,fiscal_year=2570,kind='out',amount=3100,date=datetime(2026,10,6),note='ค่ารถ')
+        db.add_all([memo,manual]);db.commit()
+        assert [t.id for t in payments.near(db,memo)+payments.candidates(db,memo)]==[manual.id]
+        stop=env.post(f'/finance/disburse/{memo.id}/post',data={'paid_date':'06/10/2569'},follow_redirects=False)
+        assert stop.status_code==303 and 'check_existing=1' in stop.headers['location']
+        db.expire_all();assert db.query(m.FinanceTxn).count()==1
+        page=env.get(f'/finance/disburse/{memo.id}');assert 'ไม่ใช่รายการเดียวกัน' in page.text
+        ok=env.post(f'/finance/disburse/{memo.id}/post',data={'paid_date':'06/10/2569','confirm_new':'1'},follow_redirects=False)
+        assert ok.status_code==303
+        db.expire_all();assert db.query(m.FinanceTxn).count()==2
     finally:db.close()

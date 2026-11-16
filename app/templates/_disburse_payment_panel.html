@@ -33,6 +33,12 @@
       <label>บัญชีที่จ่าย</label>{% if split_rows %}<div class="dm-readonly">{% for row in split_rows %}<div>{{ row.name }} · {{ '{:,.2f}'.format(row.amount) }} บาท</div>{% endfor %}</div>{% else %}{% set account=accounts|selectattr('id','equalto',m.account_id)|first %}<div class="dm-readonly">{{ account.name if account else 'ไม่พบบัญชีที่เลือก กรุณาตรวจรายละเอียด' }}</div>{% endif %}
       <div class="dm-breakdown"><div><span>ยอดขอเบิก</span><b>{{ '{:,.2f}'.format(m.amount or 0) }} บาท</b></div><div><span>หักภาษี ณ ที่จ่าย</span><b>{{ '{:,.2f}'.format(m.wht or 0) }} บาท</b></div><div><span>ค่าปรับ</span><b>{{ '{:,.2f}'.format(m.fine or 0) }} บาท</b></div><div class="dm-net"><span>จ่ายสุทธิ</span><b>{{ '{:,.2f}'.format((m.amount or 0)-(m.wht or 0)-(m.fine or 0)) }} บาท</b></div></div>
       <div class="dm-confirm-note"><svg class="icon"><use href="#ic-info"/></svg><span>เมื่อยืนยัน ระบบจะลงรายการจ่ายในทะเบียนคุมเงิน{% if lunch_source %} และเปลี่ยนสถานะงวดเป็นจ่ายแล้ว{% else %} และเปลี่ยนสถานะบันทึกเป็นจ่ายแล้ว{% endif %}</span></div>
+      {% set maybe = (payment_candidates or []) + (payment_near or []) %}
+      {% if maybe and not lunch_source %}<div class="alert warn" role="alert"><b>พบรายการจ่ายยอด {{ '{:,.2f}'.format(m.amount or 0) }} บาท ที่ยังไม่เชื่อมเอกสาร {{ maybe|length }} รายการ</b>
+        <ul style="margin:6px 0 6px 18px;padding:0;">{% for t in maybe[:5] %}<li>{{ be_date(t.date) }} {{ t.ref or '' }} {{ t.note or t.category or '' }} ({{ t.account.name if t.account else '' }})</li>{% endfor %}</ul>
+        หากเป็นการจ่ายครั้งเดียวกัน ให้กดย้อนกลับแล้วเชื่อมรายการเดิมด้านล่าง ไม่ต้องลงจ่ายใหม่
+        <label style="display:flex;gap:8px;align-items:center;margin-top:8px;"><input type="checkbox" name="confirm_new" value="1" required> ตรวจแล้ว ไม่ใช่รายการเดียวกัน ให้ลงจ่ายใหม่</label></div>
+      {% else %}<input type="hidden" name="confirm_new" value="1">{% endif %}
       {% if wrong_fy %}<div class="alert warn" role="alert"><b>วันที่ในบันทึกนี้อยู่ในปีงบ {{ date_fy }} แต่บันทึกนี้เป็นปีงบ {{ m.fiscal_year }}</b><p>รายการจะลงทะเบียนปีงบ {{ m.fiscal_year }} วันที่จ่ายเงินจริงต้องอยู่ในปีงบนี้ ส่วนวันที่ขอเบิกยังคงตามเอกสารเดิม</p></div>{% endif %}
     </div><div class="dm-dialog-foot"><button class="btn gray" type="button" data-dm-close>ย้อนกลับ</button><button class="btn green" type="submit" data-no-floating-save id="dm-confirm"><svg class="icon"><use href="#ic-check"/></svg> ยืนยันบันทึกจ่าย</button></div>
   </form>
