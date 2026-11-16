@@ -335,8 +335,11 @@
     .btn.green:hover { box-shadow: 0 6px 16px rgba(22,179,100,.32); }
     /* ปุ่มรองใช้ "พื้นอ่อน" แทนเส้นขอบ - ทั้งระบบไม่มีปุ่มแบบมีขอบ
        (ของเดิมพื้นขาว+ขอบ พอไปวางบนแถบ hero สีเข้ม ขอบจะโผล่มาอันเดียว ดูไม่เข้าพวก) */
-    .btn.gray { background: #eef1f7; color: var(--sidebar-ink); border: none; box-shadow: none; }
-    .btn.gray:hover { background: #e3e8f1; color: var(--text); filter: none; transform: none; box-shadow: none; }
+    /* ปุ่มรอง: พื้นขาว + เงาบาง (เดิมเทาอ่อน กลืนกับพื้นหลังหน้า เจ้าของสั่งเปลี่ยน 2026-11-16) ไม่ใช้เส้นขอบ */
+    .btn.gray { background: #fff; color: var(--sidebar-ink); border: none;
+                box-shadow: 0 1px 2px rgba(15,23,42,.08), 0 3px 10px rgba(79,70,229,.10); }
+    .btn.gray:hover { background: #fff; color: var(--text); filter: none; transform: translateY(-1px);
+                      box-shadow: 0 2px 4px rgba(15,23,42,.08), 0 6px 16px rgba(79,70,229,.16); }
     .btn.soft { background: var(--brand-soft); color: var(--brand-dark); border: none; box-shadow: none; }
     .btn.soft:hover { background: var(--brand-soft); border: none; color: var(--brand-dark);
                       filter: brightness(.96); box-shadow: 0 4px 12px rgba(72,128,255,.16); }
