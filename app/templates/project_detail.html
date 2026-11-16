@@ -128,6 +128,7 @@
   {% if not acts %}
   <div class="pa-empty">
     <span>ยังไม่มีกิจกรรม ใช้เงินโครงการได้เลย</span>
+    <a class="btn sm" href="/budget-requests/new?project={{ p.id }}"><svg class="icon"><use href="#ic-file"/></svg> ขอใช้งบประมาณ</a>
     <a class="btn sm" href="/procurement/new?project={{ p.id }}"><svg class="icon"><use href="#ic-plus"/></svg> จัดซื้อ/จัดจ้าง</a>
     <a class="btn sm pa-ghost" href="/finance/disburse?project={{ p.id }}"><svg class="icon"><use href="#ic-plus"/></svg> เบิกค่าอื่น</a>
     <a class="btn sm pa-ghost is-loan" href="/finance/loans?project={{ p.id }}#new"><svg class="icon"><use href="#ic-plus"/></svg> ยืมเงิน</a>
@@ -174,6 +175,7 @@
       <b>รายการในกิจกรรม</b>
       <span class="pa-acts">
         <a class="btn sm" href="/procurement/new?project={{ p.id }}&activity={{ a.id }}"><svg class="icon"><use href="#ic-plus"/></svg> จัดซื้อ/จัดจ้าง</a>
+        <a class="btn sm pa-ghost" href="/budget-requests/new?project={{ p.id }}&activity={{ a.id }}"><svg class="icon"><use href="#ic-file"/></svg> ขอใช้งบ</a>
         <a class="btn sm pa-ghost" href="/finance/disburse?project={{ p.id }}&activity={{ a.id }}"><svg class="icon"><use href="#ic-plus"/></svg> เบิกค่าอื่น</a>
         <a class="btn sm pa-ghost is-loan" href="/finance/loans?project={{ p.id }}&activity={{ a.id }}#new"><svg class="icon"><use href="#ic-plus"/></svg> ยืมเงิน</a>
       </span>

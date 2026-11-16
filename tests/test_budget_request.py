@@ -1,0 +1,91 @@
+"""คำขอใช้งบประมาณ ช่วงที่ 1: สร้าง แก้ไข ออก Word เลขรันจากทะเบียน ครูผู้รับผิดชอบเห็นแบบอ่านอย่างเดียว"""
+from docx import Document as Docx
+
+from app.models import BudgetRequest, IssuedDocNo, Person, Project
+from app.services import budget_request as svc
+from app.tenancy import session_for
+from tests.test_subsidy import env  # noqa: F401
+
+
+def _db():
+    from app.accounts import acc_session, Tenant
+    with acc_session() as a:
+        tid = a.query(Tenant).first().id
+    return tid, session_for(tid)
+
+
+def _payload(**kw):
+    data = {"fiscal_year": "2570", "request_no": "", "date": "16/11/2569", "owner": "", "department": "วิชาการ",
+            "activity_date": "16/12/2569", "purpose": "", "inspectors": "นาย ก\nนาง ข\nนาย ค",
+            "ln_type": ["ค่าวัสดุ", "ค่าใช้สอย", "ค่าตอบแทน"],
+            "ln_name": ["วัสดุจัดกิจกรรม", "ค่าอาหารว่าง", "ค่าวิทยากร"],
+            "ln_qty": ["1", "50", "3"], "ln_unit": ["ชุด", "คน", "ชม."], "ln_price": ["15000", "35", "600"],
+            "ln_method": ["จัดซื้อ", "ยืมเงิน", "ยืมเงิน"]}
+    data.update(kw)
+    return data
+
+
+def test_create_edit_doc_and_teacher_view(env):
+    c = env
+    tid, db = _db()
+    try:
+        proj = Project(name="พัฒนาบุคลากร", budget=50000, plan_year=2570)
+        teacher = db.query(Person).first()
+        db.add(proj); db.commit()
+        r = c.post("/budget-requests/new", data=_payload(project_id=str(proj.id), owner_person_id=str(teacher.id)),
+                   follow_redirects=False)
+        assert r.status_code == 303, r.text
+        rid = int(r.headers["location"].split("/")[-1].split("?")[0])
+        db.expire_all()
+        req = db.get(BudgetRequest, rid)
+        assert req.request_no and req.owner == teacher.name and len(req.lines) == 3
+        assert svc.total(req) == 15000 + 50 * 35 + 3 * 600
+        groups = {g["method"]: g["total"] for g in svc.by_method(req)}
+        assert groups == {"จัดซื้อ": 15000, "ยืมเงิน": 3550}
+        # เลขบันทึกเข้าทะเบียนเลขหนังสือ
+        assert db.query(IssuedDocNo).filter_by(source="budget_request", ref_id=rid).count() == 1
+        # ไม่มีรายการ = บันทึกไม่ได้
+        bad = c.post(f"/budget-requests/{rid}/edit", data=_payload(ln_name=["", "", ""]), follow_redirects=False)
+        assert bad.status_code == 400
+        # แก้ไข: ลดเหลือ 2 แถว
+        ok = c.post(f"/budget-requests/{rid}/edit", data=_payload(project_id=str(proj.id), owner_person_id=str(teacher.id),
+                    request_no=req.request_no, ln_type=["ค่าวัสดุ", "ค่าใช้สอย"], ln_name=["วัสดุ", "ค่าไวนิล"],
+                    ln_qty=["1", "1"], ln_unit=["ชุด", "ผืน"], ln_price=["1000", "450"], ln_method=["จัดซื้อ", "จัดจ้าง"]),
+                    follow_redirects=False)
+        assert ok.status_code == 303
+        db.expire_all(); req = db.get(BudgetRequest, rid)
+        assert [ln.name for ln in req.lines] == ["วัสดุ", "ค่าไวนิล"] and svc.total(req) == 1450
+        assert db.query(IssuedDocNo).filter_by(source="budget_request", ref_id=rid).count() == 1
+        # หน้ารายละเอียด + Word
+        page = c.get(f"/budget-requests/{rid}")
+        assert page.status_code == 200 and "จัดจ้าง" in page.text and "1,450.00" in page.text
+        doc = c.get(f"/budget-requests/{rid}/doc.docx")
+        assert doc.status_code == 200
+        import io
+        text = "\n".join(p.text for p in Docx(io.BytesIO(doc.content)).paragraphs)
+        assert "ค่าไวนิล" in text and "พัฒนาบุคลากร" in text and "{{" not in text
+        # การ์ดหน้าหลักครู
+        cards = svc.teacher_cards(db, teacher.id)
+        assert cards and cards[0]["href"] == f"/me/budget-requests/{rid}" and cards[0]["total"] == 1450
+        assert cards[0]["left"] == 50000
+    finally:
+        db.close()
+
+
+def test_teacher_sees_only_own_request_read_only(env):
+    from tests.test_access_shared_pages import _account
+    tid, db = _db()
+    try:
+        mine = db.query(Person).first()
+        other = Person(name="ครูคนอื่น"); db.add(other); db.flush()
+        a = BudgetRequest(fiscal_year=2570, request_no="1/2570", owner_person_id=mine.id)
+        b = BudgetRequest(fiscal_year=2570, request_no="2/2570", owner_person_id=other.id)
+        db.add_all([a, b]); db.commit()
+        t = _account("ครูขอใช้งบ", "academic")
+        assert t.get(f"/me/budget-requests/{a.id}").status_code == 200
+        assert t.get(f"/me/budget-requests/{b.id}").status_code == 403
+        assert t.get("/budget-requests", follow_redirects=False).status_code == 403
+        assert t.get(f"/budget-requests/{a.id}", follow_redirects=False).status_code == 403
+        assert t.post(f"/budget-requests/{a.id}/delete", follow_redirects=False).status_code == 403
+    finally:
+        db.close()

@@ -35,6 +35,7 @@ PAGES = [
     ('หน้าหลักงานการเงิน', '/finance', 'finance', 'การเงิน'),
     ('ทะเบียนคุมเงิน', '/finance/accounts', 'finance', 'บัญชี ยอดยกมา ยกยอด'),
     ('ทะเบียนคุมโครงการ', '/finance/projects', 'finance', 'โครงการ'),
+    ('คำขอใช้งบประมาณ', '/budget-requests', 'finance', 'ขอใช้งบ บันทึกขอใช้งบประมาณ โครงการ'),
     ('บันทึกขอเบิกจ่าย', '/finance/disburse', 'finance', 'เบิกจ่าย ขอเบิก'),
     ('ใบเสร็จรับเงิน', '/finance/receipts', 'finance', 'ใบเสร็จ'),
     ('สมุดเงินสด', '/finance/cashbook', 'finance', 'เงินสด'),

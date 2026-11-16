@@ -6,5 +6,13 @@
 <section class="home-panel th-card"><div class="th-head"><h2><img class="h3d" src="/static/images/home3d/leave.png" alt=""> ใบลาและขอไปราชการ</h2><span class="th-links"><a href="/me/leave">ส่งใบลา</a><a href="/me/travel">ขอไปราชการ</a></span></div>
 {% for r in home.th.requests %}<a class="th-row" href="{{ r.href }}"><span class="th-main"><b>{{ r.kind }} {{ r.title }}</b><small>{{ be_date(r.date) if r.date else '' }}</small></span><span class="th-pill t-{{ r.tone }}">{{ r.label }}</span></a>{% else %}<p class="home-empty">ยังไม่มีใบลาหรือคำขอไปราชการ</p>{% endfor %}
 </section>
+{% if home.th.budget %}
+<section class="home-panel th-card"><div class="th-head"><h2><img class="h3d" src="/static/images/home3d/f_projects.png" alt=""> คำขอใช้งบของฉัน</h2></div>
+{% for b in home.th.budget %}<a class="th-row" href="{{ b.href }}"><span class="th-main"><b>{{ b.no }} {{ b.title }}</b>
+<span class="br-steps">{% for s in home.th.budget_steps %}<i class="{{ 'done' if loop.index0 < b.step else 'now' if loop.index0 == b.step }}" title="{{ s }}">{{ s }}</i>{% endfor %}</span>
+<small>ขอ {{ '{:,.2f}'.format(b.total) }} บาท{% if b.left is not none %} งบโครงการคงเหลือ {{ '{:,.2f}'.format(b.left) }} บาท{% endif %}</small></span></a>{% endfor %}
+</section>
+<style>.br-steps{display:flex;gap:4px;margin:6px 0 4px;flex-wrap:wrap}.br-steps i{font-style:normal;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:#f1f5f9;color:#94a3b8}.br-steps i.done{background:#dcfce7;color:#166534}.br-steps i.now{background:linear-gradient(135deg,#818cf8,#4f46e5);color:#fff}</style>
+{% endif %}
 {% endif %}<aside class="home-panel home-updates"><h2><img class="h3d" src="/static/images/home3d/updates.png" alt=""> อัปเดตระบบล่าสุด <span class="home-new-tag">ใหม่</span></h2>{% for item in home.updates[:2] %}<div class="home-update"><small>{{ item.date }}</small><br><b>{{ item.title }}</b><p>{{ item.text }}</p></div>{% endfor %}<a class="btn gray sm" href="/system-updates" style="margin-top:14px">ดูอัปเดตทั้งหมด →</a></aside>
 </div>

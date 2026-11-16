@@ -81,4 +81,10 @@ def build(db, pid, *, year=None, letters=None, letter_tasks=0, letter_late=0, le
              unit="แผน"),
         dict(label="ใบลา/ไปราชการรออนุมัติ", n=pending_req, href="/me/leave", icon="ic-calendar", img="leave_wait", tone="green"),
     ]
-    return dict(stats=stats, todos=todos[:8], plans=rows[:5], requests=reqs[:3], has_plans=bool(plans))
+    from app.services.budget_request import teacher_cards, STEPS
+    try:
+        budget = teacher_cards(db, pid)
+    except Exception:          # ข้อมูลคำขอพังต้องไม่ทำหน้าหลักล่ม
+        budget = []
+    return dict(stats=stats, todos=todos[:8], plans=rows[:5], requests=reqs[:3], has_plans=bool(plans),
+                budget=budget, budget_steps=STEPS)

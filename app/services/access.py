@@ -19,6 +19,7 @@ SHARED = {
     "/docnos": {"admin", "procurement", "finance", "hr", "lunch"},
     "/projects": {"finance", "procurement"},
     "/project-reports": {"finance", "procurement"},
+    "/budget-requests": {"finance", "procurement"},
     "/masters": {"procurement", "finance", "hr"},
     "/students": {"lunch", "finance", "hr"},
     "/general": {"admin", "procurement", "finance", "hr", "lunch"},

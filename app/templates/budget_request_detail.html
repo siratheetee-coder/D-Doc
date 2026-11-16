@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}คำขอใช้งบประมาณ {{ r.request_no }}{% endblock %}
+{% block content %}
+<style>
+.brd-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brd-head img{width:58px;height:58px}
+.brd-head .t{flex:1;min-width:0}.brd-head h1{margin:0}.brd-head small{color:#64748b}
+.brd-steps{display:flex;gap:6px;margin:16px 0 4px;flex-wrap:wrap}
+.brd-steps span{flex:1;min-width:110px;text-align:center;font-size:13px;font-weight:700;padding:8px 6px;border-radius:12px;background:#f1f5f9;color:#94a3b8}
+.brd-steps span.done{background:linear-gradient(135deg,#86efac,#16a34a);color:#fff;box-shadow:0 4px 10px rgba(22,163,74,.25)}
+.brd-steps span.now{background:linear-gradient(135deg,#a5b4fc,#4f46e5);color:#fff;box-shadow:0 4px 10px rgba(79,70,229,.3)}
+.brd-nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:12px}
+.brd-nums div{border-radius:16px;padding:12px;background:var(--b,#f8faff);text-align:center}
+.brd-nums b{display:block;font-size:20px;color:var(--c,#0f172a)}.brd-nums span{font-size:12.5px;color:#475569}
+.brd-group{border-radius:18px;padding:14px;background:linear-gradient(135deg,#f8faff,#fff);box-shadow:0 1px 3px rgba(15,23,42,.06);margin-top:12px}
+.brd-group h3{margin:0 0 8px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.brd-group h3 em{font-style:normal;color:#4338ca}
+.brd-line{display:flex;gap:10px;justify-content:space-between;padding:6px 0;font-size:14.5px}
+.brd-line+.brd-line{border-top:1px solid #f1f5f9}
+.brd-line small{color:#64748b;display:block}
+.brd-next{font-size:12.5px;color:#64748b;margin-top:6px}
+</style>
+{% if request.query_params.get('saved') %}<div class="alert" style="background:#ecfdf5">บันทึกคำขอแล้ว</div>{% endif %}
+<div class="card">
+  <div class="brd-head"><img src="/static/images/home3d/f_projects.png" alt="">
+    <div class="t"><h1>คำขอใช้งบประมาณ {{ r.request_no }}</h1>
+      <small>{{ r.project.name if r.project else r.purpose }}{% if r.owner %} ผู้รับผิดชอบ {{ r.owner }}{% endif %}{% if r.activity_date %} จัดวันที่ {{ be_date(r.activity_date) }}{% endif %}</small></div>
+    <a class="btn" href="{{ doc_href }}"><svg class="icon"><use href="#ic-file"/></svg> บันทึกขอใช้งบประมาณ (Word)</a>
+    {% if not readonly %}<a class="btn gray" href="/budget-requests/{{ r.id }}/edit">แก้ไข</a>{% endif %}
+  </div>
+  <div class="brd-steps">{% for s in steps %}<span class="{{ 'done' if loop.index0 < step else 'now' if loop.index0 == step }}">{{ loop.index }}. {{ s }}</span>{% endfor %}</div>
+  <div class="brd-nums">
+    <div style="--b:#eef2ff;--c:#4338ca"><b>{{ '{:,.2f}'.format(total) }}</b><span>ขอใช้ครั้งนี้ (บาท)</span></div>
+    {% if nums.approved is not none %}
+    <div><b>{{ '{:,.2f}'.format(nums.approved) }}</b><span>งบโครงการ</span></div>
+    <div><b>{{ '{:,.2f}'.format(nums.left) }}</b><span>คงเหลือก่อนขอ</span></div>
+    <div style="--b:{{ '#fff1f2' if nums.carry < 0 else '#ecfdf5' }};--c:{{ '#e11d48' if nums.carry < 0 else '#16a34a' }}"><b>{{ '{:,.2f}'.format(nums.carry) }}</b><span>คงเหลือยกไป</span></div>
+    {% endif %}
+  </div>
+  {% if nums.carry is not none and nums.carry < 0 %}<div class="alert" role="alert">ยอดที่ขอเกินงบคงเหลือของโครงการ {{ '{:,.2f}'.format(-nums.carry) }} บาท</div>{% endif %}
+</div>
+<div class="card">
+  <h2 style="margin-top:0">รายการตามวิธีเบิก</h2>
+  {% for g in groups %}
+  <div class="brd-group"><h3>{{ g.method }} <em>{{ '{:,.2f}'.format(g.total) }} บาท</em></h3>
+    {% for ln in g.lines %}<div class="brd-line"><span>{{ ln.name }}<small>{{ ln.cost_type }} {{ '%g'|format(ln.qty) }} {{ ln.unit }} x {{ '{:,.2f}'.format(ln.price) }}</small></span><b>{{ '{:,.2f}'.format(ln.amount) }}</b></div>{% endfor %}
+    <div class="brd-next">ขั้นถัดไป: {{ 'สร้างเรื่องจัดซื้อ/จัดจ้าง' if g.method in ('จัดซื้อ','จัดจ้าง') else 'ทำสัญญายืมเงิน' if g.method == 'ยืมเงิน' else 'ออกบันทึกขอเบิก' }} (เร็ว ๆ นี้ สร้างจากหน้านี้ได้เลย)</div>
+  </div>
+  {% endfor %}
+</div>
+{% if not readonly %}
+<div class="card"><form method="post" action="/budget-requests/{{ r.id }}/delete" onsubmit="return confirm('ลบคำขอใช้งบประมาณนี้? เลขบันทึกจะถูกคืนออกจากทะเบียน')"><button class="btn red sm" type="submit">ลบคำขอนี้</button> <a class="btn gray sm" href="/budget-requests?year={{ r.fiscal_year }}">กลับรายการ</a></form></div>
+{% endif %}
+{% endblock %}

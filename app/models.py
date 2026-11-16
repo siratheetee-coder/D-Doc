@@ -2820,4 +2820,56 @@ class LunchDisburseLink(Base):
 
 
 # Activity records are tenant-local and separate from school-day configuration.
+class BudgetRequest(Base):
+    """คำขอใช้งบประมาณ (เอกสารต้นเรื่อง 1 ใบ หลายรายการ หลายวิธีเบิก)
+
+    ช่วงที่ 1 (2026-11-16): สร้าง/แก้ไข ออกบันทึก Word การ์ดหน้าหลักครูผู้รับผิดชอบ
+    ช่วงที่ 2 จะสร้างเรื่องจัดซื้อ/สัญญายืม/บันทึกขอเบิก จากแต่ละกลุ่มวิธีเบิก (ช่องลิงก์ในรายการเตรียมไว้แล้ว)
+    """
+    __tablename__ = "budget_request"
+
+    id = Column(Integer, primary_key=True)
+    fiscal_year = Column(Integer, nullable=False)
+    request_no = Column(String, default="")          # เลขบันทึก รันจากทะเบียนเลขบันทึก
+    date = Column(DateTime, nullable=True)           # วันที่บันทึก
+    project_id = Column(Integer, ForeignKey("project.id"), nullable=True)
+    activity_id = Column(Integer, nullable=True)
+    owner = Column(String, default="")               # ผู้รับผิดชอบ (ชื่อที่พิมพ์ในบันทึก)
+    owner_person_id = Column(Integer, ForeignKey("person.id"), nullable=True)  # ครูที่เห็นการ์ดในหน้าหลัก
+    department = Column(String, default="")
+    activity_date = Column(DateTime, nullable=True)  # วันที่จัดกิจกรรม
+    purpose = Column(Text, default="")
+    inspectors = Column(Text, default="")            # กรรมการตรวจรับ บรรทัดละ 1 คน
+    status = Column(String, default="ร่าง")          # ร่าง / ส่งแล้ว (ช่วงถัดไป: อนุมัติ / ปิดแล้ว)
+    created_at = Column(DateTime, default=datetime.now)
+
+    project = relationship("Project")
+    lines = relationship("BudgetRequestLine", back_populates="request", cascade="all, delete-orphan",
+                         order_by="BudgetRequestLine.seq")
+
+
+class BudgetRequestLine(Base):
+    __tablename__ = "budget_request_line"
+
+    id = Column(Integer, primary_key=True)
+    request_id = Column(Integer, ForeignKey("budget_request.id"), nullable=False)
+    seq = Column(Integer, default=0)
+    cost_type = Column(String, default="ค่าวัสดุ")   # ค่าวัสดุ/ค่าใช้สอย/ค่าตอบแทน/ค่าสาธารณูปโภค/ค่าครุภัณฑ์
+    name = Column(String, default="")
+    qty = Column(Float, default=0.0)
+    unit = Column(String, default="")
+    price = Column(Float, default=0.0)
+    method = Column(String, default="จัดซื้อ")      # จัดซื้อ / จัดจ้าง / ยืมเงิน / เบิกจ่ายตรง
+    # ช่วงที่ 2: เอกสารปลายทางของรายการนี้
+    procurement_id = Column(Integer, nullable=True)
+    loan_id = Column(Integer, nullable=True)
+    disburse_id = Column(Integer, nullable=True)
+
+    request = relationship("BudgetRequest", back_populates="lines")
+
+    @property
+    def amount(self):
+        return round(float(self.qty or 0) * float(self.price or 0), 2)
+
+
 from app.school_event_models import SchoolEvent  # noqa: E402,F401

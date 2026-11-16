@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}{{ 'สร้างคำขอใช้งบประมาณ' if is_new else 'แก้ไขคำขอใช้งบประมาณ' }}{% endblock %}
+{% block content %}
+<style>
+.br-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 16px}
+.br-lines{width:100%;border-collapse:separate;border-spacing:0 6px}
+.br-lines th{font-size:13px;color:#64748b;text-align:left;padding:0 6px;font-weight:600}
+.br-lines td{padding:0 4px;vertical-align:middle}
+.br-lines td input,.br-lines td select{margin:0}
+.br-lines .num{text-align:right}
+.br-sum{font-weight:800;color:#4338ca;white-space:nowrap;text-align:right}
+.br-del{border:0;background:#fff1f2;color:#e11d48;border-radius:10px;width:34px;height:34px;cursor:pointer;font-size:16px}
+.br-total{display:flex;justify-content:flex-end;gap:12px;align-items:baseline;margin-top:10px;font-size:18px}
+.br-total b{font-size:24px;color:#4338ca}
+.br-groups{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.br-groups span{background:linear-gradient(135deg,#eef2ff,#f5f3ff);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:700;color:#4338ca}
+@media(max-width:760px){
+  .br-lines thead{display:none}
+  .br-lines tr{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#f8faff;border-radius:16px;padding:10px;margin-bottom:8px}
+  .br-lines td{padding:0}.br-lines td.wide{grid-column:1/-1}
+  .br-lines tbody{display:block}
+}
+</style>
+<div class="card">
+  <h1><img src="/static/images/home3d/f_projects.png" alt="" style="width:46px;height:46px;vertical-align:middle"> {{ 'สร้างคำขอใช้งบประมาณ' if is_new else 'แก้ไขคำขอใช้งบประมาณ' }}</h1>
+  <form method="post" action="{{ '/budget-requests/new' if is_new else '/budget-requests/' ~ r.id ~ '/edit' }}" id="brForm"
+        onsubmit="if(this.dataset.sent){return false;}this.dataset.sent=1;this.querySelector('[type=submit]').disabled=true;">
+    <div class="br-grid">
+      <div><label>ปีงบประมาณ</label><input name="fiscal_year" value="{{ r.fiscal_year or fy }}" inputmode="numeric"></div>
+      <div><label>เลขที่บันทึก</label><input name="request_no" value="{{ r.request_no or '' }}" placeholder="{{ sug_no }}"><small class="muted">เว้นว่าง ระบบรันเลขถัดไปจากทะเบียนให้</small></div>
+      <div><label>วันที่บันทึก</label><input name="date" data-date="1" placeholder="วว/ดด/ปปปป" value="{{ be_date(r.date) if r.date else '' }}"></div>
+    </div>
+    <div class="br-grid">
+      <div><label>โครงการ</label><select name="project_id" id="projSel" data-combo><option value="">- ไม่ระบุโครงการ -</option>
+        {% for p in projects %}<option value="{{ p.id }}" {{ 'selected' if r.project_id == p.id }}>{{ p.name }}{% if p.plan_year %} ({{ p.plan_year }}){% endif %}</option>{% endfor %}</select></div>
+      <div><label>กิจกรรม</label><select name="activity_id" data-activity-for="#projSel" data-selected="{{ r.activity_id or '' }}"><option value="">- ไม่ระบุกิจกรรม -</option></select></div>
+      <div><label>วันที่จัดกิจกรรม</label><input name="activity_date" data-date="1" placeholder="วว/ดด/ปปปป" value="{{ be_date(r.activity_date) if r.activity_date else '' }}"></div>
+    </div>
+    <div class="br-grid">
+      <div><label>ครูผู้รับผิดชอบ (เห็นคำขอในหน้าหลักของครู)</label><select name="owner_person_id" data-combo><option value="">- ไม่ระบุ -</option>
+        {% for p in people %}<option value="{{ p.id }}" {{ 'selected' if r.owner_person_id == p.id }}>{{ p.name }}</option>{% endfor %}</select></div>
+      <div><label>ชื่อผู้รับผิดชอบที่พิมพ์ในบันทึก</label><input name="owner" value="{{ r.owner or '' }}" placeholder="เว้นว่าง ใช้ชื่อครูที่เลือก"></div>
+      <div><label>กลุ่มสาระ/กลุ่มงาน</label><input name="department" value="{{ r.department or '' }}"></div>
+    </div>
+    <label>วัตถุประสงค์ (ใช้แทนชื่อโครงการ ถ้าไม่ได้เลือกโครงการ)</label>
+    <input name="purpose" value="{{ r.purpose or '' }}">
+
+    <h2 style="margin-top:18px">รายการค่าใช้จ่าย</h2>
+    <p class="muted" style="margin-top:0">เลือกประเภทและวิธีเบิกเองทุกรายการ ระบบไม่เลือกให้จากราคา</p>
+    <table class="br-lines"><thead><tr><th>ประเภท</th><th>รายการ</th><th>จำนวน</th><th>หน่วย</th><th>ราคา/หน่วย</th><th>วิธีเบิก</th><th class="num">เป็นเงิน</th><th></th></tr></thead>
+      <tbody id="brBody">
+      {% set rows = r.lines if r.lines else [none] %}
+      {% for ln in rows %}
+      <tr>
+        <td><select name="ln_type">{% for t in cost_types %}<option {{ 'selected' if ln and ln.cost_type == t }}>{{ t }}</option>{% endfor %}</select></td>
+        <td class="wide"><input name="ln_name" value="{{ ln.name if ln else '' }}" placeholder="เช่น ค่าอาหารว่าง"></td>
+        <td><input name="ln_qty" class="num" inputmode="decimal" value="{{ '%g'|format(ln.qty) if ln else '1' }}"></td>
+        <td><input name="ln_unit" value="{{ ln.unit if ln else '' }}" placeholder="คน"></td>
+        <td><input name="ln_price" class="num" inputmode="decimal" value="{{ '%g'|format(ln.price) if ln else '' }}"></td>
+        <td><select name="ln_method">{% for m in methods %}<option {{ 'selected' if ln and ln.method == m }}>{{ m }}</option>{% endfor %}</select></td>
+        <td class="br-sum">0.00</td>
+        <td><button type="button" class="br-del" aria-label="ลบรายการ" onclick="brDel(this)">✕</button></td>
+      </tr>
+      {% endfor %}
+      </tbody></table>
+    <button type="button" class="btn gray sm" onclick="brAdd()">+ เพิ่มรายการ</button>
+    <div class="br-total">รวมทั้งสิ้น <b id="brTotal">0.00</b> บาท</div>
+    <div class="br-groups" id="brGroups"></div>
+
+    <h2 style="margin-top:18px">กรรมการตรวจรับ</h2>
+    <textarea name="inspectors" rows="3" placeholder="บรรทัดละ 1 คน (ต่ำกว่า 5,000 บาท 1 คน ตั้งแต่ 5,000 บาท 3 คน)">{{ r.inspectors or '' }}</textarea>
+
+    <label style="display:flex;gap:10px;align-items:center;margin-top:12px;cursor:pointer"><input type="checkbox" name="status" value="ส่งแล้ว" {{ 'checked' if r.status == 'ส่งแล้ว' }} style="width:20px;height:20px;margin:0;flex:none"><span>เสนอ ผอ. แล้ว (ครูผู้รับผิดชอบจะเห็นขั้นตอนถัดไป)</span></label>
+    <p style="margin-top:16px"><button class="btn" type="submit">บันทึกคำขอ</button> <a class="btn gray" href="{{ '/budget-requests' if is_new else '/budget-requests/' ~ r.id }}">ยกเลิก</a></p>
+  </form>
+</div>
+<script>window.PJ_ACTS = {{ pj_acts|tojson }};</script>
+<script src="/static/project_activity.js?v=1"></script>
+<script>
+(function(){
+  var body=document.getElementById('brBody');
+  function num(v){v=parseFloat(String(v||'').replace(/,/g,''));return isFinite(v)?v:0;}
+  function fmt(v){return v.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});}
+  function calc(){
+    var tot=0,g={};
+    body.querySelectorAll('tr').forEach(function(tr){
+      var a=num(tr.querySelector('[name=ln_qty]').value)*num(tr.querySelector('[name=ln_price]').value);
+      tr.querySelector('.br-sum').textContent=fmt(a);tot+=a;
+      if(tr.querySelector('[name=ln_name]').value.trim()){var m=tr.querySelector('[name=ln_method]').value;g[m]=(g[m]||0)+a;}
+    });
+    document.getElementById('brTotal').textContent=fmt(tot);
+    document.getElementById('brGroups').innerHTML=Object.keys(g).map(function(k){return '<span>'+k+' '+fmt(g[k])+' บาท</span>';}).join('');
+  }
+  window.brAdd=function(){
+    var tr=body.querySelector('tr').cloneNode(true);
+    tr.querySelectorAll('input').forEach(function(i){i.value=i.name==='ln_qty'?'1':'';});
+    body.appendChild(tr);tr.querySelector('[name=ln_name]').focus();calc();
+  };
+  window.brDel=function(b){if(body.querySelectorAll('tr').length>1){b.closest('tr').remove();}else{b.closest('tr').querySelectorAll('input').forEach(function(i){i.value='';});}calc();};
+  body.addEventListener('input',calc);body.addEventListener('change',calc);calc();
+})();
+</script>
+{% endblock %}
