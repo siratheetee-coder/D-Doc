@@ -293,6 +293,12 @@ class Procurement(Base):
     total_amount = Column(Float, default=0.0)      # วงเงินรวม (บาท)
     price_ref_source = Column(String, default="การสืบราคาจากท้องตลาด")  # ที่มาราคากลาง
     price_ref = Column(Float, default=0.0)         # ราคากลาง (บาท) 0 = ใช้ยอดรวมรายการ
+    # บันทึกขอใช้งบประมาณ (เอกสารต้นเรื่อง ออกหรือไม่ก็ได้)
+    budget_memo_on = Column(Boolean, default=False)
+    budget_memo_no = Column(String, default="")            # เลขบันทึก (รันจากทะเบียนบันทึกข้อความ)
+    budget_owner = Column(String, default="")              # ผู้รับผิดชอบโครงการ/กิจกรรม (ข้าพเจ้า)
+    budget_activity_date = Column(DateTime, nullable=True) # วันที่จัดกิจกรรม
+    budget_extra = Column(Text, default="")                # ค่าใช้จ่ายอื่น JSON [{type,name,qty,unit,price}]
 
     delivery_days = Column(Integer, default=7)     # กำหนดส่งมอบภายใน (วัน)
     # ---- ใช้ใน TOR/ขอบเขตของงาน ตามระเบียบฯ ข้อ 21 ----
@@ -373,6 +379,7 @@ class ProcurementItem(Base):
     quantity = Column(Float, default=1)            # จำนวน
     unit = Column(String, default="หน่วย")         # หน่วยนับ
     unit_price = Column(Float, default=0.0)        # ราคาต่อหน่วย
+    cost_type = Column(String, default="")         # ประเภทค่าใช้จ่าย (ว่าง = ตามประเภทเรื่อง ซื้อ=ค่าวัสดุ จ้าง=ค่าใช้สอย)
     spec = Column(Text, default="")                # คุณลักษณะเฉพาะของรายการนี้ (คอลัมน์ในตาราง TOR)
 
     procurement = relationship("Procurement", back_populates="items")

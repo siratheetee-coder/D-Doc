@@ -35,6 +35,7 @@ TEMPLATE_FILES = {
     "รายละเอียดคุณลักษณะ(TOR)": "TOR.docx",
     "ใบส่งมอบงาน": "ใบส่งมอบงาน.docx",
     "รายงานผลตรวจรับและเบิกจ่าย": "รายงานเบิกจ่าย.docx",
+    "บันทึกขอใช้งบประมาณ": "บันทึกขอใช้งบประมาณ.docx",
 }
 
 _BLANK = ".............................."
@@ -83,6 +84,39 @@ def _find_committee(proc, kind):
     return None
 
 
+def _bm_item_type(it, proc_type):
+    from app.services.budget_memo import item_type
+    return item_type(it, proc_type)
+
+
+def budget_memo_context(proc) -> dict:
+    """ตัวแปรของบันทึกขอใช้งบประมาณ (ยอดงบโครงการดึงจากทะเบียนโครงการ)"""
+    from sqlalchemy.orm import object_session
+    from app.services.budget_memo import build_lines, budget_numbers
+    lines, total = build_lines(proc)
+    db = object_session(proc)
+    nums = budget_numbers(db, proc) if db is not None else {}
+    m = lambda v: _money(v) if v is not None else "................"
+    insp = _find_committee(proc, "inspect")
+    names = [mb.name for mb in (insp.members if insp else []) if (mb.name or "").strip()]
+    dt = getattr(proc, "budget_activity_date", None)
+    return {
+        "budget_memo_no": getattr(proc, "budget_memo_no", "") or _BLANK,
+        "bm_owner": (getattr(proc, "budget_owner", "") or "").strip() or _BLANK,
+        "department_text": (proc.department or "").strip() or _BLANK,
+        "bm_project": ("โครงการ" + _clean_project(proc.project_name)) if (proc.project_name or "").strip() else _BLANK,
+        "bm_activity_date": thai_date(dt) if dt else "",
+        "bm_lines": lines,
+        "bm_total": _money(total),
+        "bm_total_baht": bahttext(total),
+        "bm_approved": m(nums.get("approved")),
+        "bm_used": m(nums.get("used")),
+        "bm_left": m(nums.get("left")),
+        "bm_carry": m(nums.get("carry")),
+        "bm_inspectors": names or [_BLANK],
+    }
+
+
 def build_context(proc, school) -> dict:
     """รวบรวมข้อมูลทั้งหมดที่แม่แบบต้องใช้"""
     from app.services.staff import school_for
@@ -96,6 +130,7 @@ def build_context(proc, school) -> dict:
         "spec": (getattr(it, "spec", "") or ""),   # คุณลักษณะเฉพาะรายรายการ (คอลัมน์ใน TOR)
         "unit_price": _money(it.unit_price),
         "amount": _money(it.amount),
+        "cost_type": _bm_item_type(it, proc.proc_type),   # ประเภทค่าใช้จ่าย (บันทึกขอใช้งบ)
     } for it in proc.items]
 
     # ผู้ตรวจรับ
@@ -401,7 +436,11 @@ def _render_document(kind: str, proc, school) -> str:
         )
 
     tpl = DocxTemplate(str(template_path))
-    tpl.render(build_context(proc, school))
+    ctx = build_context(proc, school)
+    if kind == "บันทึกขอใช้งบประมาณ":
+        ctx.update(budget_memo_context(proc))
+        ctx["finance_officer_text"] = ctx.get("finance_officer_name") or _BLANK
+    tpl.render(ctx)
     if kind in ONE_PAGE_KINDS:
         # บันทึกข้อความต้องจบหน้าเดียวเสมอ ต่อให้ชื่อโครงการยาวหรือกรรมการหลายคน
         # (บีบช่องไฟ/ระยะบรรทัดเท่านั้น ขนาดตัวอักษรคง 16 pt ตามระเบียบงานสารบรรณ)
@@ -455,6 +494,7 @@ def render_bundle(kinds, proc, school) -> str:
 # ลำดับมาตรฐานของเอกสาร (ตามไทม์ไลน์การจัดซื้อจริง) - ใช้ทั้งปุ่มรายใบและการรวมไฟล์
 # เตรียมสเปก -> ขออนุมัติ -> เสนอราคา -> ตัดสิน -> สั่ง -> ส่งมอบ -> ตรวจรับ/เบิกจ่าย
 DOC_ORDER = [
+    "บันทึกขอใช้งบประมาณ",            # 0 เอกสารต้นเรื่อง (เฉพาะเรื่องที่เปิดสวิตช์ไว้)
     "แต่งตั้งกรรมการคุณลักษณะ",      # 1 ตั้ง กก.กำหนดคุณลักษณะ/ราคากลาง (ข้อ 21)
     "คำสั่งแต่งตั้งกรรมการคุณลักษณะ",  # 1.5 คำสั่งแต่งตั้ง กก.กำหนดคุณลักษณะ (เฉพาะเรื่องที่กรอกรายชื่อไว้)
     "รายละเอียดคุณลักษณะ(TOR)",       # 2 TOR
@@ -479,7 +519,9 @@ AVAILABLE_KINDS = DOC_ORDER
 # บันทึกข้อความที่ต้องจบในหน้าเดียว (ท่อนก่อน page break แรก)
 # แบบฟอร์มที่ต้องจบในหน้าเดียว (ท่อนก่อน page break แรก)
 # ไม่รวม TOR เพราะรายการพัสดุเยอะ ๆ ยาวข้ามหน้าเป็นเรื่องปกติของเอกสารนั้น
+# บันทึกขอใช้งบประมาณ: บีบเฉพาะหน้าบันทึก (ท่อนก่อน page break) ตารางรายการอยู่หน้าถัดไป
 ONE_PAGE_KINDS = {
+    "บันทึกขอใช้งบประมาณ",
     "แต่งตั้งกรรมการคุณลักษณะ", "คำสั่งแต่งตั้งกรรมการคุณลักษณะ",
     "รายงานขอซื้อ", "คำสั่งแต่งตั้งกรรมการซื้อ/จ้าง", "คำสั่งแต่งตั้งผู้ตรวจรับ",
     "ใบเสนอราคา", "รายงานผลการพิจารณา", "ประกาศผู้ชนะ", "ใบสั่งซื้อ/สั่งจ้าง",
@@ -534,6 +576,8 @@ def kinds_for(proc):
     for k in DOC_ORDER:
         if k in skip:
             continue
+        if k == "บันทึกขอใช้งบประมาณ" and not getattr(proc, "budget_memo_on", False):
+            continue                      # ไม่ได้เลือกออกบันทึกขอใช้งบประมาณ
         if k == WHT_KIND and not float(getattr(proc, "wht_rate", 0) or 0) > 0:
             continue                      # ไม่ได้หักภาษี ณ ที่จ่าย -> ไม่มีหนังสือรับรอง
         if k == "คำสั่งแต่งตั้งกรรมการคุณลักษณะ":

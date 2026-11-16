@@ -1741,6 +1741,17 @@ def vendor_delete(vendor_id: int, db: Session = Depends(get_db)):
 
 
 # ---------------- สร้าง/แก้ไขเรื่องจัดซื้อ ----------------
+def _next_memo_after(db: Session, proc) -> str:
+    """เลขบันทึกข้อความถัดไป ไม่ชนกับเลขรายงานขอซื้อของเรื่องเดียวกันที่ยังไม่ได้ลงทะเบียน"""
+    from app.services.doc_number import suggest_next, format_doc_no, doc_year
+    fy = proc.fiscal_year or current_fiscal_year()
+    seq = suggest_next(db, "memo", fy)
+    mine = (proc.memo_no or "").split("/")[0].strip()
+    if mine.isdigit() and int(mine) >= seq:
+        seq = int(mine) + 1
+    return format_doc_no(seq, doc_year("memo", fy))
+
+
 def _form_lists(db: Session) -> dict:
     """รายการมาสเตอร์ลิสต์ที่ฟอร์มสร้าง/แก้ไขใช้ร่วมกัน"""
     persons = db.query(Person).order_by(Person.name).all()
@@ -1753,10 +1764,13 @@ def _form_lists(db: Session) -> dict:
         "catalog": db.query(ItemCatalog).order_by(ItemCatalog.name).all(),
         # แผนที่ ชื่อ -> ตำแหน่ง สำหรับเติมตำแหน่งอัตโนมัติเมื่อเลือกชื่อ
         "persons_pos": {p.name: p.position for p in persons},
+        "cost_types": COST_TYPES,
     }
 
 
 # ตำแหน่งมาตรฐานในโรงเรียน (ไว้ทำ dropdown ให้เลือก) เรียงผู้บริหารบนสุด
+from app.services.budget_memo import COST_TYPES, extra_from_form as budget_extra_from_form  # noqa: E402
+
 POSITION_CHOICES = [
     # ผู้บริหาร
     "ผู้อำนวยการโรงเรียน", "รองผู้อำนวยการโรงเรียน", "รักษาการในตำแหน่งผู้อำนวยการโรงเรียน",
@@ -1992,6 +2006,7 @@ def _populate_proc_from_form(proc: Procurement, form, db: Session, threshold: fl
     names, qtys = form.getlist("item_name"), form.getlist("item_qty")
     units, prices = form.getlist("item_unit"), form.getlist("item_price")
     specs = form.getlist("item_spec")       # คุณลักษณะเฉพาะรายรายการ (คอลัมน์ใน TOR)
+    ctypes = form.getlist("item_cost_type")  # ประเภทค่าใช้จ่าย (บันทึกขอใช้งบประมาณ) ว่าง = ตามประเภทเรื่อง
     total = 0.0
     for i, nm in enumerate(names):
         nm = (nm or "").strip()
@@ -2000,11 +2015,26 @@ def _populate_proc_from_form(proc: Procurement, form, db: Session, threshold: fl
         qty = _to_float(qtys[i]) if i < len(qtys) else 0
         price = _to_float(prices[i]) if i < len(prices) else 0
         unit = (units[i] if i < len(units) else "") or "หน่วย"
+        ct = ((ctypes[i] if i < len(ctypes) else "") or "").strip()
         proc.items.append(ProcurementItem(name=nm, quantity=qty, unit=unit, unit_price=price,
-                                          spec=((specs[i] if i < len(specs) else "") or "").strip()))
+                                          spec=((specs[i] if i < len(specs) else "") or "").strip(),
+                                          cost_type=ct if ct in COST_TYPES else ""))
         total += qty * price
         _catalog_upsert(db, nm, unit, price)   # เก็บเข้าคลังรายการพัสดุอัตโนมัติ
     proc.total_amount = total
+
+    # บันทึกขอใช้งบประมาณ (เลือกออกหรือไม่ก็ได้)
+    proc.budget_memo_on = form.get("budget_memo_on") == "1"
+    if proc.budget_memo_on:
+        proc.budget_owner = (form.get("budget_owner") or "").strip()
+        bad = (form.get("budget_activity_date") or "").strip()
+        proc.budget_activity_date = parse_be_date(bad) if bad else None
+        proc.budget_extra = budget_extra_from_form(form)
+        bmn = (form.get("budget_memo_no") or "").strip()
+        if bmn:
+            proc.budget_memo_no = bmn
+        elif not (proc.budget_memo_no or "").strip():
+            proc.budget_memo_no = _next_memo_after(db, proc)
 
     # บังคับโหมดตามวงเงิน: เกินเกณฑ์ต้องใช้คณะกรรมการตรวจรับ
     if threshold and total > threshold:
@@ -2317,6 +2347,7 @@ def procurement_edit_form(proc_id: int, request: Request, db: Session = Depends(
         "case_extra": extra_vals, "case_select_options": CASE_SELECT_OPTIONS,
         "case_limits": _case_limits(),
         "case_info": PROC_CASES.get(proc.proc_case or "normal", PROC_CASES["normal"]),
+        "bm_extra": __import__("app.services.budget_memo", fromlist=["parse_extra"]).parse_extra(proc.budget_extra),
         **_form_lists(db),
     })
 
@@ -2336,6 +2367,8 @@ def _sync_proc_docnos(db, proc) -> None:
     base = (proc.subject or "").strip()
     for no, title in (
         (proc.memo_no, f"รายงานขอ{pt}{base}"),
+        (proc.budget_memo_no if getattr(proc, "budget_memo_on", False) else "",
+         f"ขออนุมัติใช้งบประมาณ {proc.project_name or base}".strip()),
         (proc.result_memo_no, f"รายงานผลการพิจารณาและขออนุมัติสั่ง{pt} {base}".strip()),
         (proc.spec_memo_no, f"ขออนุมัติแต่งตั้งคณะกรรมการกำหนดคุณลักษณะเฉพาะและราคากลาง {base}".strip()),
         (proc.inspect_memo_no, f"รายงานผลการตรวจรับพัสดุและอนุมัติเบิกจ่ายเงิน {base}".strip()),

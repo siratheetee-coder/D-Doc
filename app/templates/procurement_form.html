@@ -88,6 +88,44 @@
       </div>
     </div>
 
+    {% set bm_on = p.budget_memo_on if is_edit else False %}
+    <div class="bm-box">
+      <label class="bm-switch"><input type="checkbox" name="budget_memo_on" value="1" id="bmOn" {{ 'checked' if bm_on }} onchange="bmToggle()">
+        <span><b>ออกบันทึกขอใช้งบประมาณด้วย</b><small>เอกสารต้นเรื่อง ขออนุมัติใช้งบโครงการ ออกเป็นฉบับแรกของชุด</small></span></label>
+      <div id="bmFields" {{ '' if bm_on else 'hidden' }}>
+        <div class="row">
+          <div><label>ผู้รับผิดชอบโครงการ/กิจกรรม (ข้าพเจ้า)</label>
+            <input name="budget_owner" list="bm_persons" value="{{ p.budget_owner if is_edit else '' }}" placeholder="เลือกหรือพิมพ์ชื่อ">
+            <datalist id="bm_persons">{% for ps in persons %}<option value="{{ ps.name }}">{% endfor %}</datalist></div>
+          <div style="max-width:200px;"><label>เลขที่บันทึก</label>
+            <input name="budget_memo_no" value="{{ p.budget_memo_no if is_edit and p.budget_memo_no else '' }}" placeholder="เว้นว่าง = รันให้เอง"></div>
+          <div><label>วันที่จัดกิจกรรม <span class="muted" style="font-weight:400;">(ไม่บังคับ)</span></label>
+            <input name="budget_activity_date" data-date="1" inputmode="numeric" maxlength="10" placeholder="วว/ดด/ปปปป"
+              value="{{ be_date(p.budget_activity_date) if is_edit and p.budget_activity_date else '' }}"></div>
+        </div>
+        <label style="margin-top:10px;">ค่าใช้จ่ายอื่นในบันทึกเดียวกัน <span class="muted" style="font-weight:400;">(เช่น ค่าอาหาร ค่าวิทยากร ค่าไวนิล ไม่สร้างเรื่องจัดซื้อหรือรายการเงินให้)</span></label>
+        <div class="table-wrap"><table id="bmExtra">
+          <thead><tr><th style="width:150px;">ประเภท</th><th>รายการ</th><th style="width:90px;">จำนวน</th><th style="width:100px;">หน่วย</th><th style="width:120px;">ราคา/หน่วย</th><th class="right" style="width:120px;">รวม</th><th></th></tr></thead>
+          <tbody>
+          {% for x in (bm_extra if is_edit and bm_extra else []) %}
+            <tr>
+              <td><select name="bx_type">{% for c in cost_types %}<option {{ 'selected' if x.type == c }}>{{ c }}</option>{% endfor %}</select></td>
+              <td><input name="bx_name" value="{{ x.name }}"></td>
+              <td><input name="bx_qty" type="number" step="any" value="{{ '%g'|format(x.qty) }}" oninput="bmCalc()"></td>
+              <td><input name="bx_unit" value="{{ x.unit }}"></td>
+              <td><input name="bx_price" type="number" step="any" value="{{ '%g'|format(x.price) }}" oninput="bmCalc()"></td>
+              <td class="right bx-amt">0.00</td>
+              <td class="center"><button type="button" class="btn red sm" onclick="this.closest('tr').remove();bmCalc()">✕</button></td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table></div>
+        <button type="button" class="btn sm" onclick="bmAdd()"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มค่าใช้จ่าย</button>
+        <span class="muted" style="margin-left:8px;font-size:13px;">รวมค่าใช้จ่ายอื่น <b id="bmExtraTotal">0.00</b> บาท</span>
+        <p class="muted" style="font-size:12.5px;margin:6px 0 0;">รายการพัสดุด้านล่างเลือกประเภทค่าใช้จ่ายได้ที่คอลัมน์ "ประเภท" ถ้าเลือก "ค่าเริ่มต้น" เรื่องซื้อนับเป็นค่าวัสดุ เรื่องจ้างนับเป็นค่าใช้สอย</p>
+      </div>
+    </div>
+
     <label>เหตุผลความจำเป็น</label>
     <textarea name="purpose" placeholder="เช่น เพื่อใช้จัดกิจกรรม...">{{ p.purpose if is_edit else prefill_purpose|default('') }}</textarea>
 
@@ -144,13 +182,14 @@
     <div class="table-wrap"><table id="items">
       <thead><tr><th style="width:26%;" id="itemsCol">รายการ</th>
         <th style="width:22%;">คุณลักษณะเฉพาะ <span class="muted" style="font-weight:400;">(ลงใน TOR)</span></th>
-        <th>จำนวน</th><th>หน่วย</th><th>ราคา/หน่วย</th><th class="right">จำนวนเงิน</th><th></th></tr></thead>
+        <th class="bm-col">ประเภท</th><th>จำนวน</th><th>หน่วย</th><th>ราคา/หน่วย</th><th class="right">จำนวนเงิน</th><th></th></tr></thead>
       <tbody>
         {% if prefill_items %}
           {% for it in prefill_items %}
           <tr>
             <td><input name="item_name" list="catalog_dl" oninput="fillCat(this)" value="{{ it.name }}"></td>
             <td><input name="item_spec" value="{{ it.spec or '' }}" placeholder="เช่น ขนาด A4 80 แกรม"></td>
+            <td class="bm-col"><select name="item_cost_type" onchange="bmWarn(this)"><option value="">ค่าเริ่มต้น</option>{% for c in cost_types %}<option {{ 'selected' if (it.cost_type or '') == c }}>{{ c }}</option>{% endfor %}</select><small class="bm-warn" hidden>ราคาเกิน 10,000 บาท ตรวจว่าเป็นวัสดุหรือครุภัณฑ์</small></td>
             <td><input name="item_qty" type="number" step="any" value="{{ '%g'|format(it.quantity) }}" oninput="calcTotal()"></td>
             <td><input name="item_unit" value="{{ it.unit }}"></td>
             <td><input name="item_price" type="number" step="any" value="{{ '%g'|format(it.unit_price) }}" oninput="calcTotal()"></td>
@@ -162,6 +201,7 @@
           <tr>
             <td><input name="item_name" list="catalog_dl" oninput="fillCat(this)"></td>
             <td><input name="item_spec" placeholder="เช่น ขนาด A4 80 แกรม"></td>
+            <td class="bm-col"><select name="item_cost_type" onchange="bmWarn(this)"><option value="">ค่าเริ่มต้น</option>{% for c in cost_types %}<option {{ 'selected' if '' == c }}>{{ c }}</option>{% endfor %}</select><small class="bm-warn" hidden>ราคาเกิน 10,000 บาท ตรวจว่าเป็นวัสดุหรือครุภัณฑ์</small></td>
             <td><input name="item_qty" type="number" step="any" value="1" oninput="calcTotal()"></td>
             <td><input name="item_unit" value="ชิ้น"></td>
             <td><input name="item_price" type="number" step="any" value="0" oninput="calcTotal()"></td>
@@ -172,7 +212,7 @@
       </tbody>
       <tfoot>
         <tr style="background:#f1f5f9; font-weight:700;">
-          <td colspan="4" class="right">รวมทั้งสิ้น</td>
+          <td colspan="5" class="right" id="grandLabel">รวมทั้งสิ้น</td>
           <td class="right" id="grandTotal">0.00</td>
           <td></td>
         </tr>
@@ -463,6 +503,7 @@
     tr.innerHTML =
       '<td><input name="item_name" list="catalog_dl" oninput="fillCat(this)"></td>' +
       '<td><input name="item_spec" placeholder="เช่น ขนาด A4 80 แกรม"></td>' +
+      '<td class="bm-col"><select name="item_cost_type" onchange="bmWarn(this)"><option value="">ค่าเริ่มต้น</option><option>ค่าวัสดุ</option><option>ค่าใช้สอย</option><option>ค่าตอบแทน</option><option>ค่าสาธารณูปโภค</option><option>ค่าครุภัณฑ์</option></select><small class="bm-warn" hidden>ราคาเกิน 10,000 บาท ตรวจว่าเป็นวัสดุหรือครุภัณฑ์</small></td>' +
       '<td><input name="item_qty" type="number" step="any" value="1" oninput="calcTotal()"></td>' +
       '<td><input name="item_unit" value="ชิ้น"></td>' +
       '<td><input name="item_price" type="number" step="any" value="0" oninput="calcTotal()"></td>' +
@@ -637,6 +678,8 @@
     var tr = document.createElement('tr');
     tr.innerHTML =
       '<td><input name="item_name" list="catalog_dl" oninput="fillCat(this)" value="'+_esc(name)+'"></td>'+
+      '<td><input name="item_spec" placeholder="เช่น ขนาด A4 80 แกรม"></td>'+
+      '<td class="bm-col"><select name="item_cost_type" onchange="bmWarn(this)"><option value="">ค่าเริ่มต้น</option><option>ค่าวัสดุ</option><option>ค่าใช้สอย</option><option>ค่าตอบแทน</option><option>ค่าสาธารณูปโภค</option><option>ค่าครุภัณฑ์</option></select><small class="bm-warn" hidden>ราคาเกิน 10,000 บาท ตรวจว่าเป็นวัสดุหรือครุภัณฑ์</small></td>'+
       '<td><input name="item_qty" type="number" step="any" value="'+(qty||1)+'" oninput="calcTotal()"></td>'+
       '<td><input name="item_unit" value="'+_esc(unit||'')+'"></td>'+
       '<td><input name="item_price" type="number" step="any" value="'+(price||0)+'" oninput="calcTotal()"></td>'+
@@ -900,4 +943,41 @@
 </script>
 <script>window.PJ_ACTS = {{ pj_acts|tojson }};</script>
 <script src="/static/project_activity.js?v=1"></script>
+
+<style>
+.bm-box{margin:14px 0 6px;padding:14px 16px;border-radius:14px;background:linear-gradient(135deg,#eef2ff,#f5f3ff)}
+.bm-switch{display:flex;gap:10px;align-items:flex-start;cursor:pointer;margin:0}
+.bm-switch input{width:20px;height:20px;margin-top:2px;flex:none}
+.bm-switch small{display:block;color:#64748b;font-weight:400}
+#bmFields{margin-top:10px}
+#bmFields[hidden]{display:none}
+body:not(.bm-on) .bm-col{display:none}
+.bm-col select{min-width:130px}
+.bm-warn{display:block;color:#c2410c;font-size:11.5px;margin-top:2px}
+.bm-warn[hidden]{display:none}
+</style>
+<script>
+  var BM_TYPES = ["ค่าวัสดุ", "ค่าใช้สอย", "ค่าตอบแทน", "ค่าสาธารณูปโภค", "ค่าครุภัณฑ์"];
+  function bmToggle(){ var on=document.getElementById('bmOn').checked;
+    document.getElementById('bmFields').hidden=!on; document.body.classList.toggle('bm-on', on);
+    var gl=document.getElementById('grandLabel'); if(gl) gl.colSpan = on ? 6 : 5; }
+  function bmAdd(){ var tb=document.querySelector('#bmExtra tbody'), tr=document.createElement('tr');
+    tr.innerHTML='<td><select name="bx_type">'+BM_TYPES.map(function(c){return '<option'+(c==='ค่าใช้สอย'?' selected':'')+'>'+c+'</option>';}).join('')+'</select></td>'+
+      '<td><input name="bx_name" placeholder="เช่น ค่าอาหารว่างและเครื่องดื่ม"></td>'+
+      '<td><input name="bx_qty" type="number" step="any" value="1" oninput="bmCalc()"></td>'+
+      '<td><input name="bx_unit" placeholder="เช่น คน/มื้อ"></td>'+
+      '<td><input name="bx_price" type="number" step="any" value="0" oninput="bmCalc()"></td>'+
+      '<td class="right bx-amt">0.00</td>'+
+      '<td class="center"><button type="button" class="btn red sm" onclick="this.closest(\'tr\').remove();bmCalc()">✕</button></td>';
+    tb.appendChild(tr); bmCalc(); }
+  function bmCalc(){ var t=0; document.querySelectorAll('#bmExtra tbody tr').forEach(function(tr){
+      var q=parseFloat((tr.querySelector('[name=bx_qty]')||{}).value)||0, pr=parseFloat((tr.querySelector('[name=bx_price]')||{}).value)||0, a=q*pr; t+=a;
+      var c=tr.querySelector('.bx-amt'); if(c) c.textContent=a.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}); });
+    var e=document.getElementById('bmExtraTotal'); if(e) e.textContent=t.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  // ราคาต่อหน่วยตั้งแต่ 10,000 บาท: แค่เตือนให้ตรวจ ไม่เปลี่ยนประเภทให้ (วัสดุบางอย่างราคาสูงได้)
+  function bmWarn(el){ var tr=el.closest('tr'); if(!tr) return; var pr=parseFloat((tr.querySelector('[name=item_price]')||{}).value)||0;
+    var w=tr.querySelector('.bm-warn'); if(w) w.hidden=!(pr>=10000 && el.value!=='ค่าครุภัณฑ์'); }
+  document.addEventListener('input', function(e){ if(e.target && e.target.name==='item_price'){ var tr=e.target.closest('tr'); var s=tr&&tr.querySelector('[name=item_cost_type]'); if(s) bmWarn(s); } });
+  document.addEventListener('DOMContentLoaded', function(){ bmToggle(); bmCalc(); document.querySelectorAll('[name=item_cost_type]').forEach(bmWarn); });
+</script>
 {% endblock %}

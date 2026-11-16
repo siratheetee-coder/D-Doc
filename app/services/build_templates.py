@@ -14,7 +14,7 @@ from pathlib import Path
 
 from docx import Document
 from docx.shared import Pt, Cm
-from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_TAB_ALIGNMENT, WD_LINE_SPACING
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_TAB_ALIGNMENT, WD_LINE_SPACING, WD_BREAK
 from docx.enum.section import WD_ORIENT
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
@@ -1368,13 +1368,108 @@ def space_signatures(path, gap=SIGN_GAP) -> int:
     return n
 
 
+
+def build_budget_memo():
+    """แม่แบบ: บันทึกขอใช้งบประมาณ (เอกสารต้นเรื่อง) ตามแบบที่โรงเรียนใช้จริง
+
+    หน้า 1 บันทึกข้อความ + ข้อ 1-5 งบโครงการ + ข้อ 6 กรรมการตรวจรับ + ความเห็นเจ้าหน้าที่คุมงบ + คำสั่ง ผอ.
+    หน้า 2 รายละเอียดรายการขอให้จัดซื้อ/จัดจ้าง (ตาราง) + หมายเหตุ
+    ไม่มีเลขบัตรประชาชนกรรมการ (เจ้าของสั่ง PDPA)
+    """
+    doc = Document(); set_a4(doc)
+    _font(doc)
+    _memo_head(doc, "ขออนุมัติใช้งบประมาณ เพื่อดำเนินงานตามโครงการ/กิจกรรม",
+               memo_no_expr="{{ budget_memo_no }}", date_expr="{{ request_date }}")
+    _p(doc, "ด้วย ข้าพเจ้า {{ bm_owner }}  กลุ่มสาระ/กลุ่มงาน {{ department_text }}", indent=1.25, before=4, after=0)
+    _p(doc, "ขออนุมัติใช้งบประมาณ เพื่อดำเนินงานตามโครงการ/กิจกรรม {{ bm_project }}"
+            "{% if bm_activity_date %} ในวันที่ {{ bm_activity_date }}{% endif %}", align="justify", after=0)
+    _p(doc, "เป็นเงิน {{ bm_total }} บาท ({{ bm_total_baht }}) เพื่อเป็นค่าใช้จ่าย ดังนี้", after=0)
+    _p(doc, "{%p for ln in bm_lines %}")
+    _p(doc, "{%p if ln.sub %}")
+    _p(doc, "{{ ln.text }}", indent=2.25, after=0)
+    _p(doc, "{%p else %}")
+    _p(doc, "{{ ln.text }}", indent=1.25, after=0)
+    _p(doc, "{%p endif %}")
+    _p(doc, "{%p endfor %}")
+
+    # ข้อ 1-5 งบโครงการ (ซ้าย) + ลงชื่อผู้รับผิดชอบ (ขวา)
+    _sign_table(doc, [
+        [("1. จำนวนเงินที่ได้รับอนุมัติ   {{ bm_approved }}  บาท", "left"),
+         ("2. จำนวนเงินที่ขอใช้ไปแล้ว   {{ bm_used }}  บาท", "left"),
+         ("3. เงินคงเหลือ   {{ bm_left }}  บาท", "left"),
+         ("4. ขออนุมัติครั้งนี้   {{ bm_total }}  บาท", "left"),
+         ("5. เงินคงเหลือยกไป   {{ bm_carry }}  บาท", "left")],
+        [("ลงชื่อ.....................................", "center"),
+         ("( {{ bm_owner }} )", "center"),
+         ("ผู้รับผิดชอบโครงการ/กิจกรรม", "center"),
+         ("(ต่ำกว่า 5,000 บาท กก. 1 คน  ตั้งแต่ 5,000 บาท กก. 3 คน)", "center")],
+    ], gap=False)
+    _p(doc, "6. เสนอชื่อกรรมการตรวจรับพัสดุ / ตรวจงานจ้าง  "
+            "{% for m in bm_inspectors %}6.{{ loop.index }} {{ m }}{% if not loop.last %}   {% endif %}{% endfor %}",
+       before=2, after=2)
+
+    _p(doc, "ความเห็นของเจ้าหน้าที่ควบคุมงบประมาณ", bold=True, after=0)
+    _sign_table(doc, [
+        [("☐ มีงบประมาณเพียงพอ", "left"), ("☐ มีงบประมาณไม่เพียงพอ", "left")],
+        [("ลงชื่อ.....................................", "center"),
+         ("( {{ finance_officer_text }} )", "center")],
+    ], gap=False)
+    _p(doc, "คำสั่ง", bold=True, before=4, after=0)
+    _sign_table(doc, [
+        [("☐ อนุมัติ และดำเนินการ", "left"),
+         ("      มอบ ☐ งานการเงิน  ☐ งานพัสดุ", "left"),
+         ("☐ ไม่อนุมัติ", "left"),
+         ("☐ ให้ใช้งบประมาณเพิ่มเติมจาก ............................", "left")],
+        [("ลงชื่อ.....................................", "center"),
+         ("( {{ director_name }} )", "center"),
+         ("{{ director_office }}", "center"),
+         ("วันที่ ...................................", "center")],
+    ], gap=False)
+    _p(doc, "หมายเหตุ  1. กรณีจัดซื้อ/จัดจ้าง ให้ระบุรายการด้านหลัง", size=14, before=4, after=0)
+    _p(doc, "               2. แนบสำเนาเอกสารต้นเรื่อง เช่น โครงการ/กิจกรรม ฯลฯ", size=14, after=0)
+
+    # ===== หน้า 2: รายละเอียดรายการขอให้จัดซื้อ/จัดจ้าง =====
+    doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
+    _p(doc, "รายละเอียดรายการขอให้จัดซื้อ / จัดจ้าง", align="center", bold=True, after=6)
+    head = ["ที่", "รายการ", "จำนวนหน่วย", "ราคาต่อหน่วย", "รวมเป็นเงิน", "หมายเหตุ"]
+    table = doc.add_table(rows=1, cols=len(head))
+    table.style = "Table Grid"
+    for i, text in enumerate(head):
+        _set_cell(table.rows[0].cells[i], text, align="center", bold=True)
+    _repeat_header_row(table.rows[0])
+    _set_cell(table.add_row().cells[0], "{%tr for it in items %}")
+    drow = table.add_row()
+    d = drow.cells
+    _no_split_row(drow)
+    _set_cell(d[0], "{{ loop.index }}", align="center")
+    _set_cell(d[1], "{{ it.name }}")
+    _set_cell(d[2], "{{ it.quantity }} {{ it.unit }}", align="center")
+    _set_cell(d[3], "{{ it.unit_price }}", align="right")
+    _set_cell(d[4], "{{ it.amount }}", align="right")
+    _set_cell(d[5], "{{ it.cost_type }}", align="center")
+    _set_cell(table.add_row().cells[0], "{%tr endfor %}")
+    tot = table.add_row().cells
+    _set_cell(tot[1], "รวม", align="center", bold=True)
+    _set_cell(tot[4], "{{ total_amount }}", align="right", bold=True)
+    _fixed_cols(table, [Cm(1.0), Cm(6.6), Cm(2.4), Cm(2.2), Cm(2.3), Cm(2.0)])
+    _p(doc, "", after=6)
+    for t in ["หมายเหตุ  1. กรณีใช้งบประมาณ ต่ำ หรือสูงกว่า ที่ได้รับอนุมัติ ให้แจ้งผู้ควบคุมงบประมาณทราบด้วย",
+              "               2. เจ้าหน้าที่ควบคุมงบประมาณ ดำเนินการ เพิ่ม / ลด ยอด ในทะเบียนคุมเงินงบประมาณให้เป็นปัจจุบันด้วย",
+              "               3. เอกสารชุดนี้ ถือเป็นเอกสารต้นเรื่อง"]:
+        _p(doc, t, size=14, after=0)
+
+    TEMPLATES_DIR.mkdir(exist_ok=True)
+    out = TEMPLATES_DIR / "บันทึกขอใช้งบประมาณ.docx"
+    doc.save(str(out))
+    return out
+
 def build_all():
     TEMPLATES_DIR.mkdir(exist_ok=True)
     built = [build_purchase_request(), build_inspection(), build_purchase_order(),
              build_result_report(), build_inspect_command(),
              build_quotation(), build_winner_announcement(), build_spec_committee(),
              build_purchase_command(), build_spec_command(),
-             build_tor(), build_delivery_note(), build_disbursement()]
+             build_tor(), build_delivery_note(), build_disbursement(), build_budget_memo()]
     for path in built:
         try:
             glue_signatures(path)
