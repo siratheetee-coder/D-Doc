@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 {% block title %}{{ p.name }}{% endblock %}
 {% block content %}
+{% include "_quick_payment_date.html" %}
 {% macro document_dates(d) %}
   <td data-label="วันที่เอกสาร" class="pa-date">{{ d.date }}<small class="pa-date-kind">{{ 'ใบสั่ง/ขอซื้อขอจ้าง' if d.type=='proc' else 'บันทึกขอเบิก' if d.type=='memo' else 'สัญญายืม' }}</small></td>
   <td data-label="วันที่จ่ายเงินจริง" class="pa-date pa-paid-date">
     {% for payment in d.payments %}
-      {% if can_finance %}<a href="{{ payment.url }}" title="เปิดรายการจ่าย {{ payment.ref }} ในทะเบียนคุมเงิน">{{ payment.date }} <span aria-hidden="true">↗</span></a>{% else %}<span>{{ payment.date }}</span>{% endif %}
+      <div>{% if can_finance %}<a href="{{ payment.url }}" title="เปิดรายการจ่าย {{ payment.ref }} ในทะเบียนคุมเงิน"><span data-payment-date-label="{{ payment.id }}" data-date-style="short">{{ payment.date }}</span> <span aria-hidden="true">↗</span></a>{% if payment.date_edit %}<button class="quick-pay-date" type="button" data-payment-date-edit="{{ payment.id }}" aria-label="แก้วันที่จ่าย {{ payment.ref }}" data-no-floating-save><svg class="icon"><use href="#ic-edit"/></svg> แก้วันที่</button>{% endif %}{% else %}<span data-payment-date-label="{{ payment.id }}" data-date-style="short">{{ payment.date }}</span>{% endif %}</div>
       {% if d.payments|length > 1 %}<small class="pa-date-kind">{{ payment.ref }}</small>{% endif %}
     {% else %}<span class="pa-date-empty">{{ 'จ่ายก่อนเริ่มใช้ระบบ' if d.paid_pre else 'ยังไม่พบรายการจ่ายที่เชื่อม' }}</span>{% endfor %}
   </td>
@@ -295,7 +296,7 @@
   .pa-table a{ color:inherit; text-decoration:none; font-weight:600; }
   .pa-table a:hover{ color:#2563eb; }
   .pa-date-kind{display:block;font-size:11px;font-weight:400;color:#64748b;margin-top:3px;}
-  .pa-paid-date a,.pa-paid-date>span{display:block;}
+  .pa-paid-date a{display:inline;}.pa-paid-date>span{display:block;}
   .pa-paid-date a{color:#047857;}
   .pa-date-empty{color:#94a3b8;white-space:normal;font-size:12px;max-width:150px;}
   .pa-date{ white-space:nowrap; color:#475569; }

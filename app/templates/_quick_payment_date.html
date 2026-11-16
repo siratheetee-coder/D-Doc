@@ -1,0 +1,15 @@
+<dialog id="quick-pay-date" class="qpd" role="dialog" aria-labelledby="qpd-title">
+  <form id="qpd-form" data-no-floating-save>
+    <header><h2 id="qpd-title"><svg class="icon"><use href="#ic-calendar"/></svg> แก้วันที่จ่ายจริง</h2><button type="button" class="qpd-close" aria-label="ปิด">×</button></header>
+    <p id="qpd-subject" class="muted"></p>
+    <label for="qpd-date">วันที่จ่ายเงินจริง</label>
+    <input id="qpd-date" name="paid_date" placeholder="วว/ดด/ปปปป" inputmode="numeric" maxlength="10" data-date="1" required autocomplete="off">
+    <button type="button" id="qpd-use-memo" class="btn sm gray" hidden data-no-floating-save></button>
+    <p class="muted qpd-hint">แก้วันที่ของรายการจ่ายเดิม ทะเบียนเงินและโครงการจะใช้วันเดียวกัน</p>
+    <p id="qpd-recon" class="qpd-warning" hidden>บัญชีนี้มีงบกระทบยอดแล้ว หลังแก้วันที่ กรุณาตรวจงบกระทบยอดที่เกี่ยวข้องอีกครั้ง</p>
+    <p id="qpd-message" role="status" aria-live="polite"></p>
+    <footer><button type="button" class="btn gray qpd-close" data-no-floating-save>ยกเลิก</button><button id="qpd-save" type="submit" class="btn" data-no-floating-save><svg class="icon"><use href="#ic-save"/></svg> บันทึกวันที่</button></footer>
+  </form>
+</dialog>
+<link rel="stylesheet" href="/static/quick-payment-date.css?v=1">
+<script src="/static/quick-payment-date.js?v=1" defer></script>

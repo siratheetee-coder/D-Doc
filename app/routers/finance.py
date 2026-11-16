@@ -1132,6 +1132,42 @@ def disburse_detail(mid: int, request: Request, db: Session = Depends(get_db)):
     })
 
 
+def _quick_payment_context(db,tid):
+    from app.services import payment_date_edit
+    txn=db.get(FinanceTxn,tid)
+    if not txn:raise HTTPException(404,"ไม่พบรายการจ่าย")
+    memo=db.get(DisburseMemo,txn.disburse_id) if txn.disburse_id else None
+    why=payment_date_edit.restriction(db,memo,txn)
+    if why:raise HTTPException(409,why)
+    return txn,memo
+
+
+@router.get("/finance/txn/{tid}/payment-date")
+def quick_payment_date_get(tid:int,db:Session=Depends(get_db)):
+    from app.services import payment_date_edit
+    txn,memo=_quick_payment_context(db,tid)
+    return JSONResponse({"id":txn.id,"be_date":be_date_input(txn.date),"version":payment_date_edit.token(db,txn),
+        "subject":(memo.subject if memo else txn.note) or txn.ref or "รายการจ่าย",
+        "amount_label":f"{txn.amount or 0:,.2f}","memo_date":be_date_input(memo.date) if memo and memo.date else '',
+        "recon":db.query(BankRecon).filter_by(account_id=txn.account_id,fiscal_year=txn.fiscal_year).first() is not None})
+
+
+@router.post("/finance/txn/{tid}/payment-date")
+def quick_payment_date_save(tid:int,db:Session=Depends(get_db),paid_date:str=Form(""),version:str=Form("")):
+    from app.services import payment_date_edit
+    from app.thai_utils import thai_date_short
+    payments.lock(db)
+    txn,memo=_quick_payment_context(db,tid)
+    try:
+        payment_date_edit.save(db,memo,txn,paid_date,version)
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        return JSONResponse({"detail":str(exc)},status_code=409)
+    return JSONResponse({"id":txn.id,"be_date":be_date_input(txn.date),"label_short":thai_date_short(txn.date),
+        "label_long":thai_date(txn.date),"version":payment_date_edit.token(db,txn)})
+
+
 @router.post("/finance/disburse/{mid}/payments/{tid}/date")
 def disburse_payment_date(mid:int,tid:int,db:Session=Depends(get_db),paid_date:str=Form(""),version:str=Form("")):
     from app.services import payment_date_edit

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}ทะเบียนคุมเงิน - {{ account.name }}{% endblock %}
 {% block content %}
+{% include "_quick_payment_date.html" %}
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
     <h1 style="margin:0;">{{ account.name }}
@@ -425,7 +426,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
       <tr><td colspan="6"><span class="muted">ยอดยกมา (ปีงบ {{ fiscal_year }})</span></td><td class="right"><b>{{ "{:,.2f}".format(opening) }}</b></td><td></td></tr>
       {% for r in rows %}
       <tr id="t{{ r.t.id }}" class="txn-row">
-        <td>{{ thai_date(r.t.date) }}</td>
+        <td><span data-payment-date-label="{{ r.t.id }}" data-date-style="long">{{ thai_date(r.t.date) }}</span>{% if r.t.kind=='out' and not r.t.no_count and not r.t.loan_id and not r.t.loan_return_id and r.t.id not in lunch_mirror %}<button class="quick-pay-date" type="button" data-payment-date-edit="{{ r.t.id }}" aria-label="แก้วันที่จ่าย {{ r.t.ref or r.t.id }}" data-no-floating-save><svg class="icon"><use href="#ic-edit"/></svg> แก้วันที่</button>{% endif %}</td>
         <td>{% if txn_display_notes.get(r.t.id) %}{% set description = txn_display_notes[r.t.id] %}<span style="color:#dc2626;">จ่าย</span> {{ description[5:] if description.startswith('จ่าย ') else description }}{% else %}{% if r.t.kind=="in" %}<span style="color:#16a34a;">รับ</span>{% else %}<span style="color:#dc2626;">จ่าย</span>{% endif %}{% if r.t.note %} {{ r.t.note }}{% endif %}{% endif %}{% if r.t.remark %} <small class="muted">({{ r.t.remark }})</small>{% endif %}{% if places_used|length > 1 %}<span class="mp-tag">{{ deposit_types[txn_places[r.t.id]] }}</span>{% endif %}{% if receipt_map.get(r.t.id) %} <span class="pill" style="background:#dcfce7; color:#15803d;">ใบเสร็จ {{ receipt_map.get(r.t.id) }}</span>{% endif %}{% set pj = txn_project.get(r.t.id) %}{% if pj %} <a class="pill" href="/projects/{{ pj.id }}" title="ไปหน้าโครงการ" style="background:#eef2ff; color:#3730a3; text-decoration:none;">โครงการ{{ pj.name }}</a>{% endif %}</td>
         <td>{{ r.t.item.name if r.t.item else (r.t.category or "-") }}</td>
         <td>{{ r.t.ref or "-" }}</td>

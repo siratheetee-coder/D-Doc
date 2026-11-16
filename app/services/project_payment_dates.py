@@ -21,6 +21,7 @@ def attach(db, groups):
     for t in txns:
         fact={'id':t.id,'date':thai_date_short(t.date) if t.date else 'ยังไม่ระบุวันที่',
               'ref':t.ref or f'รายการ #{t.id}',
+              'date_edit':not (t.loan_id or t.loan_return_id or t.id in ledger_proc),
               'url':f'/finance/accounts/{t.account_id}?year={t.fiscal_year}#t{t.id}'}
         memo=memos.get(t.disburse_id)
         if memo:
