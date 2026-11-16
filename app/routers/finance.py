@@ -971,6 +971,11 @@ def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | N
         query = query.filter(DisburseMemo.fiscal_year == fy)
     rows = query.order_by(DisburseMemo.id.desc()).all()
     # prefill จากเรื่องจัดซื้อ/จัดจ้าง (ถ้าระบุ ?proc=<id>)
+    from app.services import procurement_claims
+    if source and source.fiscal_year!=fy:raise HTTPException(400,'เรื่องจัดซื้อไม่ตรงกับปีงบที่เลือก')
+    claim_state=procurement_claims.state(db,source) if source and not lunch_source else None
+    if claim_state and claim_state['valid'] and claim_state['total']>0 and claim_state['remaining']<=0 and claim_state['resume']:
+        return RedirectResponse(f"/finance/disburse/{claim_state['resume'].id}?existing_claim=1",303)
     prefill = None
     if lunch_source:
         src=lunch_source;rnd=src['rnd'];v=rnd.vendor
@@ -985,13 +990,13 @@ def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | N
             prefill = {
                 "subject": p.subject or "",
                 "payee": p.vendor.name if p.vendor else "",
-                "amount": p.total_amount or 0,
+                "amount": max(claim_state["remaining"],0) if claim_state else (p.total_amount or 0),
                 "budget_source": p.budget_source or "",
                 "procurement_id": p.id,
                 "project_id": p.project_id,
                 "proc_kind": "จัดจ้าง" if (p.proc_type or "") == "จ้าง" else "จัดซื้อ",
                 # เลขบันทึก+วันที่ ดึงจากบันทึกขอเบิกจ่าย/รายงานขอซื้อของเรื่องนั้น
-                "memo_no": p.inspect_memo_no or "",
+                "memo_no": "" if claim_state and claim_state["rows"] else (p.inspect_memo_no or ""),
                 "date": p.inspect_date or p.request_date,
                 "item_id": None,
             }
@@ -1021,7 +1026,7 @@ def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | N
                  .order_by(Procurement.id.desc()).all(),
         "projects": _plan_projects(db, fy),
         "pj_acts": activity_maps(db),
-        "prefill": prefill, "travel_source": travel_source, "lunch_source": lunch_source,
+        "prefill": prefill, "proc_claims": claim_state, "travel_source": travel_source, "lunch_source": lunch_source,
         "names": _name_suggest(db), "eb_expense": EB_EXPENSE,
     })
 
@@ -1036,7 +1041,7 @@ def disburse_create(db: Session = Depends(get_db), fiscal_year: str = Form(""),
                     item_id: str = Form(""), receiver_name: str = Form(""), register_note: str = Form(""),
                     travel_request_id: str = Form(""), activity_id: str = Form(""), staff_selection: str | None = Form(None), after_save: str = Form(""),
                     split_account: list[str] = Form([]), split_item: list[str] = Form([]), split_amount: list[str] = Form([]),
-                    eb_code: str = Form(""), lunch_inst: str = Form(""), lunch_round: str = Form("")):
+                    eb_code: str = Form(""), lunch_inst: str = Form(""), lunch_round: str = Form(""), claim_version: str = Form("")):
     lunch_source=None
     if lunch_inst.strip() or lunch_round.strip():
         payments.lock(db)
@@ -1055,6 +1060,20 @@ def disburse_create(db: Session = Depends(get_db), fiscal_year: str = Form(""),
         if existing:
             return RedirectResponse(f'/finance/disburse/{existing.id}', status_code=303)
     fy = _to_int(fiscal_year, current_fiscal_year())
+    if procurement_id.strip() and not lunch_source:
+        from app.services import procurement_claims
+        payments.lock(db)
+        claim_proc=db.get(Procurement,_to_int(procurement_id,0))
+        if not claim_proc or claim_proc.fiscal_year!=fy:raise HTTPException(400,'เรื่องพัสดุไม่ตรงกับปีงบที่เลือก')
+        claimed=procurement_claims.state(db,claim_proc)
+        if claim_version and claim_version!=claimed['version']:
+            if claimed['resume']:
+                return RedirectResponse(f"/finance/disburse/{claimed['resume'].id}?claim_changed=1",303)
+            raise HTTPException(409,'ข้อมูลวงเงินเปลี่ยนแล้ว กรุณาเปิดแบบฟอร์มใหม่ก่อนบันทึก')
+        if claimed['valid'] and claimed['total']>0 and claimed['remaining']<=0 and claimed['resume']:
+            return RedirectResponse(f"/finance/disburse/{claimed['resume'].id}?existing_claim=1",303)
+        try:procurement_claims.validate(db,claim_proc,_to_float(amount,0.0))
+        except ValueError as exc:raise HTTPException(409,str(exc))
     no = memo_no.strip() or suggest_doc_no(db, "memo", fy)
     m = DisburseMemo(
         fiscal_year=fy, memo_no=no, seq=parse_seq(no), date=parse_be_date(date),
@@ -1111,10 +1130,12 @@ def disburse_detail(mid: int, request: Request, db: Session = Depends(get_db)):
     from app.services import payment_date_edit
     payment_info=payments.summary(db,m)
     date_edit=payment_date_edit.context(db,m,payment_info['rows'])
+    from app.services.payment_relationship import settled_elsewhere
+    payment_relation=settled_elsewhere(db,m,payment_info)
     return templates.TemplateResponse("disburse_detail.html", {
         "request": request, "m": m, "school": get_school(db),
         "posted": db.query(FinanceTxn).filter_by(disburse_id=m.id).first() is not None,
-        "payment_info": payment_info, "payment_date_edit": date_edit, "lunch_source": lunch_claim.for_memo(db,m),
+        "payment_info": payment_info, "payment_relation": payment_relation, "payment_date_edit": date_edit, "lunch_source": lunch_claim.for_memo(db,m),
         "payment_candidates": payments.candidates(db, m),
         "split_rows": splits.rows_of(db, m) if splits.is_split(m) else [],
         "accounts": db.query(FinanceAccount).order_by(FinanceAccount.name).all(),
@@ -1198,12 +1219,21 @@ def disburse_update(mid: int, db: Session = Depends(get_db), memo_no: str = Form
     payments.lock(db)
     m = db.get(DisburseMemo, mid)
     if m:
+        previous_amount=float(m.amount or 0)
         lunch_source=lunch_claim.for_memo(db,m)
         if lunch_source and db.query(FinanceTxn).filter_by(disburse_id=m.id).first():
             old=(m.amount,m.wht,m.fine,m.account_id,m.item_id,m.project_id,m.date)
             new=(_to_float(amount,0),_to_float(wht,0),_to_float(fine,0),_to_int(account_id,0) or None,_to_int(item_id,0) or None,_to_int(project_id,0) or None,parse_be_date(date))
             if old!=new or len(splits.parse(split_account,split_item,split_amount))>=2:
                 return RedirectResponse(f'/finance/disburse/{mid}?payment_message='+quote('รายการนี้เชื่อมงวดอาหารกลางวันและจ่ายแล้ว กรุณายกเลิกการบันทึกจ่ายก่อนแก้ยอด บัญชี หรือวันที่'),303)
+        if m.procurement_id and not lunch_source and _to_float(amount,0.0)>previous_amount:
+            from app.services import procurement_claims
+            claim_proc=db.get(Procurement,m.procurement_id)
+            if claim_proc:
+                try:procurement_claims.validate(db,claim_proc,_to_float(amount,0.0),exclude=m.id)
+                except ValueError as exc:
+                    db.rollback()
+                    return RedirectResponse(f"/finance/disburse/{mid}?payment_message={quote(str(exc))}",303)
         staff.apply(db, m, staff_selection)
         m.memo_no = memo_no.strip(); m.seq = parse_seq(memo_no)
         m.date = parse_be_date(date); m.subject = subject.strip(); m.payee = payee.strip()

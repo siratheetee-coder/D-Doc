@@ -2,7 +2,7 @@
 {% extends "base.html" %}
 {% block title %}บันทึกขอเบิกจ่าย {{ m.memo_no }}{% endblock %}
 {% block content %}
-<style>.pay-date-editor{margin:8px 0 18px;border:1px solid #bbf7d0;border-radius:12px;padding:10px 14px;background:#f0fdf4}.pay-date-editor summary{display:flex;align-items:center;gap:6px;color:#047857;font-weight:600;cursor:pointer}.pay-date-editor form{margin:12px 0 0}.pay-date-fields{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center}.pay-date-fields input{max-width:220px}.pay-date-editor .muted{font-size:12px;margin-bottom:0}</style>
+<style>.dm-claim-over{padding:12px;border-radius:12px;background:#fff1f2;color:#9f1239}.dm-source-paid{border-color:#93c5fd!important;background:#eff6ff!important}.dm-source-paid .dm-state h2{color:#1d4ed8!important}.pay-date-editor{margin:8px 0 18px;border:1px solid #bbf7d0;border-radius:12px;padding:10px 14px;background:#f0fdf4}.pay-date-editor summary{display:flex;align-items:center;gap:6px;color:#047857;font-weight:600;cursor:pointer}.pay-date-editor form{margin:12px 0 0}.pay-date-fields{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center}.pay-date-fields input{max-width:220px}.pay-date-editor .muted{font-size:12px;margin-bottom:0}</style>
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
     <h1 class="dm-heading"><img src="/static/images/finance3d/document-money.png" class="dm-title-art" width="58" height="58" alt="" aria-hidden="true"> <span>บันทึกขอเบิกจ่าย {{ m.memo_no or "" }}</span></h1>
@@ -15,6 +15,8 @@
     </div>
   </div>
   {% include '_disburse_payment_panel.html' %}
+  {% if request.query_params.get('claim_changed') %}<p class="muted">มีการเพิ่มหรือแก้ไขบันทึกขอเบิกแล้ว เปิดบันทึกเดิมให้ตรวจข้อมูลล่าสุด ระบบไม่ได้สร้างบันทึกซ้ำ</p>{% endif %}
+  {% if request.query_params.get('existing_claim') %}<p class="muted">เปิดบันทึกเดิมของเรื่องนี้ให้แล้ว เพราะมีขอเบิกครบวงเงินแล้ว ระบบไม่ได้สร้างบันทึกซ้ำ</p>{% endif %}
   {% if request.query_params.get("saved") %}<div class="alert">✔ บันทึกข้อมูลเรียบร้อยแล้ว</div>{% endif %}
   {% if request.query_params.get("posted") %}<div class="alert">✔ ลงรายการจ่ายเงินเข้าทะเบียนคุมเงินแล้ว</div>{% endif %}
   {% if request.query_params.get("payment_error") %}<div class="alert">กรุณาเลือกบัญชีที่จ่ายเงิน ข้อมูลยังไม่ได้บันทึก</div>{% endif %}
@@ -153,6 +155,14 @@
   {% else %}<p class="muted">ยังไม่พบรายการจ่ายที่เชื่อมกับเรื่องนี้ หากเคยลงจ่ายเอง ให้ตรวจและเชื่อมรายการเดิมด้านล่างก่อนลงจ่ายใหม่</p>{% endfor %}
 </div>
 
+{% if payment_relation %}
+<div class="card dm-records" id="existing-payments">
+  <h2>รายการจ่ายนี้อยู่ในบันทึกอื่นแล้ว</h2>
+  {% if payment_relation.overclaimed %}<p class="dm-claim-over" role="alert"><b>มีบันทึกขอเบิกรวมเกินวงเงินเรื่อง</b><br>ขอเบิกรวม {{ '{:,.2f}'.format(payment_relation.claimed) }} บาท · วงเงินเรื่อง {{ '{:,.2f}'.format(payment_relation.total) }} บาท<br>ยอดนี้เป็นยอดบันทึกขอเบิก ต้องตรวจบันทึกที่ซ้ำแยกจากยอดจ่ายเงินจริงด้านบน</p>{% endif %}
+  <p>ใช้ปุ่มด้านล่างเพื่อเปิดบันทึกที่เชื่อมกับรายการจ่ายจริง บันทึกที่กำลังเปิดอยู่ยังไม่ได้เป็นเจ้าของรายการนั้น</p>
+  {% for owner in payment_relation.owners %}<p><a class="btn sm gray" href="{{ owner.href }}">เปิดบันทึก {{ owner.number }} →</a> <small class="muted">รหัสบันทึก #{{ owner.id }}</small></p>{% endfor %}
+</div>
+{% else %}
 <div class="card dm-records" id="existing-payments">
   <div class="dm-related-heading"><img src="/static/images/finance3d/link-records.png" width="60" height="60" alt="" aria-hidden="true" loading="lazy"><div><h2>เคยบันทึกจ่ายเงินไว้แล้วหรือไม่?</h2><small>ใช้รายการจ่ายเดิม โดยไม่ตัดเงินเพิ่ม</small></div></div>
   <p>หากเคยบันทึกจ่ายเงินในหน้ารับ–จ่ายแล้ว ไม่ต้องลงจ่ายซ้ำ ให้ <strong>เชื่อมรายการจ่ายที่บันทึกไว้แล้ว</strong> กับบันทึกนี้ ยอดเงินจะไม่ถูกตัดเพิ่ม</p>
@@ -177,6 +187,7 @@
   {% endif %}
 </div>
 
+{% endif %}
 <div class="card">
   <form method="post" action="/finance/disburse/{{ m.id }}/delete" onsubmit="return confirm('ลบบันทึกนี้? รายการที่สร้างจากบันทึกนี้จะถูกลบ แต่รายการจ่ายเดิมที่นำมาเชื่อมจะยังอยู่')">
     <button class="btn red sm" type="submit"><svg class="icon"><use href="#ic-trash"/></svg> ลบบันทึกนี้</button>
