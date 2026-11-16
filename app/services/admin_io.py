@@ -69,7 +69,7 @@ def export_admin_register(incoming, outgoing, fiscal_year: int, incoming_only: b
 
     def _sheet(title, headers, widths, rows):
         ws = wb.create_sheet(title)
-        ws.append([f"{title} ประจำปี พ.ศ. {fiscal_year}" if title == "หนังสือรับ" else f"{title} ประจำปีงบประมาณ {fiscal_year}"])
+        ws.append([f"{title} ประจำปี พ.ศ. {fiscal_year}"])
         ws.append([]); ws.append(headers)
         n = len(headers)
         ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=n)
@@ -167,10 +167,10 @@ def import_admin_workbook(file_bytes: bytes, db) -> dict:
             subject = _s(row[3]) if len(row) > 3 else ""
             if not (send_no or subject):
                 continue
-            mm = re.search(r"(\d+)", send_no)
+            from app.services.doc_number import parse_outgoing_seq
             d = parse_be_date(_s(row[1])) if len(row) > 1 else None
             db.add(OutgoingLetter(
-                fiscal_year=current_fiscal_year(d) if d else fy, send_no=send_no, send_seq=(int(mm.group(1)) if mm else 0),
+                fiscal_year=current_fiscal_year(d) if d else fy, send_no=send_no, send_seq=parse_outgoing_seq(send_no),
                 date=d,
                 to_org=_s(row[2]) if len(row) > 2 else "",
                 subject=subject,

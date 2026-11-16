@@ -25,7 +25,7 @@ from app.services.letter_tracking import task_context, read_assignment, configur
 from app.routers.letter_tracking import back as _letter_back
 from app.services.doc_number import (
     suggest_next, commit_number, suggest_doc_no, commit_doc_no, check_doc_no, format_doc_no, doc_year,
-    parse_seq, remove_issued,
+    parse_seq, parse_outgoing_seq, remove_issued,
 )
 from app.services.office_doc import render_memo, render_order, render_official_letter
 from app.services.admin_io import build_admin_template, import_admin_workbook, export_admin_register
@@ -711,14 +711,14 @@ def my_letter_file(rcid: int, request: Request, db: Session = Depends(get_db)):
 # ---------------- ทะเบียนหนังสือส่ง ----------------
 @router.get("/admin/outgoing", response_class=HTMLResponse)
 def outgoing_page(request: Request, db: Session = Depends(get_db), year: int | None = None):
-    fy = year or current_fiscal_year()
-    rows = (db.query(OutgoingLetter).filter_by(fiscal_year=fy)
-            .order_by(OutgoingLetter.send_seq).all())
-    years = fiscal_year_options(
-        [r[0] for r in db.query(OutgoingLetter.fiscal_year).distinct()], fy)
+    cy = year or doc_year('outgoing', current_fiscal_year())
+    letters = db.query(OutgoingLetter).all()
+    rows = sorted([r for r in letters if doc_year('outgoing',r.fiscal_year,r.send_no,r.date)==cy], key=lambda r:r.send_seq or 0)
+    years = fiscal_year_options([doc_year('outgoing',r.fiscal_year,r.send_no,r.date) for r in letters],cy)
+    fy = cy
     school = get_school(db)
-    seq = suggest_next(db, "outgoing", fy)
-    sug_no = f"{school.doc_prefix or 'ศธ'} {seq}/{doc_year('outgoing', fy)}"
+    seq = suggest_next(db, 'outgoing', cy, exact_year=True)
+    sug_no = f"{school.doc_prefix or 'ศธ'} {seq}/{cy}"
     return templates.TemplateResponse("outgoing.html", {
         "request": request, "rows": rows, "fiscal_year": fy, "years": years, "sug_no": sug_no,
     })
@@ -729,14 +729,17 @@ def outgoing_add(db: Session = Depends(get_db), fiscal_year: int = Form(...),
                  send_no: str = Form(""), date: str = Form(""), to_org: str = Form(""),
                  subject: str = Form(""), pending_file: str = Form("")):
     fy = _to_int(fiscal_year, current_fiscal_year())
-    m = re.search(r"(\d+)", send_no or "")     # เลขลำดับ = กลุ่มตัวเลขแรก (ข้ามอักษรนำ ศธ)
-    seq = (int(m.group(1)) if m else 0) or suggest_next(db, "outgoing", fy)
+    from app.services.doc_number import parse_outgoing_seq
+    seq = parse_outgoing_seq(send_no) or suggest_next(db, "outgoing", fy)
+    send_no = send_no.strip() or format_doc_no(seq, doc_year('outgoing',fy,date=parse_be_date(date)))
     fp = pending_file.strip() if _SAFE_FILE_NAME.match(pending_file.strip()) else ""
-    db.add(OutgoingLetter(
+    letter = OutgoingLetter(
         fiscal_year=fy, send_seq=seq, send_no=send_no.strip(),
         date=parse_be_date(date), to_org=to_org.strip(), subject=subject.strip(), file_path=fp,
-    ))
-    commit_number(db, "outgoing", fy, seq)
+    )
+    db.add(letter); db.flush()
+    commit_doc_no(db, "outgoing", fy, send_no, source="outgoing_register", ref_id=letter.id,
+                  subject=letter.subject, date=letter.date)
     db.commit()
     return RedirectResponse("/admin/outgoing", status_code=303)
 
@@ -785,6 +788,7 @@ def serve_uploaded(name: str):
 def outgoing_delete(rid: int, db: Session = Depends(get_db)):
     r = db.get(OutgoingLetter, rid)
     if r:
+        remove_issued(db, "outgoing_register", r.id, "outgoing")
         db.delete(r); db.commit()
     return RedirectResponse("/admin/outgoing", status_code=303)
 
@@ -796,20 +800,13 @@ _SOURCE_LABEL = {"procurement": "พัสดุ", "finance": "การเง�
 def _external_issued(db: Session, doc_type: str):
     """เลขในทะเบียนกลางที่ออกโดยงานอื่น (ไม่ใช่ธุรการ) - โชว์อ่านอย่างเดียว + ลิงก์ดูต้นทาง
     เพื่อให้หน้าธุรการเห็นเลขทั้งหมดของประเภทนั้น ไม่ใช่แค่ที่ธุรการสร้างเอง"""
-    rows = (db.query(IssuedDocNo)
-            .filter(IssuedDocNo.doc_type == doc_type,
-                    IssuedDocNo.source.isnot(None), IssuedDocNo.source != "",
-                    IssuedDocNo.source != "admin")
-            .order_by(IssuedDocNo.fiscal_year.desc(), IssuedDocNo.seq.desc()).all())
-    def _href(r):
-        if r.ref_id and r.source == "procurement":
-            return f"/procurement/{r.ref_id}"
-        if r.ref_id and r.source == "finance":
-            return f"/finance/disburse/{r.ref_id}"
-        return ""
-    return [{"full_no": r.full_no, "subject": r.subject or "", "date": r.date,
-             "source": r.source, "source_label": _SOURCE_LABEL.get(r.source, r.source),
-             "href": _href(r)} for r in rows]
+    from app.services.doc_register import records
+    rows = [r for r in records(db) if r.doc_type == doc_type and r.source and r.source != 'admin']
+    rows.sort(key=lambda r:(r.fiscal_year,r.seq),reverse=True)
+    labels = dict(_SOURCE_LABEL, asset_audit='ตรวจพัสดุประจำปี', outgoing_register='ทะเบียนหนังสือส่ง')
+    return [{"full_no":r.full_no,"subject":r.subject,"date":r.date,"source":r.source,
+             "source_label":labels.get(r.source,r.source),"href":r.href} for r in rows]
+
 
 
 @router.get("/admin/memos", response_class=HTMLResponse)
@@ -1027,11 +1024,12 @@ def admin_import_page(request: Request, db: Session = Depends(get_db),
 
 @router.get("/admin/letters/export.xlsx")
 def admin_letters_export(db: Session = Depends(get_db), year: int | None = None):
-    fy = year or current_fiscal_year()
+    fy = year or doc_year('outgoing',current_fiscal_year())
     incoming = (db.query(IncomingLetter).filter_by(calendar_year=fy)
                 .order_by(IncomingLetter.recv_no).all())
-    outgoing = (db.query(OutgoingLetter).filter_by(fiscal_year=fy)
-                .order_by(OutgoingLetter.send_seq).all())
+    outgoing = sorted([r for r in db.query(OutgoingLetter)
+                       if doc_year('outgoing',r.fiscal_year,r.send_no,r.date)==fy],
+                      key=lambda r:parse_outgoing_seq(r.send_no) or r.send_seq or 0)
     path = export_admin_register(incoming, outgoing, fy)
     return serve_generated(path, _XLSX)
 
@@ -1113,7 +1111,7 @@ def letter_create(db: Session = Depends(get_db), fiscal_year: str = Form(""), do
                   signer_position: str = Form(""), preset: str = Form("")):
     fy = _to_int(fiscal_year, current_fiscal_year())
     no = doc_no.strip() or suggest_doc_no(db, "outgoing", fy)
-    lt = OfficialLetter(fiscal_year=fy, doc_no=no, seq=parse_seq(no), date=parse_be_date(date),
+    lt = OfficialLetter(fiscal_year=fy, doc_no=no, seq=parse_outgoing_seq(no), date=parse_be_date(date),
                         subject=subject.strip(), to=to.strip(), ref=ref.strip(),
                         enclosure=enclosure.strip(), body=body,
                         closing=closing.strip() or "ขอแสดงความนับถือ",
@@ -1194,7 +1192,7 @@ def letter_update(lid: int, db: Session = Depends(get_db), doc_no: str = Form(""
                   signer_position: str = Form("")):
     lt = db.get(OfficialLetter, lid)
     if lt:
-        lt.doc_no = doc_no.strip(); lt.seq = parse_seq(doc_no)
+        lt.doc_no = doc_no.strip(); lt.seq = parse_outgoing_seq(doc_no)
         lt.date = parse_be_date(date); lt.subject = subject.strip(); lt.to = to.strip()
         lt.ref = ref.strip(); lt.enclosure = enclosure.strip(); lt.body = body
         lt.closing = closing.strip() or "ขอแสดงความนับถือ"

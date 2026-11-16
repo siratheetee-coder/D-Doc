@@ -68,15 +68,17 @@ def _get_or_create(db: Session, doc_type: str, fiscal_year: int) -> DocNumberCou
     return counter
 
 
-def suggest_next(db: Session, doc_type: str, fiscal_year: int) -> int:
+def suggest_next(db: Session, doc_type: str, fiscal_year: int, *, exact_year: bool = False) -> int:
     """เสนอเลขถัดไป (ไม่บันทึก/ไม่เพิ่มเลข) ใช้แสดงเป็นค่าเริ่มต้นในฟอร์ม"""
-    fiscal_year = doc_year(doc_type, fiscal_year)
-    counter = (
-        db.query(DocNumberCounter)
-        .filter_by(doc_type=doc_type, fiscal_year=fiscal_year)
-        .first()
-    )
-    return (counter.last_number if counter else 0) + 1
+    fiscal_year = fiscal_year if exact_year else doc_year(doc_type, fiscal_year)
+    if doc_type == 'incoming':
+        from app.services.incoming_register import next_number
+        return next_number(db,fiscal_year)
+    from app.services.doc_register import records
+    top = max((r.seq for r in records(db, include_stale=True) if r.doc_type == doc_type and r.fiscal_year == fiscal_year), default=0)
+    counter = db.query(DocNumberCounter).filter_by(doc_type=doc_type, fiscal_year=fiscal_year).first()
+    return max(top, (counter.last_number or 0) if counter else 0) + 1
+
 
 
 def commit_number(db: Session, doc_type: str, fiscal_year: int, used_number: int) -> None:
@@ -110,6 +112,16 @@ def parse_seq(doc_no: str) -> int:
     return int(m.group(1)) if m else 0
 
 
+def parse_outgoing_seq(doc_no: str) -> int:
+    """ศธ 04002/45 -> 45; 45/2569 -> 45. Never reserve a ministry prefix as a sequence."""
+    text = (doc_no or '').strip()
+    match = re.search(r'(\d+)\s*/\s*(?:ว\s*)?(\d+)\s*$', text)
+    if match:
+        before, after = map(int, match.groups())
+        return before if 2500 <= after <= 2699 else after
+    return parse_seq(text)
+
+
 def suggest_doc_no(db: Session, doc_type: str, fiscal_year: int) -> str:
     """เสนอเลขที่เอกสารแบบเต็ม เช่น '68/2569' (หนังสือราชการใช้ปีปฏิทิน)"""
     return format_doc_no(suggest_next(db, doc_type, fiscal_year), doc_year(doc_type, fiscal_year))
@@ -123,6 +135,15 @@ def log_issued(db: Session, doc_type: str, fiscal_year: int, seq: int,
     if not seq:
         return
     fiscal_year = doc_year(doc_type, fiscal_year, full_no, date)
+    from app.services.doc_register import records
+    from fastapi import HTTPException
+    for used in records(db, include_stale=True):
+        if (used.doc_type, used.fiscal_year, used.seq) != (doc_type, fiscal_year, seq):
+            continue
+        same_owner = source and ref_id is not None and (used.source, used.ref_id) == (source, ref_id)
+        unclaimed = not used.source and used.ref_id is None
+        if not same_owner and not unclaimed:
+            raise HTTPException(409, f"เลข {used.full_no} ถูกใช้แล้ว: {used.subject or 'ไม่ระบุเรื่อง'} กรุณาเลือกเลขใหม่ ข้อมูลเดิมยังไม่ถูกเปลี่ยน")
     row = (db.query(IssuedDocNo)
            .filter_by(doc_type=doc_type, fiscal_year=fiscal_year, seq=seq).first())
     if row is None:
@@ -156,7 +177,7 @@ def commit_doc_no(db: Session, doc_type: str, fiscal_year: int, doc_no: str,
                   source: str = "", ref_id=None, subject: str = "", date=None) -> None:
     """แยกเลขลำดับจากข้อความเลขที่ แล้ว bump counter + บันทึกลงทะเบียนเลขกลาง
     date = วันที่บนเอกสาร (ที่ผู้ใช้กรอก) เพื่อให้ทะเบียนตรงกับเอกสารจริง"""
-    seq = parse_seq(doc_no)
+    seq = parse_outgoing_seq(doc_no) if doc_type == "outgoing" else parse_seq(doc_no)
     fiscal_year = doc_year(doc_type, fiscal_year, doc_no, date)
     _commit_number(db, doc_type, fiscal_year, seq)
     if seq:
@@ -171,13 +192,15 @@ def check_doc_no(db: Session, doc_type: str, fiscal_year: int, doc_no: str,
     - duplicate = มีเลขนี้ในทะเบียนแล้ว (ของเรื่องอื่น)
     - passed    = เลขต่ำกว่า/เท่ากับเลขล่าสุดที่ใช้ไป (เลยเลขมาแล้ว)
     """
-    seq = parse_seq(doc_no)
+    seq = parse_outgoing_seq(doc_no) if doc_type == "outgoing" else parse_seq(doc_no)
     if not seq:
         return None
     fiscal_year = doc_year(doc_type, fiscal_year, doc_no)
-    dup = (db.query(IssuedDocNo)
-           .filter_by(doc_type=doc_type, fiscal_year=fiscal_year, seq=seq).first())
-    if dup and not (exclude_ref is not None and dup.ref_id == exclude_ref and dup.source == exclude_source):
+    from app.services.doc_register import records
+    dup = next((r for r in records(db,include_stale=True)
+                if (r.doc_type,r.fiscal_year,r.seq)==(doc_type,fiscal_year,seq)
+                and not (exclude_ref is not None and r.ref_id==exclude_ref and r.source==exclude_source)),None)
+    if dup:
         owner = (dup.subject or "").strip() or "(ไม่ระบุเรื่อง)"
         return {"level": "duplicate",
                 "msg": f"เลข {dup.full_no} ถูกใช้แล้ว: {owner}", "owner": owner}

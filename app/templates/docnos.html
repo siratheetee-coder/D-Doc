@@ -5,11 +5,12 @@
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
     <h1 style="margin:0;">ทะเบียนเลขหนังสือกลาง</h1>
     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-      <a class="btn sm gray" href="/docnos/register.docx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> ออกไฟล์ทะเบียน (แนวนอน)</a>
+      <a class="btn sm gray" href="/docnos/register.docx{% if not current_sets %}?year={{ fiscal_year }}{% endif %}"><svg class="icon"><use href="#ic-download"/></svg> ออกไฟล์ทะเบียน (แนวนอน)</a>
       <form method="get" action="/docnos" style="display:inline-flex; gap:8px; align-items:center; margin:0;">
         <label style="margin:0;">ปีของเลข</label>
         <select name="year" onchange="submitReplace(this.form)" style="width:auto;">
-          {% for y in years %}<option value="{{ y }}" {{ "selected" if y==fiscal_year }}>{{ y }}</option>{% endfor %}
+          <option value="" {% if current_sets %}selected{% endif %}>ชุดเลขปัจจุบัน</option>
+          {% for y in years %}<option value="{{ y }}" {{ "selected" if not current_sets and y==fiscal_year }}>{{ y }}</option>{% endfor %}
         </select>
       </form>
     </div>
@@ -17,23 +18,23 @@
   <p class="dn-rule">บันทึกข้อความ คำสั่ง หนังสือรับ และหนังสือส่ง เรียงเลขตาม<b>ปีปฏิทิน</b> เริ่มเลข 1 ทุกวันที่ 1 มกราคม
     ส่วนใบสั่งซื้อและใบสั่งจ้าง เรียงตาม<b>ปีงบประมาณ</b> เริ่มเลข 1 ทุกวันที่ 1 ตุลาคม</p>
   <style>.dn-rule{ margin:10px 0; padding:10px 14px; border-radius:12px; background:#eff6ff; color:#1e3a8a; font-size:14px; }</style>
-  <p class="muted">เลขที่ใช้จริงของทุกงาน (ธุรการ/พัสดุ/การเงิน) รวมศูนย์ที่นี่ - บันทึกข้อความและคำสั่งรันต่อเนื่องร่วมกัน แก้เรื่อง/วันที่ได้ ลบเลขที่มาจากงานธุรการจะลบเอกสารต้นทางให้ด้วย (เลขจากพัสดุ/การเงิน ลบเฉพาะรายการทะเบียน)</p>
+  <p class="muted">รวมเลขจากทุกฝ่าย แต่ละประเภทแยกชุดเลข · เลขคำสั่งในหน้านี้รวมทั้งธุรการ พัสดุ และงานอื่น · แก้ข้อมูลที่งานต้นทางเพื่อให้ตรงกับเอกสาร</p>
   {% if request.query_params.get('saved') %}<div class="alert" style="margin-bottom:0;">✔ บันทึกแล้ว</div>{% endif %}
 </div>
 
 {% if summary %}
 <div class="card">
   <h2><svg class="icon"><use href="#ic-clipboard"/></svg> ตอนนี้ถึงเลขไหนแล้ว</h2>
-  <p class="muted" style="margin-top:0;">เลขล่าสุดที่ออกไปแล้ว และเลขถัดไปที่ระบบจะใช้ ของแต่ละประเภทเอกสาร</p>
+  <p class="muted" style="margin-top:0;">เลขสูงสุดที่พบในทะเบียนและเอกสารต้นทาง รวมทุกฝ่าย · เลขที่เคยใช้หรือลบแล้วจะยังสงวนไว้ ไม่ย้อนกลับไปใช้ซ้ำ</p>
   <div class="table-wrap">
   <table>
-    <thead><tr><th>ประเภทเอกสาร</th><th class="center" style="width:150px;">เลขล่าสุดที่ออกไป</th><th class="center" style="width:150px;">เลขถัดไป</th></tr></thead>
+    <thead><tr><th>ประเภทเอกสาร</th><th class="center" style="width:150px;">เลขสูงสุดที่พบ</th><th class="center" style="width:150px;">เลขถัดไป</th></tr></thead>
     <tbody>
       {% for s in summary %}
       <tr>
         <td>{{ s.label }}</td>
-        <td class="center"><b>{{ s.last }}</b></td>
-        <td class="center"><span class="pill" style="background:#e8f0ff; color:#2b58c9;">{{ s.next }}</span></td>
+        <td class="center"><b>{{ s.last }}</b>{% if s.conflict %}<br><span style="color:#b91c1c">พบเลขซ้ำ กรุณาตรวจต้นทาง</span>{% endif %}</td>
+        <td class="center"><span class="pill" style="background:#e8f0ff; color:#2b58c9;">{{ s.next }}</span>{% if s.gap %}<br><small class="muted">สงวนเลขถึง {{ s.reserved }}</small>{% endif %}</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -43,26 +44,21 @@
 {% endif %}
 
 {% if groups %}
-<p class="muted" style="margin:0 0 10px;">คลิกหัวข้อเพื่อกาง/พับรายการ แก้ได้หลายรายการแล้วกดบันทึกทีละรายการ (แถวอื่นจะไม่รีเซ็ต)</p>
+<p class="muted" style="margin:0 0 10px;">คลิกหัวข้อเพื่อกางรายการ · รวมเลขจากเอกสารต้นทางด้วย · แก้ข้อมูลที่งานต้นทางเพื่อให้เอกสารตรงกับทะเบียน</p>
 {% for dt, rows in groups.items() %}
 <details class="card">
   <summary>{{ type_labels.get(dt, dt) }} <span class="muted" style="font-size:15px; font-weight:600;">({{ rows|length }} เลข)</span></summary>
   <div class="table-wrap">
   <table>
-    <thead><tr><th style="width:110px;">เลขที่</th><th>เรื่อง</th><th style="width:110px;">งาน</th><th style="width:140px;">วันที่บันทึก</th><th style="width:120px;"></th></tr></thead>
+    <thead><tr><th style="width:110px;">เลขที่</th><th>เรื่อง</th><th style="width:110px;">งาน</th><th style="width:140px;">วันที่เอกสาร</th><th style="width:120px;"></th></tr></thead>
     <tbody>
       {% for r in rows %}
       <tr data-did="{{ r.id }}" data-no="{{ r.full_no }}" data-source="{{ r.source or '' }}">
         <td><b>{{ r.full_no }}</b></td>
-        <form method="post" action="/docnos/{{ r.id }}/update" style="display:contents;">
-          <td><input name="subject" value="{{ r.subject }}" placeholder="(ไม่ระบุ)"></td>
-          <td>{{ {'procurement':'พัสดุ','admin':'ธุรการ','finance':'การเงิน','lunch':'อาหารกลางวัน'}.get(r.source, r.source or '-') }}</td>
-          <td><input name="date" value="{{ be_date(r.date) if r.date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:120px;"></td>
-          <td style="white-space:nowrap;">
-            <button class="btn sm" type="button" onclick="saveDocno(this)">บันทึก</button>
-        </form>
-            <button class="btn sm gray" type="button" onclick="delDocno(this)">ลบ</button>
-          </td>
+        <td>{% if not r.source and r.id %}<input name="subject" value="{{ r.subject }}">{% else %}{{ r.subject or '(ไม่ระบุเรื่อง)' }}{% endif %}{% if r.conflict %}<br><span class="pill" style="background:#fef2f2;color:#b91c1c">เลขซ้ำกับเอกสารอื่น กรุณาตรวจสอบ</span>{% endif %}</td>
+        <td>{{ {'procurement':'พัสดุ','admin':'ธุรการ','finance':'การเงิน','lunch':'อาหารกลางวัน','incoming_register':'ทะเบียนหนังสือรับ','outgoing_register':'ทะเบียนหนังสือส่ง','asset_audit':'ตรวจพัสดุประจำปี'}.get(r.source,r.source or '-') }}</td>
+        <td>{% if not r.source and r.id %}<input name="date" value="{{ be_date(r.date) if r.date else '' }}" data-date="1">{% else %}{{ thai_date(r.date) if r.date else '-' }}{% endif %}</td>
+        <td>{% if r.href %}<a class="btn sm gray" href="{{ r.href }}">ดู/แก้ต้นทาง →</a>{% elif not r.source and r.id %}<button class="btn sm" type="button" onclick="saveDocno(this)">บันทึก</button> <button class="btn sm gray" type="button" onclick="delDocno(this)">ลบ</button>{% else %}<span class="muted">ดูงานต้นทาง</span>{% endif %}</td>
       </tr>
       {% endfor %}
     </tbody>

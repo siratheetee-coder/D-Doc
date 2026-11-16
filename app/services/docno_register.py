@@ -32,14 +32,14 @@ def render_docno_register(groups: dict, type_labels: dict, fiscal_year: int, sch
     _font(doc)                       # _font ตั้งขนาดเป็นแนวตั้ง ต้องเรียกก่อน
     set_a4(doc, landscape=True)      # แล้วค่อยสลับเป็นแนวนอน (ไม่งั้นถูก _font ทับ)
     _p(doc, f"ทะเบียนหนังสือราชการ  โรงเรียน{sname}", align="center", bold=True, size=18, after=0)
-    _p(doc, f"ประจำปีงบประมาณ {fiscal_year}", align="center", after=8)
+    _p(doc, f"ปีของชุดเลข {fiscal_year}", align="center", after=8)
 
     widths = [Cm(3.6), Cm(4.2), Cm(14.9), Cm(4.5)]   # รวม ~27.2 = พื้นที่พิมพ์ A4 แนวนอน
     header = ["เลขที่", "ลงวันที่", "เรื่อง", "งาน"]
     src_label = {"procurement": "พัสดุ", "admin": "ธุรการ", "finance": "การเงิน"}
 
     if not groups:
-        _p(doc, "ยังไม่มีเลขที่ถูกใช้ในปีงบประมาณนี้", align="center", after=0)
+        _p(doc, "ยังไม่มีเลขที่ถูกใช้ในปีนี้", align="center", after=0)
 
     for dt, rows in groups.items():
         _p(doc, type_labels.get(dt, dt) + f"  ({len(rows)} เลข)", bold=True, size=16, before=8, after=2)

@@ -41,7 +41,7 @@
 
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-    <h2>รายการหนังสือส่ง ปีงบ {{ fiscal_year }} ({{ rows|length }})</h2>
+    <h2>รายการหนังสือส่ง ปีปฏิทิน {{ fiscal_year }} ({{ rows|length }})</h2>
     <div style="display:flex; gap:8px; align-items:center;">
       <a class="btn sm green" href="/admin/letters/export.xlsx?year={{ fiscal_year }}"><svg class="icon"><use href="#ic-download"/></svg> ส่งออก Excel</a>
       <form method="get" action="/admin/outgoing" style="margin:0;">
@@ -69,7 +69,7 @@
       {% endfor %}
     </tbody>
   </table></div>
-  {% else %}<p class="muted">ยังไม่มีหนังสือส่งในปีงบนี้ กรุณาเพิ่มที่ด้านบน หรือ <a href="/admin/import">นำเข้าจาก Excel</a></p>{% endif %}
+  {% else %}<p class="muted">ยังไม่มีหนังสือส่งในปีปฏิทินนี้ กรุณาเพิ่มที่ด้านบน หรือ <a href="/admin/import">นำเข้าจาก Excel</a></p>{% endif %}
 </div>
 
 <script>

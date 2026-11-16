@@ -415,6 +415,8 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
 <style>.txn-row{scroll-margin-top:90px;} .txn-row:target td{background:linear-gradient(120deg,#fef9c3,#fef3c7);}</style>
 <div class="card" id="txn-history">
   <h2>ประวัติรับ-จ่าย-คงเหลือ</h2>
+  {% if txn_saved %}<div class="alert info" role="status">บันทึกการแก้ไขแล้ว ยอดคงเหลือคำนวณใหม่จากรายการล่าสุด</div>{% endif %}
+  <p class="muted">กดแก้ไขเพื่อปรับรายการเดิม หากเชื่อมกับงานอื่น ระบบจะแสดงทางไปงานต้นทาง</p>
   {% if rows %}
   <div class="table-wrap"><table>
     <thead><tr><th>วันที่</th><th>รายการ</th><th>หมวด</th><th>อ้างอิง</th>
@@ -437,6 +439,7 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
                     title="{{ 'กดเพื่อกลับไปนับเป็นรายรับ/รายจ่าย' if r.t.no_count else 'กดถ้ารายการนี้เป็นการโอนเงินภายในโรงเรียน (ไม่นับเป็นรายรับ/รายจ่าย)' }}">
               {% if r.t.no_count %}โอนภายใน (ไม่นับรับ-จ่าย) <span class="nc-x">ยกเลิก</span>{% else %}ตั้งเป็นโอนภายใน{% endif %}</button>
           </form>
+          <a class="btn sm gray" href="/finance/txn/{{ r.t.id }}/edit"><svg class="icon"><use href="#ic-edit"/></svg> แก้ไข</a>
           {% if r.t.id in lunch_mirror %}<a class="pill" href="/lunch/{{ lunch_mirror[r.t.id] }}#ledger" title="รายการนี้มาจากหน้าอาหารกลางวัน" style="background:#fff7ed; color:#c2410c; text-decoration:none; white-space:nowrap;">แก้ที่หน้าอาหารกลางวัน</a>{% else %}<form method="post" action="/finance/txn/{{ r.t.id }}/delete" style="display:inline" onsubmit="return confirm('ลบรายการนี้?')"><button class="btn red sm"><svg class="icon"><use href="#ic-trash"/></svg></button></form>{% endif %}</td>
       </tr>
       {% endfor %}

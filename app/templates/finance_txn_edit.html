@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}แก้ไขรายการรับ–จ่าย{% endblock %}
+{% block content %}
+<div class="card" style="max-width:920px;margin:auto">
+  <a href="{{ back }}" class="btn gray sm">← กลับประวัติรับ–จ่าย</a>
+  <h1><svg class="icon"><use href="#ic-edit"/></svg> แก้ไขรายการรับ–จ่าย</h1>
+  <p class="muted">{{ t.account.name }} · ปีงบ {{ t.fiscal_year }} · รายการ #{{ t.id }}</p>
+  {% if locked %}<div class="alert warn">{{ locked[1] }}{% if locked[0] %}<br><a class="btn sm" href="{{ locked[0] }}">เปิดงานต้นทาง →</a>{% endif %}</div>{% else %}
+  <div class="alert info">แก้รายการเดิมโดยไม่สร้างรับ–จ่ายซ้ำ ระบบจะคำนวณยอดคงเหลือใหม่{% if receipts %} และอัปเดตวันที่ จำนวนเงิน ประเภทรายการ และรายละเอียดในทะเบียนใบเสร็จที่เชื่อมอยู่ {{ receipts|length }} รายการ{% endif %}</div>
+  {% if recons %}<div class="alert warn">บัญชีนี้มีงบกระทบยอดธนาคารที่บันทึกไว้แล้ว หลังแก้รายการ กรุณาเปิดตรวจและจัดทำงบกระทบยอดที่เกี่ยวข้องใหม่ด้วย <a href="/finance/bank-recon?year={{ t.fiscal_year }}">ไปกระทบยอดธนาคาร →</a></div>{% endif %}
+  {% if error %}<div class="alert warn" role="alert">{{ error }}</div>{% endif %}
+  <form method="post">
+    <input type="hidden" name="version" value="{{ version }}">
+    <div class="row">
+      <div><label>ประเภท</label><select name="kind"><option value="in" {% if values.kind=='in' %}selected{% endif %}>รับเงิน</option><option value="out" {% if values.kind=='out' %}selected{% endif %}>จ่ายเงิน</option></select></div>
+      <div><label>วันที่ *</label><input name="date" value="{{ values.date }}" placeholder="วว/ดด/ปปปป" data-date="1" required></div>
+      <div><label>จำนวนเงิน (บาท) *</label><input name="amount" type="number" step="0.01" min="0.01" value="{{ values.amount }}" required></div>
+    </div>
+    <label>รายละเอียดรายการ *</label><input name="note" value="{{ values.note }}" maxlength="300" required>
+    <div class="row">
+      <div><label>หมวดเงิน</label><select name="item_id"><option value="">ไม่ระบุหมวด</option>{% for it in items %}<option value="{{ it.id }}" {% if values.item_id|string==it.id|string %}selected{% endif %}>{{ it.name }}</option>{% endfor %}</select></div>
+      <div><label>หมวด/ประเภทรายการ</label><input name="category" value="{{ values.category }}" maxlength="300"></div>
+      <div><label>เลขอ้างอิง</label><input name="ref" value="{{ values.ref }}" maxlength="300"></div>
+    </div>
+    <div class="row">
+      <div><label>ที่เก็บเงิน</label><select name="place"><option value="">ตามบัญชี/หมวดเดิม</option>{% for key,label in deposit_types.items() %}<option value="{{ key }}" {% if values.place==key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+      <div><label>หมวด e-Budget</label><select name="eb_code"><option value="">ยังไม่ระบุ</option>{% for kind,catalog in [('in',eb_income),('out',eb_expense)] %}{% for group,opts in catalog %}<optgroup label="{{ 'รับ' if kind=='in' else 'จ่าย' }} · {{ group }}" data-kind="{{ kind }}">{% for code,label in opts %}<option value="{{ code }}" {% if values.eb_code==code %}selected{% endif %}>{{ code }} {{ label }}</option>{% endfor %}</optgroup>{% endfor %}{% endfor %}</select></div>
+    </div>
+    <label>หมายเหตุ</label><input name="remark" value="{{ values.remark }}" maxlength="300">
+    <details style="margin:16px 0"><summary>วันครบกำหนดและวันที่คืนเงินประกัน</summary><div class="row"><div><label>ครบกำหนด</label><input name="due_date" value="{{ values.due_date }}" data-date="1"></div><div><label>วันที่คืนเงิน</label><input name="refund_date" value="{{ values.refund_date }}" data-date="1"></div></div></details>
+    <p class="muted">ยอดคงเหลือเป็นผลคำนวณ จึงไม่ต้องกรอกเอง · บันทึกแล้วกรุณาตรวจรายงานหรือไฟล์ที่เคยดาวน์โหลดใหม่</p>
+    <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกการแก้ไข</button> <a class="btn gray" href="{{ back }}">ยกเลิก</a>
+  </form>
+  {% endif %}
+</div>
+<script>
+(function(){const kind=document.querySelector('[name=kind]'),eb=document.querySelector('[name=eb_code]');if(!kind||!eb)return;function sync(){eb.querySelectorAll('optgroup').forEach(g=>g.hidden=g.dataset.kind!==kind.value);if(eb.selectedOptions[0]?.parentElement.hidden)eb.value='';}kind.addEventListener('change',sync);sync();})();
+</script>
+{% endblock %}

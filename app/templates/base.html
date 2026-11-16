@@ -971,12 +971,12 @@
           if(!d.items || !d.items.length){ b.innerHTML = '<p class="muted">ยังไม่มีเลขที่ออกในปีนี้</p>'; return; }
           function esc2(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
           var rows = d.items.map(function(it){
-            return '<tr><td>' + esc2(it.label) + '</td><td><b>' + esc2(it.last) + '</b>' +
+            return '<tr><td>' + esc2(it.label) + '</td><td><b>' + esc2(it.last) + '</b>' + (it.gap ? ('<br><small>สงวนเลขถึง ' + esc2(it.reserved) + '</small>') : '') + (it.conflict ? '<br><small style="color:#b91c1c">พบเลขซ้ำ กรุณาตรวจต้นทาง</small>' : '') +
               (it.date ? (' <span class="dn-date">' + esc2(it.date) + '</span>') : '') +
               (it.subject ? ('<br><span class="dn-sub">' + esc2(it.subject) + '</span>') : '') +
               '</td><td style="text-align:center;"><span class="dn-next">' + esc2(it.next) + '</span></td></tr>';
           }).join('');
-          b.innerHTML = '<table class="dn-tb"><thead><tr><th>ประเภทเอกสาร</th><th>เลขล่าสุด / เรื่อง</th><th style="text-align:center;">เลขถัดไป</th></tr></thead><tbody>' + rows + '</tbody></table>';
+          b.innerHTML = '<table class="dn-tb"><thead><tr><th>ประเภทเอกสาร</th><th>เลขสูงสุดที่พบ / เรื่อง</th><th style="text-align:center;">เลขถัดไป</th></tr></thead><tbody>' + rows + '</tbody></table><p class="muted">รวมเลขทุกฝ่าย · เลขที่เคยใช้จะยังสงวนไว้ จึงอาจมีเลขข้ามหลังลบหรือเปลี่ยนเอกสาร</p>';
         })
         .catch(function(){ ov.querySelector('.dn-body').innerHTML = '<p class="muted">โหลดไม่สำเร็จ ลองใหม่</p>'; });
     };

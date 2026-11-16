@@ -308,61 +308,29 @@ def search_suggest(request: Request, db: Session = Depends(get_db), q: str = "")
 @router.get("/docnos", response_class=HTMLResponse)
 def docnos_page(request: Request, db: Session = Depends(get_db),
                 year: int | None = None):
-    # ไม่เลือกปี = ชุดเลขที่กำลังใช้อยู่ของแต่ละประเภท (หนังสือราชการปีปฏิทิน ใบสั่งซื้อ/จ้างปีงบ)
-    # เลือกปี = ทุกประเภทที่ท้ายเลขเป็นปีนั้น
     from app.services.doc_number import doc_year
-    cur_fy = current_fiscal_year()
-    fy = year or doc_year("memo", cur_fy)
-    if year:
-        rows = (db.query(IssuedDocNo).filter(IssuedDocNo.fiscal_year == fy)
-                .order_by(IssuedDocNo.doc_type, IssuedDocNo.seq).all())
-        buckets = None
-    else:
-        buckets = {t: doc_year(t, cur_fy) for t in {r[0] for r in db.query(IssuedDocNo.doc_type).distinct()} | set(COUNTER_TYPES)}
-        rows = [r for r in db.query(IssuedDocNo).order_by(IssuedDocNo.doc_type, IssuedDocNo.seq)
-                if buckets.get(r.doc_type, cur_fy) == r.fiscal_year]
-    years = fiscal_year_options(
-        [r[0] for r in db.query(IssuedDocNo.fiscal_year).distinct()], fy)
-    # จัดกลุ่มตามชนิดเอกสาร
+    from app.services.doc_register import records, summary as register_summary
+    fy = year or doc_year("memo", current_fiscal_year())
+    buckets = {t: year if year else doc_year(t, current_fiscal_year()) for t in COUNTER_TYPES}
+    all_rows = records(db)
+    rows = [r for r in all_rows if r.fiscal_year == buckets.get(r.doc_type, fy)]
     groups = {}
-    for r in rows:
-        groups.setdefault(r.doc_type, []).append(r)
-    # สรุป "เลขล่าสุด/เลขถัดไป" ต่อประเภทเอกสาร (ทุกงานที่รันเลข) - ไว้ดูว่าตอนนี้ถึงเลขไหนแล้ว
-    counters = [c for c in db.query(DocNumberCounter).filter(DocNumberCounter.last_number > 0)
-                .order_by(DocNumberCounter.doc_type)
-                if c.fiscal_year == ((buckets or {}).get(c.doc_type, cur_fy) if buckets else fy)]
-    summary = [{"label": COUNTER_TYPES.get(c.doc_type, c.doc_type),
-                "last": f"{c.last_number}/{c.fiscal_year}", "next": f"{c.last_number + 1}/{c.fiscal_year}"}
-               for c in counters]
+    for r in rows: groups.setdefault(r.doc_type, []).append(r)
+    years = fiscal_year_options([r.fiscal_year for r in all_rows], fy)
     return templates.TemplateResponse("docnos.html", {
         "request": request, "groups": groups, "type_labels": COUNTER_TYPES,
-        "fiscal_year": fy, "years": years, "summary": summary,
+        "fiscal_year": fy, "years": years, "current_sets": not bool(year),
+        "summary": register_summary(db, buckets),
     })
 
 
 @router.get("/docnos/peek")
 def docnos_peek(request: Request, db: Session = Depends(get_db), year: int | None = None):
-    """คืนเลขล่าสุด/ถัดไป + เรื่องล่าสุด ต่อประเภทเอกสาร (JSON) - ใช้กับป็อปอัป 'ดูเลขล่าสุด' ไม่ต้องเปลี่ยนหน้า"""
     from app.services.doc_number import doc_year
+    from app.services.doc_register import summary as register_summary
     fy = year or current_fiscal_year()
-    # ปีที่ส่งมาเป็นปีงบของหน้าที่เปิดอยู่ หนังสือราชการแปลงเป็นปีปฏิทินของชุดเลข
-    counters = [c for c in db.query(DocNumberCounter).filter(DocNumberCounter.last_number > 0)
-                if c.fiscal_year == doc_year(c.doc_type, fy)]
-    # เรียงตามลำดับใน COUNTER_TYPES (บันทึกข้อความ/คำสั่ง/หนังสือส่ง/หนังสือรับ/ใบสั่งซื้อ/ใบสั่งจ้าง)
-    # เพื่อให้ใบสั่งซื้อกับใบสั่งจ้างอยู่ติดกัน
-    _order = list(COUNTER_TYPES.keys())
-    counters.sort(key=lambda c: _order.index(c.doc_type) if c.doc_type in _order else 99)
-    items = []
-    for c in counters:
-        last_row = (db.query(IssuedDocNo)
-                    .filter(IssuedDocNo.doc_type == c.doc_type, IssuedDocNo.fiscal_year == c.fiscal_year)
-                    .order_by(IssuedDocNo.seq.desc()).first())
-        items.append({
-            "label": COUNTER_TYPES.get(c.doc_type, c.doc_type),
-            "last": f"{c.last_number}/{c.fiscal_year}", "next": f"{c.last_number + 1}/{c.fiscal_year}",
-            "subject": (last_row.subject if last_row else "") or "",
-            "date": thai_date(last_row.date) if (last_row and last_row.date) else "",
-        })
+    items = register_summary(db, {t: doc_year(t,fy) for t in COUNTER_TYPES})
+    for item in items: item['date'] = thai_date(item['date']) if item['date'] else ''
     return JSONResponse({"year": fy, "items": items})
 
 
@@ -371,6 +339,9 @@ def docno_update(did: int, request: Request, db: Session = Depends(get_db), subj
                  date: str = Form("")):
     """แก้ไขเรื่อง/วันที่ของเลขที่ในทะเบียนกลาง"""
     r = db.get(IssuedDocNo, did)
+    if r and r.source and r.ref_id is not None:
+        from app.services.doc_register import source_link
+        raise HTTPException(409, "กรุณาจัดการรายการนี้ที่งานต้นทาง: " + (source_link(r.doc_type,r.source,r.ref_id) or r.source))
     fy = r.fiscal_year if r else current_fiscal_year()
     if r:
         r.subject = (subject or "").strip()
@@ -388,6 +359,9 @@ def docno_delete(did: int, request: Request, db: Session = Depends(get_db)):
     """ลบเลขที่ออกจากทะเบียนกลาง - ถ้ามาจากงานธุรการ (บันทึกข้อความ/คำสั่ง/หนังสือส่ง)
     ลบเอกสารต้นทางในงานธุรการให้ด้วย เพื่อให้ทะเบียนกับงานธุรการตรงกัน (AJAX ไม่รีเฟรชหน้า)"""
     r = db.get(IssuedDocNo, did)
+    if r and r.source and r.ref_id is not None:
+        from app.services.doc_register import source_link
+        raise HTTPException(409, "กรุณาจัดการรายการนี้ที่งานต้นทาง: " + (source_link(r.doc_type,r.source,r.ref_id) or r.source))
     fy = r.fiscal_year if r else current_fiscal_year()
     removed_source = False
     if r:
@@ -408,14 +382,15 @@ def docno_delete(did: int, request: Request, db: Session = Depends(get_db)):
 def docnos_register_doc(request: Request, db: Session = Depends(get_db), year: int | None = None):
     """ออกไฟล์ทะเบียนหนังสือราชการ (Word แนวนอน) แยกตารางตามประเภทเอกสาร"""
     from app.services.docno_register import render_docno_register
-    fy = year or current_fiscal_year()
-    rows = (db.query(IssuedDocNo)
-            .filter(IssuedDocNo.fiscal_year == fy)
-            .order_by(IssuedDocNo.doc_type, IssuedDocNo.seq).all())
+    from app.services.doc_number import doc_year
+    from app.services.doc_register import records
+    fy = year or doc_year("memo",current_fiscal_year())
+    rows = [r for r in records(db) if r.fiscal_year == (year if year else doc_year(r.doc_type,current_fiscal_year()))]
     groups = {}
     for r in rows:
         groups.setdefault(r.doc_type, []).append(r)
-    path = render_docno_register(groups, COUNTER_TYPES, fy, get_school(db))
+    label = fy if year else f"ชุดปัจจุบัน (หนังสือราชการ {doc_year('memo',current_fiscal_year())} / ใบสั่งซื้อและใบสั่งจ้าง {current_fiscal_year()})"
+    path = render_docno_register(groups, COUNTER_TYPES, label, get_school(db))
     return serve_generated(path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
@@ -2441,13 +2416,14 @@ def procurement_detail(proc_id: int, request: Request, db: Session = Depends(get
     holiday_years = year_range_for(proc.request_date, proc.order_date,
                                    proc.delivery_due_date, proc.inspect_date)
     # ข้อมูลเลขที่ใช้ไปแล้ว (สำหรับเตือนเลขซ้ำ/เลยเลข) แยกตามชนิด - ไม่รวมเลขของเรื่องนี้เอง
+    from app.services.doc_number import doc_year
     docno_used = {}
     for dt in ("memo", "command", order_type):
         rows = (db.query(IssuedDocNo)
-                .filter(IssuedDocNo.fiscal_year == fy, IssuedDocNo.doc_type == dt)
+                .filter(IssuedDocNo.fiscal_year == doc_year(dt, fy), IssuedDocNo.doc_type == dt)
                 .all())
         counter = next((c for c in db.query(DocNumberCounter)
-                        .filter_by(doc_type=dt, fiscal_year=fy)), None)
+                        .filter_by(doc_type=dt, fiscal_year=doc_year(dt, fy))), None)
         docno_used[dt] = {
             "last": counter.last_number if counter else 0,
             "used": {r.seq: (r.subject or "") for r in rows

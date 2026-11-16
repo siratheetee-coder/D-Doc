@@ -493,6 +493,7 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
         "txn_display_notes": txn_display_notes(txns, db),
         "txn_project": txn_project,
         "lunch_mirror": _lunch_mirror(db),
+        "txn_saved": request.query_params.get("txn_saved"),
         "selected_item": item if any(i.id == item for i in items) else 0,
         "selected_project": project if any(p.id==project for p in _plan_projects(db,fy)) else 0,
         "selected_kind": 'out' if kind=='out' else 'in',
@@ -769,6 +770,41 @@ def docno_next(db: Session = Depends(get_db), prefix: str = "", year: str = "", 
         raise HTTPException(400, "ไม่มีชนิดเลขนี้")
     fy = _to_int(year, current_fiscal_year())
     return JSONResponse({"ref": docno.next_ref(db, prefix, fy, "4" if yfmt == "4" else "2")})
+
+
+def _txn_edit_context(request,db,t,form=None,error=''):
+    from app.services import finance_txn_edit as editor
+    values={key: (be_date_input(getattr(t,key)) if key in ('date','due_date','refund_date') else getattr(t,key) or '') for key in editor.FIELDS}
+    if form is not None: values.update({key:str(form.get(key,'')) for key in editor.FIELDS})
+    return {"request":request,"t":t,"values":values,"error":error,
+        "version":str(form.get('version','')) if form is not None else editor.token(db,t),
+        "recons":db.query(BankRecon).filter(BankRecon.account_id==t.account_id,BankRecon.fiscal_year==t.fiscal_year).count(),
+        "locked":editor.source(db,t),"back":f"/finance/accounts/{t.account_id}?year={t.fiscal_year}#t{t.id}",
+        "receipts":db.query(Receipt).filter_by(txn_id=t.id).all(),
+        "items":db.query(AccountItem).filter_by(account_id=t.account_id,fiscal_year=t.fiscal_year).all(),
+        "deposit_types":DEPOSIT_TYPES,"eb_income":EB_INCOME,"eb_expense":EB_EXPENSE}
+
+
+@router.get("/finance/txn/{tid}/edit",response_class=HTMLResponse)
+def account_txn_edit(tid:int,request:Request,db:Session=Depends(get_db)):
+    t=db.get(FinanceTxn,tid)
+    if not t: raise HTTPException(404,"ไม่พบรายการ")
+    return templates.TemplateResponse("finance_txn_edit.html",_txn_edit_context(request,db,t))
+
+
+@router.post("/finance/txn/{tid}/edit")
+async def account_txn_update(tid:int,request:Request,db:Session=Depends(get_db)):
+    from app.services import finance_txn_edit as editor
+    t=db.get(FinanceTxn,tid)
+    if not t: raise HTTPException(404,"ไม่พบรายการ")
+    form=await request.form()
+    try:
+        editor.save(db,t,form)
+        db.commit()
+    except ValueError as error:
+        db.rollback()
+        return templates.TemplateResponse("finance_txn_edit.html",_txn_edit_context(request,db,t,form,str(error)),status_code=409)
+    return RedirectResponse(f"/finance/accounts/{t.account_id}?year={t.fiscal_year}&txn_saved=1#t{t.id}",status_code=303)
 
 
 @router.post("/finance/txn/{tid}/no-count")
