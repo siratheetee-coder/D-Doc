@@ -416,10 +416,10 @@ f.addEventListener('input',check);f.addEventListener('submit',e=>{if(!check()){e
 <div class="card" id="txn-history">
   <h2>ประวัติรับ-จ่าย-คงเหลือ</h2>
   {% if txn_saved %}<div class="alert info" role="status">บันทึกการแก้ไขแล้ว ยอดคงเหลือคำนวณใหม่จากรายการล่าสุด</div>{% endif %}
-  <p class="muted">กดแก้ไขเพื่อปรับรายการเดิม หากเชื่อมกับงานอื่น ระบบจะแสดงทางไปงานต้นทาง</p>
+  <p class="muted">วันที่ในตารางคือวันที่รับ/จ่ายเงินจริง แยกจากวันที่เอกสาร · กดแก้ไขเพื่อปรับรายการเดิม หากเชื่อมกับงานอื่น ระบบจะแสดงทางไปงานต้นทาง</p>
   {% if rows %}
   <div class="table-wrap"><table>
-    <thead><tr><th>วันที่</th><th>รายการ</th><th>หมวด</th><th>อ้างอิง</th>
+    <thead><tr><th>วันที่รับ/จ่ายเงินจริง</th><th>รายการ</th><th>หมวด</th><th>อ้างอิง</th>
         <th class="right">รับ</th><th class="right">จ่าย</th><th class="right">คงเหลือ</th><th></th></tr></thead>
     <tbody>
       <tr><td colspan="6"><span class="muted">ยอดยกมา (ปีงบ {{ fiscal_year }})</span></td><td class="right"><b>{{ "{:,.2f}".format(opening) }}</b></td><td></td></tr>

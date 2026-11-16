@@ -75,4 +75,5 @@ def activity_groups(db, project, procs, memos, loans=()) -> list:
         out.append({"a": a, "docs": docs[a.id], "used": used, "left": round(bud - used, 2), "pct": pct, "level": level})
     if loose:
         out.append({"a": None, "docs": loose, "used": round(sum(d["amount"] for d in loose), 2), "left": 0})
-    return out
+    from app.services.project_payment_dates import attach
+    return attach(db,out)
