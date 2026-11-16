@@ -37,7 +37,7 @@
       {% if maybe and not lunch_source %}<div class="alert warn" role="alert"><b>พบรายการจ่ายยอด {{ '{:,.2f}'.format(m.amount or 0) }} บาท ที่ยังไม่เชื่อมเอกสาร {{ maybe|length }} รายการ</b>
         <ul style="margin:6px 0 6px 18px;padding:0;">{% for t in maybe[:5] %}<li>{{ be_date(t.date) }} {{ t.ref or '' }} {{ t.note or t.category or '' }} ({{ t.account.name if t.account else '' }})</li>{% endfor %}</ul>
         หากเป็นการจ่ายครั้งเดียวกัน ให้กดย้อนกลับแล้วเชื่อมรายการเดิมด้านล่าง ไม่ต้องลงจ่ายใหม่
-        <label style="display:flex;gap:8px;align-items:center;margin-top:8px;"><input type="checkbox" name="confirm_new" value="1" required> ตรวจแล้ว ไม่ใช่รายการเดียวกัน ให้ลงจ่ายใหม่</label></div>
+        <label style="display:flex;gap:10px;align-items:center;justify-content:flex-start;margin-top:10px;font-weight:700;cursor:pointer;"><input type="checkbox" name="confirm_new" value="1" required style="width:20px;height:20px;flex:none;margin:0;"><span style="flex:1;">ตรวจแล้ว ไม่ใช่รายการเดียวกัน ให้ลงจ่ายใหม่</span></label></div>
       {% else %}<input type="hidden" name="confirm_new" value="1">{% endif %}
       {% if wrong_fy %}<div class="alert warn" role="alert"><b>วันที่ในบันทึกนี้อยู่ในปีงบ {{ date_fy }} แต่บันทึกนี้เป็นปีงบ {{ m.fiscal_year }}</b><p>รายการจะลงทะเบียนปีงบ {{ m.fiscal_year }} วันที่จ่ายเงินจริงต้องอยู่ในปีงบนี้ ส่วนวันที่ขอเบิกยังคงตามเอกสารเดิม</p></div>{% endif %}
     </div><div class="dm-dialog-foot"><button class="btn gray" type="button" data-dm-close>ย้อนกลับ</button><button class="btn green" type="submit" data-no-floating-save id="dm-confirm"><svg class="icon"><use href="#ic-check"/></svg> ยืนยันบันทึกจ่าย</button></div>
