@@ -1108,10 +1108,13 @@ def disburse_detail(mid: int, request: Request, db: Session = Depends(get_db)):
     m = db.get(DisburseMemo, mid)
     if not m:
         return RedirectResponse("/finance/disburse", status_code=303)
+    from app.services import payment_date_edit
+    payment_info=payments.summary(db,m)
+    date_edit=payment_date_edit.context(db,m,payment_info['rows'])
     return templates.TemplateResponse("disburse_detail.html", {
         "request": request, "m": m, "school": get_school(db),
         "posted": db.query(FinanceTxn).filter_by(disburse_id=m.id).first() is not None,
-        "payment_info": payments.summary(db, m), "lunch_source": lunch_claim.for_memo(db,m),
+        "payment_info": payment_info, "payment_date_edit": date_edit, "lunch_source": lunch_claim.for_memo(db,m),
         "payment_candidates": payments.candidates(db, m),
         "split_rows": splits.rows_of(db, m) if splits.is_split(m) else [],
         "accounts": db.query(FinanceAccount).order_by(FinanceAccount.name).all(),
@@ -1127,6 +1130,22 @@ def disburse_detail(mid: int, request: Request, db: Session = Depends(get_db)):
         "eb_expense": EB_EXPENSE,
         "ap_state": _ap_state(db, "disburse", m.id, m),
     })
+
+
+@router.post("/finance/disburse/{mid}/payments/{tid}/date")
+def disburse_payment_date(mid:int,tid:int,db:Session=Depends(get_db),paid_date:str=Form(""),version:str=Form("")):
+    from app.services import payment_date_edit
+    payments.lock(db)
+    memo=db.get(DisburseMemo,mid)
+    txn=db.get(FinanceTxn,tid)
+    if not memo or not txn:raise HTTPException(404,"ไม่พบรายการจ่าย")
+    try:
+        payment_date_edit.save(db,memo,txn,paid_date,version)
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        return RedirectResponse(f"/finance/disburse/{mid}?payment_date_error={quote(str(exc))}#payment-records",303)
+    return RedirectResponse(f"/finance/disburse/{mid}?payment_date_saved=1#payment-records",303)
 
 
 @router.post("/finance/disburse/{mid}/update")
