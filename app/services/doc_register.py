@@ -68,9 +68,18 @@ def records(db, include_stale=False):
         rows = {key:row for key,row in rows.items() if row.source not in supported or row.ref_id is None or key in current_keys}
     groups=defaultdict(list)
     for row in rows.values():groups[(row.doc_type,row.fiscal_year,row.seq)].append(row)
+    from app.services.doc_number_links import same_document
     for group in groups.values():
         if len(group)>1:
-            for row in group: row.conflict=True
+            canonical=next((r for r in group if r.id is not None),group[0])
+            distinct=[r for r in group if r is not canonical and not same_document(
+                db,r.doc_type,r.fiscal_year,r.seq,r.source,r.ref_id,canonical.source,canonical.ref_id)]
+            if not distinct:
+                for r in group:
+                    if r is not canonical:
+                        rows.pop((r.doc_type,r.fiscal_year,r.seq,r.source,r.ref_id),None)
+            else:
+                for r in group:r.conflict=True
     return sorted(rows.values(),key=lambda r:(r.doc_type,r.fiscal_year,r.seq,r.source or '',r.ref_id or 0))
 
 

@@ -991,7 +991,7 @@ def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | N
                 "project_id": p.project_id,
                 "proc_kind": "จัดจ้าง" if (p.proc_type or "") == "จ้าง" else "จัดซื้อ",
                 # เลขบันทึก+วันที่ ดึงจากบันทึกขอเบิกจ่าย/รายงานขอซื้อของเรื่องนั้น
-                "memo_no": p.inspect_memo_no or p.memo_no or "",
+                "memo_no": p.inspect_memo_no or "",
                 "date": p.inspect_date or p.request_date,
                 "item_id": None,
             }

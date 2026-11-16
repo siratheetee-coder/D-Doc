@@ -137,18 +137,24 @@ def log_issued(db: Session, doc_type: str, fiscal_year: int, seq: int,
     fiscal_year = doc_year(doc_type, fiscal_year, full_no, date)
     from app.services.doc_register import records
     from fastapi import HTTPException
-    for used in records(db, include_stale=True):
+    from app.services.doc_number_links import same_document
+    for used in records(db):
         if (used.doc_type, used.fiscal_year, used.seq) != (doc_type, fiscal_year, seq):
             continue
         same_owner = source and ref_id is not None and (used.source, used.ref_id) == (source, ref_id)
         unclaimed = not used.source and used.ref_id is None
-        if not same_owner and not unclaimed:
+        shared = same_document(db,doc_type,fiscal_year,seq,source,ref_id,used.source,used.ref_id)
+        if not same_owner and not unclaimed and not shared:
             raise HTTPException(409, f"เลข {used.full_no} ถูกใช้แล้ว: {used.subject or 'ไม่ระบุเรื่อง'} กรุณาเลือกเลขใหม่ ข้อมูลเดิมยังไม่ถูกเปลี่ยน")
     row = (db.query(IssuedDocNo)
            .filter_by(doc_type=doc_type, fiscal_year=fiscal_year, seq=seq).first())
     if row is None:
         row = IssuedDocNo(doc_type=doc_type, fiscal_year=fiscal_year, seq=seq)
         db.add(row)
+    if row.source and row.ref_id is not None and (row.source,row.ref_id)!=(source,ref_id):
+        if same_document(db,doc_type,fiscal_year,seq,source,ref_id,row.source,row.ref_id):
+            # Keep the original registry owner and its document fields. The linked source is projected below.
+            return
     row.full_no = full_no or format_doc_no(seq, fiscal_year)
     if source:
         row.source = source
@@ -197,9 +203,11 @@ def check_doc_no(db: Session, doc_type: str, fiscal_year: int, doc_no: str,
         return None
     fiscal_year = doc_year(doc_type, fiscal_year, doc_no)
     from app.services.doc_register import records
+    from app.services.doc_number_links import same_document
     dup = next((r for r in records(db,include_stale=True)
                 if (r.doc_type,r.fiscal_year,r.seq)==(doc_type,fiscal_year,seq)
-                and not (exclude_ref is not None and r.ref_id==exclude_ref and r.source==exclude_source)),None)
+                and not (exclude_ref is not None and r.ref_id==exclude_ref and r.source==exclude_source)
+                and not same_document(db,doc_type,fiscal_year,seq,exclude_source,exclude_ref,r.source,r.ref_id)),None)
     if dup:
         owner = (dup.subject or "").strip() or "(ไม่ระบุเรื่อง)"
         return {"level": "duplicate",
