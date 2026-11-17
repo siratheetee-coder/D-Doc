@@ -9,13 +9,13 @@
 .tsl-paste{min-height:150px;border-radius:14px;background:linear-gradient(135deg,#f8fafc,#eef2ff);padding:18px;outline:none;color:#64748b;display:flex;align-items:center;justify-content:center;text-align:center;cursor:text}
 .tsl-paste:focus{box-shadow:0 0 0 3px #c7d2fe}
 .tsl-day{background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-radius:14px;padding:14px 16px;margin-top:12px}
-.tsl-day.off{opacity:.45}
+.tsl-day.off .tsl-menu,.tsl-day.off .tsl-tbl{opacity:.4}
 .tsl-dh{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between}
 .tsl-menu{display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-top:10px}
 .tsl-tbl{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px}
 .tsl-tbl td,.tsl-tbl th{padding:4px 6px;text-align:left}
 .tsl-tbl input{width:100%;padding:5px 7px}
-.tsl-tbl .n{text-align:right;width:110px}
+.tsl-tbl .n{text-align:right;width:100px}.tsl-tbl .u{width:170px}
 .tsl-mem{font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;background:#dcfce7;color:#166534;white-space:nowrap}
 .tsl-warn{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;background:#fef3c7;color:#92400e}
 .tsl-sum{position:sticky;bottom:0;background:linear-gradient(135deg,#eef2ff,#e0e7ff);border-radius:14px;padding:12px 16px;margin-top:14px;display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
@@ -90,11 +90,11 @@
       </div>
       {% if with_ings %}
       <table class="tsl-tbl">
-        <tr><th>วัตถุดิบ</th><th class="n">จำนวน</th><th class="n">หน่วย</th><th class="n">ราคา/หน่วย</th><th class="n">เป็นเงิน</th></tr>
+        <tr><th>วัตถุดิบ</th><th class="n">จำนวน</th><th class="u">หน่วย</th><th class="n">ราคา/หน่วย</th><th class="n">เป็นเงิน</th></tr>
         {% for g in d.ings %}
         <tr><td><input type="hidden" name="i_day" value="{{ k }}"><input name="i_name" value="{{ g.name }}"></td>
           <td class="n"><input name="i_qty" value="{{ '%g'|format(g.qty) }}" inputmode="decimal"></td>
-          <td class="n"><input name="i_unit" value="{{ g.unit }}"></td>
+          <td class="u"><input name="i_unit" value="{{ g.unit }}"></td>
           <td class="n"><input name="i_price" value="{{ '%g'|format(g.price) }}" inputmode="decimal">{% if g.remembered %}<span class="tsl-mem">ราคาที่เคยใช้</span>{% endif %}</td>
           <td class="n tsl-amt">0.00</td></tr>
         {% endfor %}
