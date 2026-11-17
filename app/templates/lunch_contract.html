@@ -608,8 +608,9 @@
 <div class="card" id="menus">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
     <h2 style="margin:0;">เมนูอาหารใน{{ RW }}นี้</h2>
+    <span style="display:flex;gap:8px;flex-wrap:wrap">
     <a class="btn sm gray" href="/lunch/{{ p.id }}/menu?back=/lunch/round/{{ r.id }}/plan"><svg class="icon"><use href="#ic-clipboard"/></svg> จัดการเมนูรายวัน / ชุดเมนูอาหาร</a>
-    <a class="btn sm" style="background:linear-gradient(135deg,#f97316,#f59e0b);border:none" href="/lunch/{{ p.id }}/tsl-import?back=/lunch/round/{{ r.id }}/plan">{{ 'นำเข้าเมนูและวัตถุดิบจาก Thai School Lunch' if p.operate_mode != 'hire' else 'นำเข้าเมนูจาก Thai School Lunch' }}</a>
+    <a class="btn sm" style="background:linear-gradient(135deg,#f97316,#f59e0b);border:none" href="/lunch/{{ p.id }}/tsl-import?back=/lunch/round/{{ r.id }}/plan">{{ 'นำเข้าเมนูและวัตถุดิบจาก Thai School Lunch' if p.operate_mode != 'hire' else 'นำเข้าเมนูจาก Thai School Lunch' }}</a></span>
   </div>
   {% if p.operate_mode != 'hire' %}<p style="margin:8px 0 0;padding:10px 14px;border-radius:12px;background:linear-gradient(135deg,#fff7ed,#fef3c7);font-size:14px">ถ้าจัดสำรับไว้ใน Thai School Lunch แล้ว กดปุ่มส้มครั้งเดียว ได้ทั้งเมนูและวัตถุดิบ ไม่ต้องพิมพ์เมนูเอง</p>{% endif %}
   <p class="muted" style="margin:4px 0 10px;">เมนูจะถูกดึงไปใส่ในเอกสารงวด (ควบคุม/ส่งมอบ/ตรวจรับ) ตามวันที่ เลือกวันจากช่วงสัญญาได้เลย (เฉพาะวันทำการ)</p>
