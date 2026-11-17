@@ -265,7 +265,7 @@ def teacher_cards(db, pid, limit=3) -> list:
     for r in rows:
         nums = budget_numbers(db, r)
         out.append(dict(id=r.id, title=(r.purpose or (r.project.name if r.project else "") or "คำขอใช้งบประมาณ"),
-                        no=r.request_no, total=nums["request"], left=nums["left"], step=step_of(r, db),
+                        no=r.request_no, total=nums["request"], left=nums["carry"], step=step_of(r, db),
                         href=f"/me/budget-requests/{r.id}"))
     return out
 

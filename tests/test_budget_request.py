@@ -67,7 +67,7 @@ def test_create_edit_doc_and_teacher_view(env):
         # การ์ดหน้าหลักครู
         cards = svc.teacher_cards(db, teacher.id)
         assert cards and cards[0]["href"] == f"/me/budget-requests/{rid}" and cards[0]["total"] == 1450
-        assert cards[0]["left"] == 50000
+        assert cards[0]["left"] == 50000 - 1450
     finally:
         db.close()
 

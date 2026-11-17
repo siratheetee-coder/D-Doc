@@ -10,7 +10,7 @@
 <section class="home-panel th-card"><div class="th-head"><h2><img class="h3d" src="/static/images/home3d/f_projects.png" alt=""> คำขอใช้งบของฉัน</h2></div>
 {% for b in home.th.budget %}<a class="th-row" href="{{ b.href }}"><span class="th-main"><b>{{ b.no }} {{ b.title }}</b>
 <span class="br-steps">{% for s in home.th.budget_steps %}<i class="{{ 'done' if loop.index0 < b.step else 'now' if loop.index0 == b.step }}" title="{{ s }}">{{ s }}</i>{% endfor %}</span>
-<small>ขอ {{ '{:,.2f}'.format(b.total) }} บาท{% if b.left is not none %} งบโครงการคงเหลือ {{ '{:,.2f}'.format(b.left) }} บาท{% endif %}</small></span></a>{% endfor %}
+<small>ขอ {{ '{:,.2f}'.format(b.total) }} บาท{% if b.left is not none %} งบโครงการเหลือหลังขอ {{ '{:,.2f}'.format(b.left) }} บาท{% endif %}</small></span></a>{% endfor %}
 </section>
 <style>.br-steps{display:flex;gap:4px;margin:6px 0 4px;flex-wrap:wrap}.br-steps i{font-style:normal;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:#f1f5f9;color:#94a3b8}.br-steps i.done{background:#dcfce7;color:#166534}.br-steps i.now{background:linear-gradient(135deg,#818cf8,#4f46e5);color:#fff}</style>
 {% endif %}
