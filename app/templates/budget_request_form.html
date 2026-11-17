@@ -25,6 +25,8 @@
   <h1><img src="/static/images/home3d/f_projects.png" alt="" style="width:46px;height:46px;vertical-align:middle"> {{ 'สร้างคำขอใช้งบประมาณ' if is_new else 'แก้ไขคำขอใช้งบประมาณ' }}</h1>
   <form method="post" action="{{ '/budget-requests/new' if is_new else '/budget-requests/' ~ r.id ~ '/edit' }}" id="brForm"
         onsubmit="if(this.dataset.sent){return false;}this.dataset.sent=1;this.querySelector('[type=submit]').disabled=true;">
+    {% if r.travel_request_id %}<input type="hidden" name="travel_request_id" value="{{ r.travel_request_id }}">
+    <div class="alert" style="background:#eef2ff">คำขอนี้มาจากคำขอไปราชการ ระบบใส่ค่าใช้จ่ายเดินทางตามที่ขอไว้ให้ 1 รายการ แยกเป็นค่าพาหนะ เบี้ยเลี้ยง ที่พักได้ตามจริง</div>{% endif %}
     <div class="br-grid">
       <div><label>ปีงบประมาณ</label><input name="fiscal_year" value="{{ r.fiscal_year or fy }}" inputmode="numeric"></div>
       <div><label>เลขที่บันทึก</label><input name="request_no" value="{{ r.request_no or '' }}" placeholder="{{ sug_no }}"><small class="muted">เว้นว่าง ระบบรันเลขถัดไปจากทะเบียนให้</small></div>

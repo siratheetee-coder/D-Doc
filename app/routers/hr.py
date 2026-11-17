@@ -696,8 +696,19 @@ def travel_request_detail(tid: int, request: Request, db: Session = Depends(get_
     from app.models import FinanceTxn
     from app.services.travel_claim import eligible
     claim_posted = bool(claim and db.query(FinanceTxn.id).filter_by(disburse_id=claim.id).first())
+    from app.services import budget_request as brs
+    from app.accounts import get_account_access
+    from app.services.access import denied
+    br_req = brs.for_travel(db, r.id)
+    try:
+        acc = get_account_access(request.session.get("uid"))
+        can_budget = bool(request.session.get("owner")) or (bool(acc) and not denied("/budget-requests/new", acc))
+    except Exception:
+        can_budget = False
+    can_budget = can_budget and r.status != "rejected" and float(r.budget or 0) > 0
     return templates.TemplateResponse("travel_request_detail.html", {
         "request": request, "school": get_school(db), "r": r, "claim": claim, "claim_project": claim_project, "can_claim": eligible(r), "claim_posted": claim_posted,
+        "br_req": br_req, "br_total": brs.total(br_req) if br_req else 0, "can_budget": can_budget,
         "person": r.person, "personnel": personnel, "director": director,
         "is_director": bool(request.session.get("director")),
         "be_date": be_date_input, "msg": msg, "err": err,

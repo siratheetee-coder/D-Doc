@@ -48,12 +48,27 @@ def br_list(request: Request, db: Session = Depends(get_db), year: int | None = 
 
 @router.get("/budget-requests/new")
 def br_new(request: Request, db: Session = Depends(get_db), project: int | None = None,
-           activity: int | None = None):
+           activity: int | None = None, travel: int | None = None):
     fy = current_fiscal_year()
     req = BudgetRequest(fiscal_year=fy, project_id=project, activity_id=valid_activity(db, activity, project))
     proj = db.get(Project, project) if project else None
     if proj:
         req.owner = proj.responsible or ""
+    if travel:   # ปุ่ม "ขอใช้งบประมาณ" ในคำขอไปราชการ
+        from app.models import TravelRequest
+        tr = db.get(TravelRequest, travel)
+        if not tr or tr.status == "rejected":
+            raise HTTPException(404, "ไม่พบคำขอไปราชการ หรือคำขอไม่ได้รับอนุมัติ")
+        old = svc.for_travel(db, tr.id)
+        if old:
+            return RedirectResponse(f"/budget-requests/{old.id}", 303)
+        d = svc.travel_defaults(tr)
+        line = d.pop("line")
+        for k, v in d.items():
+            setattr(req, k, v)
+        req.lines = [BudgetRequestLine(seq=0, **line)]
+        if tr.start_date:
+            req.fiscal_year = fy = current_fiscal_year(tr.start_date)
     ctx = _form_ctx(db, req, fy)
     ctx.update(request=request, is_new=True)
     return templates.TemplateResponse("budget_request_form.html", ctx)
@@ -82,6 +97,8 @@ def _save(db, req, form):
     st = form.get("status") or "ร่าง"
     if req.status != "ปิดแล้ว":
         req.status = st if st in svc.STATUSES[:3] else "ร่าง"
+    if "travel_request_id" in form:
+        req.travel_request_id = _int(form.get("travel_request_id")) or None
     keep = {ln.seq: ln for ln in req.lines}
     req.lines.clear()
     db.flush()
@@ -120,6 +137,8 @@ def _get(db, rid):
 
 
 def _detail_ctx(request, db, req, readonly):
+    from app.models import TravelRequest
+    travel = db.get(TravelRequest, req.travel_request_id) if req.travel_request_id else None
     groups = svc.groups(db, req)
     if not readonly:
         for g in groups:
@@ -130,7 +149,7 @@ def _detail_ctx(request, db, req, readonly):
             "total": svc.total(req), "nums": svc.budget_numbers(db, req), "steps": svc.STEPS,
             "step": svc.step_of(req, db), "ap_state": ap_state, "cmp": svc.compare(db, req, groups),
             "reserved": svc.reserved_of(db, req), "approved": svc.is_approved(db, req),
-            "closed": svc.is_closed(db, req),
+            "closed": svc.is_closed(db, req), "travel": travel,
             "doc_href": f"/me/budget-requests/{req.id}/doc.docx" if readonly else f"/budget-requests/{req.id}/doc.docx"}
 
 
@@ -187,6 +206,8 @@ def br_go(rid: int, m: str, db: Session = Depends(get_db)):
         return RedirectResponse(f"/budget-requests/{rid}", 303)
     kind = svc.TARGET[m][1]
     q = f"br={rid}&br_m={quote(m)}"
+    if kind == "disburse" and req.travel_request_id:   # เบิกค่าเดินทาง: ใช้ทางเดิมของไปราชการ (กันทำซ้ำ)
+        q += f"&travel={req.travel_request_id}"
     url = {"proc": f"/procurement/new?{q}", "loan": f"/finance/loans?year={req.fiscal_year}&{q}#new",
            "disburse": f"/finance/disburse?year={req.fiscal_year}&{q}"}[kind]
     return RedirectResponse(url, 303)

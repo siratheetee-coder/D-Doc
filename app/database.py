@@ -343,6 +343,7 @@ MIGRATIONS = [
     ("procurement", "paid_before_marked_at", "DATETIME"),
     ("acad_timetable", "locked", "BOOLEAN DEFAULT 0"),
     ("acad_timetable", "blocked", "BOOLEAN DEFAULT 0"),
+    ("budget_request", "travel_request_id", "INTEGER"),
     # ---- ตารางกลาง StudentMeasure สร้างอัตโนมัติผ่าน create_all (ไม่ต้อง migrate คอลัมน์) ----
 ]
 

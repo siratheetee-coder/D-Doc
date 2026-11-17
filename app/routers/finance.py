@@ -1026,6 +1026,13 @@ def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | N
                        "budget_source": "", "procurement_id": None, "project_id": None,
                        "proc_kind": "ค่าใช้จ่ายอื่น", "memo_no": "", "date": None, "item_id": None,
                        "travel_request_id": tr.id}
+            if br and br_m == "เบิกจ่ายตรง":
+                from app.routers.budget_request import br_source
+                src = br_source(db, br, br_m)
+                if src:
+                    req, _m, pre = src
+                    prefill.update(amount=pre["total"], project_id=req.project_id, activity_id=req.activity_id,
+                                   from_br=req.id, from_br_no=req.request_no)
     elif br and br_m == "เบิกจ่ายตรง":
         from app.routers.budget_request import br_source
         src = br_source(db, br, br_m)
@@ -1130,6 +1137,9 @@ def disburse_create(db: Session = Depends(get_db), fiscal_year: str = Form(""),
     if from_br and from_br_m == "เบิกจ่ายตรง":
         from app.routers.budget_request import link_from_form
         link_from_form(db, {"from_br": from_br, "from_br_m": from_br_m}, m.id)
+    elif m.travel_request_id:
+        from app.services.budget_request import link_travel_memo
+        link_travel_memo(db, m)
     commit_doc_no(db, "memo", fy, no, source="finance", ref_id=m.id, date=m.date,
                   subject=((m.subject or "").strip() if (m.subject or "").strip().startswith("ขออนุมัติเบิกจ่าย")
                            else f"ขออนุมัติเบิกจ่าย {(m.subject or '').strip()}".strip()))

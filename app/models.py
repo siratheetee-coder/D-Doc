@@ -2840,7 +2840,8 @@ class BudgetRequest(Base):
     activity_date = Column(DateTime, nullable=True)  # วันที่จัดกิจกรรม
     purpose = Column(Text, default="")
     inspectors = Column(Text, default="")            # กรรมการตรวจรับ บรรทัดละ 1 คน
-    status = Column(String, default="ร่าง")          # ร่าง / ส่งแล้ว (ช่วงถัดไป: อนุมัติ / ปิดแล้ว)
+    status = Column(String, default="ร่าง")          # ร่าง / ส่งแล้ว / อนุมัติแล้ว / ปิดแล้ว
+    travel_request_id = Column(Integer, nullable=True)  # ช่วงที่ 4: คำขอไปราชการที่เป็นต้นเรื่อง
     created_at = Column(DateTime, default=datetime.now)
 
     project = relationship("Project")

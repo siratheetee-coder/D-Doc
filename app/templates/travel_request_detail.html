@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}ไปราชการ {{ person.name if person else '' }}{% endblock %}
 {% block content %}
+{% set director_view = request.session.get('director') and not request.session.get('owner') %}
 {% set st = {'pending':('รอบุคคลตรวจ','#fef9c3','#854d0e'), 'personnel':('ผ่านบุคคล รอ ผอ. อนุมัติ','#dbeafe','#1e40af'), 'approved':('อนุมัติ','#dcfce7','#166534'), 'rejected':('ไม่อนุมัติ','#fee2e2','#b91c1c')}.get(r.status, ('รอบุคคลตรวจ','#fef9c3','#854d0e')) %}
 <div class="hero">
   <div>
@@ -33,6 +34,14 @@
     {% endif %}
     {% if r.doc_attachment_name %}
     <a class="btn sm" href="/me/travel/{{ r.id }}/doc" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> 📎 เอกสารประกอบ</a>
+    {% endif %}
+    {% if br_req or (can_budget and not director_view) %}
+    <div class="tr-claim">
+      {% if br_req %}<span><b>คำขอใช้งบประมาณ {{ br_req.request_no }}</b> {{ '{:,.2f}'.format(br_total) }} บาท สถานะ {{ br_req.status }}</span>
+      <a class="btn sm soft" href="/budget-requests/{{ br_req.id }}">เปิดคำขอใช้งบ</a>
+      {% else %}<span><b>ขอใช้งบประมาณ</b> ทำบันทึกขอใช้งบจากคำขอไปราชการนี้ เติมผู้ขอ เรื่อง และค่าใช้จ่ายที่ขอไว้ให้</span>
+      <a class="btn sm" href="/budget-requests/new?travel={{ r.id }}">ขอใช้งบประมาณ</a>{% endif %}
+    </div>
     {% endif %}
     {% if claim or can_claim %}
     <div class="tr-claim">

@@ -35,6 +35,7 @@
     <div class="t"><h1>คำขอใช้งบประมาณ {{ r.request_no }}</h1>
       <small>{{ r.project.name if r.project else r.purpose }}{% if r.owner %} ผู้รับผิดชอบ {{ r.owner }}{% endif %}{% if r.activity_date %} จัดวันที่ {{ be_date(r.activity_date) }}{% endif %}</small>
       <div style="margin-top:6px"><span class="brd-st {{ 'ok' if approved else 'wait' }}">{{ 'ปิดคำขอแล้ว' if closed else 'ผอ. อนุมัติแล้ว' if approved else 'เสนอ ผอ. แล้ว รออนุมัติ' if r.status == 'ส่งแล้ว' else 'ร่าง ยังไม่เสนอ ผอ.' }}</span>
+      {% if travel %}<a class="brd-st" href="{{ '/me/travel' if readonly else '/hr/travel-requests/' ~ travel.id }}">ไปราชการ {{ travel.subject }}</a>{% endif %}
       {% if reserved %}<span class="brd-st">กันงบโครงการไว้ {{ '{:,.2f}'.format(reserved) }} บาท</span>{% endif %}</div></div>
     <a class="btn" href="{{ doc_href }}"><svg class="icon"><use href="#ic-file"/></svg> บันทึกขอใช้งบประมาณ (Word)</a>
     {% if not readonly and not director_view %}<a class="btn gray" href="/budget-requests/{{ r.id }}/edit">แก้ไข</a>{% endif %}

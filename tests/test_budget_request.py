@@ -200,3 +200,42 @@ def test_phase3_reserve_compare_close_and_director_approval(env):
         doc = c.get(f"/budget-requests/{rid}/doc.docx"); assert doc.status_code == 200
     finally:
         db.close()
+
+
+def test_phase4_travel_request_to_budget_request_and_claim(env):
+    """ช่วงที่ 4: ขอใช้งบจากคำขอไปราชการ เบิกค่าเดินทางแล้วผูกกับคำขอใช้งบเอง ไม่สร้างคำขอซ้ำ"""
+    import datetime as dt
+    from app.models import DisburseMemo, TravelRequest
+    c = env
+    tid, db = _db()
+    try:
+        teacher = db.query(Person).first()
+        tr = TravelRequest(person_id=teacher.id, subject="อบรมครูวิทย์", place="ขอนแก่น", start_date=dt.date(2026, 12, 3),
+                           budget=2400, status="approved", reimburse="yes")
+        db.add(tr); db.commit()
+        page = c.get(f"/hr/travel-requests/{tr.id}")
+        assert f"/budget-requests/new?travel={tr.id}" in page.text
+        form = c.get(f"/budget-requests/new?travel={tr.id}")
+        assert "อบรมครูวิทย์" in form.text and 'name="travel_request_id"' in form.text and "2400" in form.text
+        r = c.post("/budget-requests/new", data=_payload(travel_request_id=str(tr.id), owner_person_id=str(teacher.id),
+                   purpose="เดินทางไปราชการ อบรมครูวิทย์", ln_type=["ค่าใช้สอย"], ln_name=["ค่าใช้จ่ายในการเดินทางไปราชการ"],
+                   ln_qty=["1"], ln_unit=["ครั้ง"], ln_price=["2400"], ln_method=["เบิกจ่ายตรง"]), follow_redirects=False)
+        rid = int(r.headers["location"].split("/")[-1].split("?")[0])
+        db.expire_all()
+        req = db.get(BudgetRequest, rid)
+        assert req.travel_request_id == tr.id and svc.for_travel(db, tr.id).id == rid
+        # กดซ้ำ = เปิดคำขอเดิม
+        assert c.get(f"/budget-requests/new?travel={tr.id}", follow_redirects=False).headers["location"] == f"/budget-requests/{rid}"
+        assert f"/budget-requests/{rid}" in c.get(f"/hr/travel-requests/{tr.id}").text
+        # ปุ่มเบิกจ่ายตรงไปทางเบิกค่าเดินทางเดิม
+        go = c.get(f"/budget-requests/{rid}/go?m=เบิกจ่ายตรง", follow_redirects=False).headers["location"]
+        assert f"travel={tr.id}" in go and "br=" in go
+        # ทำเรื่องเบิกจากหน้าไปราชการ (ไม่มี from_br) ก็ผูกให้
+        r = c.post("/finance/disburse", data={"fiscal_year": "2570", "subject": "ค่าเดินทาง", "payee": teacher.name,
+                   "amount": "2200", "proc_kind": "ค่าใช้จ่ายอื่น", "travel_request_id": str(tr.id)}, follow_redirects=False)
+        mid = int(r.headers["location"].split("/")[-1].split("?")[0])
+        db.expire_all()
+        assert db.get(DisburseMemo, mid) and req.lines[0].disburse_id == mid
+        assert svc.compare(db, req)["diff"] == 200
+    finally:
+        db.close()

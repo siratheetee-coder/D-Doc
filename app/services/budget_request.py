@@ -316,3 +316,29 @@ def render_docx(db, req, school) -> str:
         from app.services.approval import stamp_current
         stamp_current("budget_request", req.id, str(p), getattr(school, "director_name", "") or "", tick=("อนุมัติ",))
     return str(p)
+
+
+# ---------------- ช่วงที่ 4: คำขอไปราชการ ----------------
+def for_travel(db, travel_id):
+    from app.models import BudgetRequest
+    return (db.query(BudgetRequest).filter(BudgetRequest.travel_request_id == travel_id)
+            .order_by(BudgetRequest.id.desc()).first()) if travel_id else None
+
+
+def travel_defaults(tr) -> dict:
+    """ค่าตั้งต้นคำขอใช้งบจากคำขอไปราชการ: ค่าใช้จ่ายเดินทาง 1 รายการ เบิกจ่ายตรง (แก้ได้)"""
+    place = f" ณ {tr.place}" if tr.place else ""
+    return dict(purpose=f"เดินทางไปราชการ {tr.subject or ''}{place}".strip(),
+                owner=tr.person.name if tr.person else "", owner_person_id=tr.person_id,
+                activity_date=tr.start_date, travel_request_id=tr.id,
+                line=dict(cost_type="ค่าใช้สอย", name="ค่าใช้จ่ายในการเดินทางไปราชการ", qty=1, unit="ครั้ง",
+                          price=float(tr.budget or 0), method="เบิกจ่ายตรง"))
+
+
+def link_travel_memo(db, memo):
+    """บันทึกขอเบิกค่าเดินทางที่ทำจากคำขอไปราชการ: ผูกกับรายการเบิกจ่ายตรงของคำขอใช้งบที่มาจากไปราชการเดียวกัน"""
+    req = for_travel(db, getattr(memo, "travel_request_id", None))
+    if req and pending_lines(req, "เบิกจ่ายตรง", db):
+        link(db, req, "เบิกจ่ายตรง", memo.id)
+        return req.id
+    return None
