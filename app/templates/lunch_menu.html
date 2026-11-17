@@ -1,6 +1,6 @@
 {% extends 'base.html' %}{% block title %}จัดเมนูอาหารกลางวัน{% endblock %}{% block content %}
 {% include '_lunch_menu_style.html' %}
-<div class="lm-header"><div><h1>จัดเมนูอาหารกลางวัน</h1><span class="muted">{{ school.name }} · ปีการศึกษา {{ p.year }}</span></div><div class="lm-actions"><a class="btn gray sm" href="/lunch/{{ p.id }}/menu/print" target="_blank">พิมพ์ตารางเมนู</a><a class="btn gray sm" href="{{ back or '/lunch/' ~ p.id }}">← {{ 'กลับหน้าสร้างเรื่อง' if back else 'กลับหน้าโครงการ' }}</a></div></div>
+<div class="lm-header"><div><h1>จัดเมนูอาหารกลางวัน</h1><span class="muted">{{ school.name }} · ปีการศึกษา {{ p.year }}</span></div><div class="lm-actions"><a class="btn sm" style="background:linear-gradient(135deg,#f97316,#f59e0b);border:none" href="/lunch/{{ p.id }}/tsl-import{{ ('?back=' ~ back) if back else '' }}">นำเข้าจาก Thai School Lunch</a><a class="btn gray sm" href="/lunch/{{ p.id }}/menu/print" target="_blank">พิมพ์ตารางเมนู</a><a class="btn gray sm" href="{{ back or '/lunch/' ~ p.id }}">← {{ 'กลับหน้าสร้างเรื่อง' if back else 'กลับหน้าโครงการ' }}</a></div></div>
 <nav class="lm-tabs" aria-label="จัดเมนู"><a class="active" href="/lunch/{{ p.id }}/menu">เมนูรายวัน</a><a href="/lunch/{{ p.id }}/menu/sets">ชุดเมนูอาหาร</a></nav>
 {% if request.query_params.get('msg') %}<div class="alert">{{ request.query_params.get('msg') }}</div>{% endif %}
 {% if filled %}<div class="alert">สร้างเมนู {{ filled }} วัน</div>{% endif %}

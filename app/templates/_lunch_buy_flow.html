@@ -104,6 +104,7 @@
         <b style="color:{{ '#dc2626' if left < 0 else '#047857' }};">{{ "{:,.2f}".format(left) }}</b></div>
     </div>
     <a class="btn" href="/lunch/{{ p.id }}/ingredients?back=/lunch/round/{{ r.id }}/plan" style="background:linear-gradient(135deg,#ea580c,#f59e0b); border:none;"><svg class="icon"><use href="#ic-clipboard"/></svg> กรอกวัตถุดิบรายวัน</a>
+    <a class="btn" href="/lunch/{{ p.id }}/tsl-import?back=/lunch/round/{{ r.id }}/plan" style="background:linear-gradient(135deg,#6366f1,#4f46e5); border:none;">นำเข้าจาก Thai School Lunch</a>
   </div>
   <div class="bf-rows">
     {{ drow(n1 ~ '.1', 'ใบจัดซื้อวัสดุ 4 ส่วน + แนบท้าย', ID ~ 'purchase') }}

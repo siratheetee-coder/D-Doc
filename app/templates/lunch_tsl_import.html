@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}นำเข้าจาก Thai School Lunch{% endblock %}
+{% block content %}
+<style>
+.tsl-hero{background:linear-gradient(135deg,#fff7ed,#fef3c7);border-radius:16px;padding:18px 20px}
+.tsl-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:14px 0 0}
+.tsl-steps div{background:#fff;border-radius:12px;padding:12px 14px;font-size:14px}
+.tsl-steps b{display:inline-flex;width:24px;height:24px;border-radius:50%;align-items:center;justify-content:center;background:linear-gradient(135deg,#f97316,#f59e0b);color:#fff;margin-right:6px}
+.tsl-paste{min-height:150px;border-radius:14px;background:linear-gradient(135deg,#f8fafc,#eef2ff);padding:18px;outline:none;color:#64748b;display:flex;align-items:center;justify-content:center;text-align:center;cursor:text}
+.tsl-paste:focus{box-shadow:0 0 0 3px #c7d2fe}
+.tsl-day{background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-radius:14px;padding:14px 16px;margin-top:12px}
+.tsl-day.off{opacity:.45}
+.tsl-dh{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+.tsl-menu{display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-top:10px}
+.tsl-tbl{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px}
+.tsl-tbl td,.tsl-tbl th{padding:4px 6px;text-align:left}
+.tsl-tbl input{width:100%;padding:5px 7px}
+.tsl-tbl .n{text-align:right;width:110px}
+.tsl-mem{font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;background:#dcfce7;color:#166534;white-space:nowrap}
+.tsl-warn{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;background:#fef3c7;color:#92400e}
+.tsl-sum{position:sticky;bottom:0;background:linear-gradient(135deg,#eef2ff,#e0e7ff);border-radius:14px;padding:12px 16px;margin-top:14px;display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+@media(max-width:640px){.tsl-menu{grid-template-columns:1fr}.tsl-tbl .n{width:80px}}
+</style>
+<div class="card">
+  <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
+    <h1 style="margin:0">นำเข้าจาก Thai School Lunch</h1>
+    <a class="btn sm gray" href="{{ back or ('/lunch/' ~ p.id ~ ('/ingredients' if with_ings else '/menu')) }}">← กลับ</a>
+  </div>
+  {% if not preview %}
+  <div class="tsl-hero" style="margin-top:12px">
+    <b>ระบบจะนำเข้า{{ 'เมนูและวัตถุดิบ' if with_ings else 'เมนูรายวัน' }}ให้</b>
+    {% if with_ings %}<div class="muted" style="font-size:14px">ปริมาณวัตถุดิบคิดใหม่ตามนักเรียนจริงของโครงการ {{ p.total_students }} คน และใช้ราคาที่โรงเรียนเคยแก้ไว้ให้อัตโนมัติ</div>{% endif %}
+    <div class="tsl-steps">
+      <div><b>1</b>ที่ Thai School Lunch เปิด <u>รายงาน</u> เลือก "รายงานวัตถุดิบและปริมาณการจัดซื้อ" เลือกช่วงวันที่ แล้วกดดูรายงาน</div>
+      <div><b>2</b>ในหน้ารายงาน กด <b style="width:auto;padding:0 6px;border-radius:6px">Ctrl+A</b> แล้ว <b style="width:auto;padding:0 6px;border-radius:6px">Ctrl+C</b></div>
+      <div><b>3</b>กลับมาคลิกกล่องด้านล่าง แล้วกด <b style="width:auto;padding:0 6px;border-radius:6px">Ctrl+V</b></div>
+    </div>
+  </div>
+  {% if error %}<div class="alert warn" style="margin-top:12px">{{ error }}</div>{% endif %}
+  <form id="tslForm" method="post" action="/lunch/{{ p.id }}/tsl-import/preview" style="margin-top:14px">
+    <input type="hidden" name="rows" id="tslRows"><input type="hidden" name="text" id="tslText">
+    <input type="hidden" name="back" value="{{ back }}">
+    <div class="tsl-paste" id="tslPaste" contenteditable="true" role="textbox" aria-label="วางรายงานที่นี่">คลิกที่นี่ แล้วกด Ctrl+V เพื่อวางรายงาน</div>
+  </form>
+  <script>
+  (function(){
+    var box=document.getElementById('tslPaste');
+    box.addEventListener('paste',function(e){
+      e.preventDefault();
+      var cd=e.clipboardData, html=cd.getData('text/html'), text=cd.getData('text/plain')||'', rows=[];
+      if(html){
+        var doc=new DOMParser().parseFromString(html,'text/html');
+        doc.querySelectorAll('tr').forEach(function(tr){
+          rows.push(Array.prototype.map.call(tr.cells,function(c){return c.innerText||c.textContent||''}));
+        });
+        if(!text) text=doc.body.innerText||'';
+      }
+      document.getElementById('tslRows').value=JSON.stringify(rows);
+      document.getElementById('tslText').value=text;
+      box.textContent='กำลังอ่านรายงาน...';
+      document.getElementById('tslForm').submit();
+    });
+  })();
+  </script>
+  {% else %}
+  <p class="muted" style="margin:8px 0 0">
+    พบ {{ preview.days|length }} วัน
+    {% if with_ings and preview.report_n %}ปริมาณในรายงานคิดจาก {{ preview.report_n }} คน ปรับเป็นนักเรียนจริง {{ preview.actual }} คนแล้ว{% endif %}
+    ตรวจและแก้ได้ก่อนบันทึก
+  </p>
+  <form method="post" action="/lunch/{{ p.id }}/tsl-import/save" id="tslSave">
+    <input type="hidden" name="back" value="{{ back }}">
+    {% set ex = preview.days|selectattr('exists')|list %}
+    {% if ex %}
+    <div class="alert warn" style="margin-top:12px">มี {{ ex|length }} วันที่มีข้อมูลในระบบอยู่แล้ว
+      <label style="display:inline-flex;gap:6px;margin-left:10px"><input type="radio" name="replace" value="0" checked> ข้ามวันนั้น</label>
+      <label style="display:inline-flex;gap:6px;margin-left:10px"><input type="radio" name="replace" value="1"> แทนที่ด้วยข้อมูลใหม่</label>
+    </div>{% endif %}
+    {% for d in preview.days %}{% set k = loop.index0 %}
+    <div class="tsl-day" data-day="{{ k }}">
+      <div class="tsl-dh">
+        <label style="display:flex;gap:8px;align-items:center;font-weight:700"><input type="checkbox" name="d_on" value="{{ k }}" checked> {{ be(d.date) }}</label>
+        <span>{% if d.exists %}<span class="tsl-warn">มีข้อมูลเดิม</span>{% endif %}{% if with_ings %} รวม <b class="tsl-dt">0.00</b> บาท{% endif %}</span>
+      </div>
+      <input type="hidden" name="d_date" value="{{ d.date.strftime('%Y-%m-%d') }}">
+      <div class="tsl-menu">
+        <div><label>อาหารคาว</label><input name="d_main" value="{{ d.main }}" maxlength="500"></div>
+        <div><label>ผลไม้ / ของหวาน</label><input name="d_dessert" value="{{ d.dessert }}" maxlength="500"></div>
+      </div>
+      {% if with_ings %}
+      <table class="tsl-tbl">
+        <tr><th>วัตถุดิบ</th><th class="n">จำนวน</th><th class="n">หน่วย</th><th class="n">ราคา/หน่วย</th><th class="n">เป็นเงิน</th></tr>
+        {% for g in d.ings %}
+        <tr><td><input type="hidden" name="i_day" value="{{ k }}"><input name="i_name" value="{{ g.name }}"></td>
+          <td class="n"><input name="i_qty" value="{{ '%g'|format(g.qty) }}" inputmode="decimal"></td>
+          <td class="n"><input name="i_unit" value="{{ g.unit }}"></td>
+          <td class="n"><input name="i_price" value="{{ '%g'|format(g.price) }}" inputmode="decimal">{% if g.remembered %}<span class="tsl-mem">ราคาที่เคยใช้</span>{% endif %}</td>
+          <td class="n tsl-amt">0.00</td></tr>
+        {% endfor %}
+      </table>
+      {% endif %}
+    </div>
+    {% endfor %}
+    <div class="tsl-sum">
+      <span>{% if with_ings %}รวมวัตถุดิบที่เลือก <b id="tslAll" style="font-size:18px">0.00</b> บาท{% else %}บันทึกเมนูของวันที่ติ๊กไว้{% endif %}</span>
+      <span style="display:flex;gap:8px"><a class="btn gray" href="/lunch/{{ p.id }}/tsl-import{{ ('?back=' ~ back) if back else '' }}">วางใหม่</a>
+      <button class="btn" type="submit">บันทึก</button></span>
+    </div>
+  </form>
+  <script>
+  (function(){
+    function n(v){v=parseFloat(String(v).replace(/,/g,''));return isNaN(v)?0:v}
+    function f(v){return v.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2})}
+    function calc(){
+      var all=0;
+      document.querySelectorAll('.tsl-day').forEach(function(day){
+        var on=day.querySelector('[name=d_on]').checked, t=0;
+        day.classList.toggle('off',!on);
+        day.querySelectorAll('.tsl-tbl tr').forEach(function(tr){
+          var q=tr.querySelector('[name=i_qty]'), p=tr.querySelector('[name=i_price]');
+          if(!q) return; var a=n(q.value)*n(p.value); t+=a; tr.querySelector('.tsl-amt').textContent=f(a);
+        });
+        var dt=day.querySelector('.tsl-dt'); if(dt) dt.textContent=f(t);
+        if(on) all+=t;
+      });
+      var el=document.getElementById('tslAll'); if(el) el.textContent=f(all);
+    }
+    document.getElementById('tslSave').addEventListener('input',calc);
+    document.getElementById('tslSave').addEventListener('change',calc);
+    calc();
+  })();
+  </script>
+  {% endif %}
+</div>
+{% endblock %}
