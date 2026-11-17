@@ -62,7 +62,7 @@
     {% if r.status == 'จ่ายแล้ว' and not ln %}
     <p class="muted" style="margin:0;">รอบนี้ปิดไปก่อนมีการ์ดยืมเงิน ระบบลงบัญชีไว้แบบเดิมแล้ว เอกสารด้านล่างยังออกได้ตามปกติ</p>
     {% else %}
-    <form method="post" action="/lunch/round/{{ r.id }}/loan" class="bf-loan-form">
+    <form method="post" action="/lunch/round/{{ r.id }}/loan" class="bf-loan-form bf-loan-5" id="bfLoanForm{{ r.id }}">
       <div><label>เลขที่สัญญายืม</label><input name="contract_no" value="{{ ln.contract_no if ln else '' }}" placeholder="เช่น 1/{{ p.year }}"></div>
       <div><label>วันที่ยืม</label><input name="date" value="{{ be_date(ln.date) if ln and ln.date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
       <div><label>ผู้ยืม</label><input name="borrower" value="{{ (ln.borrower if ln else '') or p.lunch_officer or '' }}" placeholder="ชื่อ-นามสกุล" list="persons_dl"></div>
@@ -70,7 +70,7 @@
         <small class="muted">{{ p.total_students }} คน x {{ r.days }} วัน x {{ "{:,.2f}".format(p.rate_per_head or 0) }} บาท{% if PERSON and r.cook_wage %} หักค่าจ้างแม่ครัว {{ "{:,.2f}".format(r.cook_wage) }}{% endif %}</small></div>
       <div><label>วันที่ได้รับเงิน</label><input name="receive_date" value="{{ be_date(ln.receive_date) if ln and ln.receive_date else '' }}" placeholder="ใส่เมื่อได้รับเงินแล้ว" data-date="1">
         <small class="muted">ใส่แล้วระบบลงจ่ายเงินยืมในบัญชีให้</small></div>
-      <div class="bf-loan-act"><button class="btn" type="submit" data-no-floating-save>{{ 'บันทึกการแก้ไข' if ln else 'บันทึกการยืมเงิน' }}</button></div>
+      {% if not ln %}<div class="bf-loan-act"><button class="btn" type="submit" data-no-floating-save>บันทึกการยืมเงิน</button></div>{% endif %}
     </form>
     {% if ln %}
     <div class="bf-loan-status">
@@ -82,6 +82,7 @@
         <input type="hidden" name="action" value="remove"><button class="btn sm gray" type="submit" data-no-floating-save>ยกเลิกสัญญายืม</button>
       </form>
       {% endif %}
+      <button class="btn" type="submit" form="bfLoanForm{{ r.id }}" data-no-floating-save style="margin-left:auto">บันทึกการแก้ไข</button>
     </div>
     {% endif %}
     {% endif %}
@@ -245,6 +246,8 @@
   .bf-loan-form label{ font-size:13px; }
   .bf-loan-form small{ display:block; font-size:12px; margin-top:2px; }
   .bf-loan-act{ grid-column:1/-1; display:flex; justify-content:flex-end; }
+  .bf-loan-5{ grid-template-columns:repeat(5,minmax(0,1fr)); }
+  @media(max-width:900px){ .bf-loan-5{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
   .bf-loan-status{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:10px; font-size:13.5px; }
   .bf-chip{ padding:3px 10px; border-radius:99px; background:#e2e8f0; color:#475569; font-size:12.5px; font-weight:600; }
   .bf-chip.ok{ background:#bbf7d0; color:#166534; } .bf-chip.bad{ background:#fee2e2; color:#b91c1c; }
