@@ -983,8 +983,11 @@
     };
     // แปะลิงก์ "ดูเลขล่าสุด" ใต้ช่องกรอกเลขเอกสารทุกช่องอัตโนมัติ (ทุกงานที่มีเลขรันต่อเนื่อง)
     document.addEventListener('DOMContentLoaded', function(){
-      var names = ['memo_no','order_no','recv_no','send_no','result_memo_no','spec_memo_no','inspect_memo_no','command_no'];
-      var sel = names.map(function(n){ return 'input[name="' + n + '"]'; }).join(',');
+      var names = ['memo_no','order_no','recv_no','send_no','result_memo_no','spec_memo_no','inspect_memo_no','command_no',
+        'spec_cmd_no','purchase_cmd_no','budget_memo_no','winner_no','req_memo_no','wo_memo_no','sale_memo_no','price_memo_no',
+        'fact_memo_no','fact_order_no','fact_report_no','destroy_memo_no','auction_order_no','auction_report_no','remit_no',
+        'delegation_cmd_no','request_no','doc_no'];
+      var sel = names.map(function(n){ return 'input[name="' + n + '"]'; }).join(',') + ',input.dn-f[data-key="no"],input[data-dn-peek-on]';
       var yEl = document.querySelector('input[name="fiscal_year"],select[name="year"]');
       document.querySelectorAll(sel).forEach(function(el){
         if(el.dataset.dnPeek) return; el.dataset.dnPeek = '1';
