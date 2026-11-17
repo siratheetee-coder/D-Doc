@@ -941,6 +941,29 @@ def _back_buy(rid, msg="", err=""):
     return RedirectResponse(f"/lunch/round/{rid}/plan{q}#buy", status_code=303)
 
 
+@router.post("/lunch/round/{rid}/bk")
+def round_bk(rid: int, db: Session = Depends(get_db), action: str = Form("run"),
+             day: str = Form(""), no: str = Form("")):
+    from app.services import lunch_bk
+    from urllib.parse import quote
+    rnd = db.get(LunchHireRound, rid)
+    if not rnd:
+        return RedirectResponse("/lunch", status_code=303)
+    msg = ""
+    try:
+        d = datetime.fromisoformat(day).date() if day else None
+    except ValueError:
+        d = None
+    if action == "all":
+        lunch_bk.run_missing(db, rnd)
+    elif d and action == "run":
+        lunch_bk.run_day(db, rnd, d)
+    elif d and action == "save":
+        msg = lunch_bk.set_manual(db, rnd, d, no)
+    q = ("&bk=" + quote(msg)) if msg else ""
+    return RedirectResponse(f"/lunch/round/{rid}/plan?_={datetime.now().timestamp():.0f}{q}#bk-days", status_code=303)
+
+
 @router.post("/lunch/round/{rid}/loan")
 async def round_loan_save(rid: int, request: Request, db: Session = Depends(get_db)):
     """ยืมเงินซื้อวัตถุดิบ: กรอกที่หน้ารอบ ระบบสร้างสัญญาในทะเบียนคุมเงินยืมของการเงินให้"""
@@ -1545,6 +1568,8 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
         "pay_by_round": _pays_by_round(rnd),
         "round_pay": _round_pay(db, rnd) if _pays_by_round(rnd) else None,
         "loan": _loan_state(rnd) if rnd.program.operate_mode in ("person", "ingredient") else None,
+        "bk_days": __import__("app.services.lunch_bk", fromlist=["x"]).day_rows(db, rnd) if rnd.program.operate_mode in ("person", "ingredient") else [],
+        "bk_msg": request.query_params.get("bk", ""),
         **_close_ctx(rnd),
         "setup": _round_setup(rnd, committees, com_kinds, doc_no_rows, menu_days, ing_total, ing_remaining),
     })

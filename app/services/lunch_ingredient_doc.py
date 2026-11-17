@@ -360,7 +360,7 @@ def _purchase_day_block(doc, rnd, school, day_dt, day_ings):
         row.cells[1].width = _Cm(7.75)
 
     _box_cell(tbl.cell(0, 0), [("ส่วนที่ 1 รายงานขอซื้อ", "left", True)], size=13)
-    _box_cell(tbl.cell(0, 1), [("ส่วนที่ 3 ใบรับรองแทนใบเสร็จ (บค. ........./..........)", "left", True)], size=13)
+    _box_cell(tbl.cell(0, 1), [(f"ส่วนที่ 3 ใบรับรองแทนใบเสร็จ ({_bk_no(rnd, day_dt) or 'บค. ........./..........'})", "left", True)], size=13)
     _box_cell(tbl.cell(1, 0), [
         (f"ด้วย {sname} ขอจัดซื้อวัสดุเครื่องบริโภคตามรายการต่อไปนี้ เพื่อประกอบอาหารให้แก่นักเรียน"
          f"รับประทาน ในวันที่ {daystr} การจัดซื้อครั้งนี้ดำเนินการโดยวิธีเฉพาะเจาะจง"
@@ -738,6 +738,14 @@ def render_reimburse_summary(rnd, school, doc=None) -> str:
          (f"วันที่ {DOT}", "center")]])
     _p(doc, "*** ใช้เอกสารนี้เฉพาะกรณีส่งใช้คืนเงินยืมเป็นภาคเรียน", size=13, before=12)
     return _finish(doc, own, f"ใบสรุปเบิกเงินชดเชยเงินยืม_รอบที่{rnd.seq}_ปี{prog.year}")
+
+
+def _bk_no(rnd, d):
+    try:
+        from app.services.lunch_bk import no_for
+        return no_for(rnd, d)
+    except Exception:
+        return ""
 
 
 def _ings_by_day(rnd):

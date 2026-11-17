@@ -109,6 +109,24 @@
   </div>
   <div class="bf-rows">
     {{ drow(n1 ~ '.1', 'ใบจัดซื้อวัสดุ 4 ส่วน + แนบท้าย', ID ~ 'purchase') }}
+    {% if bk_days %}
+    <div class="bk-box" id="bk-days">
+      <div class="bk-head"><b>เลข บค. ใบรับรองแทนใบเสร็จ (รายวัน)</b>
+        {% if bk_days|rejectattr('no')|list %}<form method="post" action="/lunch/round/{{ r.id }}/bk" style="margin:0"><input type="hidden" name="action" value="all"><button class="btn sm gray" type="submit" data-no-floating-save>รันให้ทุกวันที่ยังไม่มีเลข</button></form>{% endif %}</div>
+      <small class="muted">กดรันเลขในวันที่ซื้อจริง เลขต่อจากทะเบียนคุมเงิน และจะไปเติมในใบจัดซื้อ 4 ส่วนของวันนั้น</small>
+      {% if bk_msg %}<div class="alert warn" style="margin:8px 0 0">{{ bk_msg }}</div>{% endif %}
+      {% for b in bk_days %}
+      <form method="post" action="/lunch/round/{{ r.id }}/bk" class="bk-row">
+        <input type="hidden" name="day" value="{{ b.iso }}">
+        <span class="bk-d">{{ be_date(b.date) }}</span>
+        <span class="bk-t">{{ "{:,.2f}".format(b.total) }} บาท</span>
+        <input name="no" value="{{ b.no }}" placeholder="ยังไม่มีเลข" aria-label="เลข บค. วันที่ {{ be_date(b.date) }}">
+        {% if not b.no %}<button class="btn sm" name="action" value="run" type="submit" data-no-floating-save>รันเลข</button>{% endif %}
+        <button class="btn sm gray" name="action" value="save" type="submit" data-no-floating-save>บันทึก</button>
+      </form>
+      {% endfor %}
+    </div>
+    {% endif %}
     {{ drow(n1 ~ '.2', 'ใบส่งมอบวัตถุดิบ (รายวัน)', ID ~ 'ingredient-deliver') }}
     {{ drow(n1 ~ '.3', 'ใบรับรายงานวัตถุดิบ', ID ~ 'material') }}
     {{ drow(n1 ~ '.4', 'ใบรับรองการจ่ายเงินค่าวัตถุดิบ', ID ~ 'receipt') }}
@@ -249,6 +267,11 @@
   .bf-loan-5{ grid-template-columns:repeat(5,minmax(0,1fr)); }
   @media(max-width:900px){ .bf-loan-5{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
   .bf-loan-status{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:10px; font-size:13.5px; }
+  .bk-box{ margin:4px 0 8px; padding:12px 14px; border-radius:14px; background:linear-gradient(120deg,#f0fdf4,#ecfeff); }
+  .bk-head{ display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+  .bk-row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:8px 0 0; }
+  .bk-row .bk-d{ width:100px; font-weight:600; } .bk-row .bk-t{ width:120px; text-align:right; color:#475569; font-size:13.5px; }
+  .bk-row input{ width:160px; }
   .bf-chip{ padding:3px 10px; border-radius:99px; background:#e2e8f0; color:#475569; font-size:12.5px; font-weight:600; }
   .bf-chip.ok{ background:#bbf7d0; color:#166534; } .bf-chip.bad{ background:#fee2e2; color:#b91c1c; }
   .bf-ing-nums{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; flex:1 1 420px; }
