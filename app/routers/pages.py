@@ -4340,6 +4340,10 @@ def materials_page(request: Request, db: Session = Depends(get_db)):
     buckets = {}
     for it in items:
         buckets.setdefault((it.category or "").strip() or "วัสดุทั่วไป", []).append(it)
+    # ของที่หมดแล้ว (คงเหลือ 0) ไปอยู่ท้ายหมวด ที่ยังมีของขึ้นก่อน (sort คงลำดับชื่อเดิม)
+    from app.templating import material_balance
+    for rows in buckets.values():
+        rows.sort(key=lambda it: float(material_balance(it) or 0) <= 0)
     groups = sorted(buckets.items(), key=lambda kv: (kv[0] != "วัสดุทั่วไป", kv[0]))
     return templates.TemplateResponse("materials.html", {
         "request": request, "items": items, "groups": groups,
