@@ -4514,6 +4514,18 @@ def requisitions_page(request: Request, db: Session = Depends(get_db)):
     })
 
 
+def _next_req_no(db, d=None) -> str:
+    """เลขใบเบิกถัดไป รันต่อจากเลขมากสุดของปีงบเดียวกัน รูปแบบ ลำดับ/ปีงบ"""
+    import re
+    fy = current_fiscal_year(d) if d else current_fiscal_year()
+    n = 0
+    for (no,) in db.query(Requisition.req_no).filter(Requisition.req_no.like(f"%/{fy}")):
+        m = re.match(r"\s*(\d+)\s*/", no or "")
+        if m:
+            n = max(n, int(m.group(1)))
+    return f"{n + 1}/{fy}"
+
+
 @router.get("/requisitions/new", response_class=HTMLResponse)
 def requisition_new(request: Request, db: Session = Depends(get_db)):
     requested_ids = {int(x) for x in request.query_params.getlist('material_id') if x.isascii() and x.isdigit() and len(x) < 16}
@@ -4522,7 +4534,7 @@ def requisition_new(request: Request, db: Session = Depends(get_db)):
         "request": request, "selected_ids": selected_ids, "items": db.query(MaterialItem).order_by(MaterialItem.name).all(),
         "persons": db.query(Person).order_by(Person.name).all(),
         "departments": db.query(Department).order_by(Department.name).all(),
-        "today_thai": be_date_input(datetime.now()),
+        "today_thai": be_date_input(datetime.now()), "sug_no": _next_req_no(db),
     })
 
 
@@ -4536,6 +4548,8 @@ async def requisition_create(request: Request, db: Session = Depends(get_db)):
         department=(form.get("department") or "").strip(),
         purpose=(form.get("purpose") or "").strip(),
     )
+    if not req.req_no:
+        req.req_no = _next_req_no(db, req.date)
     names = form.getlist("item_name")
     qtys = form.getlist("item_qty")
     units = form.getlist("item_unit")

@@ -8,7 +8,7 @@
   <h1>สร้างใบเบิกวัสดุ</h1>
   <form method="post" action="/requisitions/new">
     <div class="row">
-      <div><label>เลขที่ใบเบิก</label><input name="req_no" placeholder="เช่น 1/2569"></div>
+      <div><label>เลขที่ใบเบิก</label><input name="req_no" value="{{ sug_no }}"><small class="muted">ระบบรันเลขถัดไปให้ แก้ได้</small></div>
       <div><label>วันที่</label><input name="date" value="{{ today_thai }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
       <div><label>ผู้ขอเบิก</label><input name="requester" list="reqpersons"></div>
       <div><label>ฝ่าย/งาน</label><input name="department" list="reqdepts"></div>
