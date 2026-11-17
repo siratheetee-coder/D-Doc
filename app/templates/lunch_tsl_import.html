@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}นำเข้าจาก Thai School Lunch{% endblock %}
-{% block content %}
+{% block content %}{% set rw = 'รอบจัดซื้อ' if with_ings else 'รอบจ้าง' %}
 <style>
 .tsl-hero{background:linear-gradient(135deg,#fff7ed,#fef3c7);border-radius:16px;padding:18px 20px}
 .tsl-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:14px 0 0}
@@ -67,7 +67,7 @@
     พบ {{ preview.days|length }} วัน
     {% if with_ings and preview.report_n %}ปริมาณในรายงานคิดจาก {{ preview.report_n }} คน ปรับเป็นนักเรียนจริง {{ preview.actual }} คนแล้ว{% endif %}
     ตรวจและแก้ได้ก่อนบันทึก
-    {% if preview.days|selectattr("closed")|list or preview.days|selectattr("outside")|list %}<br>วันที่ปิดเรียนหรืออยู่นอกช่วงรอบ ระบบเอาติ๊กออกให้แล้ว ถ้าต้องการก็ติ๊กกลับได้{% endif %}
+    {% if preview.days|selectattr("closed")|list or preview.days|selectattr("outside")|list %}<br>วันที่ปิดเรียนหรืออยู่นอก{{ rw }}นี้ ระบบเอาติ๊กออกให้แล้ว ถ้าต้องการก็ติ๊กกลับได้{% endif %}
   </p>
   <form method="post" action="/lunch/{{ p.id }}/tsl-import/save" id="tslSave">
     <input type="hidden" name="back" value="{{ back }}">
@@ -81,7 +81,7 @@
     <div class="tsl-day" data-day="{{ k }}">
       <div class="tsl-dh">
         <label style="display:flex;gap:8px;align-items:center;font-weight:700"><input type="checkbox" name="d_on" value="{{ k }}" {{ '' if d.closed or d.outside else 'checked' }}> {{ be(d.date) }}</label>
-        <span>{% if d.closed %}<span class="tsl-warn" style="background:#fee2e2;color:#991b1b">วันนี้ปิดเรียน</span> {% endif %}{% if d.outside %}<span class="tsl-warn" style="background:#e0e7ff;color:#3730a3">นอกช่วงรอบนี้</span> {% endif %}{% if d.exists %}<span class="tsl-warn">มีข้อมูลเดิม</span>{% endif %}{% if with_ings %} รวม <b class="tsl-dt">0.00</b> บาท{% endif %}</span>
+        <span>{% if d.closed %}<span class="tsl-warn" style="background:#fee2e2;color:#991b1b">วันนี้ปิดเรียน</span> {% endif %}{% if d.outside %}<span class="tsl-warn" style="background:#e0e7ff;color:#3730a3">อยู่นอก{{ rw }}นี้</span> {% endif %}{% if d.exists %}<span class="tsl-warn">มีข้อมูลเดิม</span>{% endif %}{% if with_ings %} รวม <b class="tsl-dt">0.00</b> บาท{% endif %}</span>
       </div>
       <input type="hidden" name="d_date" value="{{ d.date.strftime('%Y-%m-%d') }}">
       <div class="tsl-menu">
