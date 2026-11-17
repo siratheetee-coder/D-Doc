@@ -85,14 +85,18 @@ def _ledger_totals(prog: LunchProgram, db=None) -> dict:
 
 # ---------------- หน้าหลัก ----------------
 @router.get("/lunch", response_class=HTMLResponse)
-def lunch_home(request: Request, db: Session = Depends(get_db)):
-    progs = (db.query(LunchProgram)
-             .filter((LunchProgram.pool == 0) | (LunchProgram.pool.is_(None)))
-             .order_by(LunchProgram.year.desc(), LunchProgram.id.desc()).all())
-    rows = [{"p": p, "totals": _ledger_totals(p, db)} for p in progs]
+def lunch_home(request: Request, db: Session = Depends(get_db), year: int = 0, pid: int = 0):
+    from app.routers.academic import _acad_year
+    from app.services.lunch_dashboard import overview
+    from app.services.lunch_finance import thai_short
+    can_finance = bool(request.session.get("owner") or request.session.get("director")
+                       or "finance" in parse_modules(request.session.get("mods", "")))
+    dashboard = overview(db, _acad_year(db), year, pid, can_finance)
     return templates.TemplateResponse("lunch_home.html", {
-        "request": request, "school": get_school(db), "rows": rows,
-        "modes": OPERATE_MODES,
+        "request": request, "school": get_school(db), "dashboard": dashboard,
+        "today_label": thai_short(dashboard["today"]),
+        "calendar_link": sc.settings_link(dashboard["year"],
+            f"/lunch?year={dashboard['year']}&pid={dashboard['program'].id if dashboard['program'] else 0}"),
         "setup": _lunch_setup(db),
     })
 

@@ -43,7 +43,7 @@
   <div class="lunch-calendar-bar"><div><b>นับวันจัดอาหารตามปฏิทินของโรงเรียน</b><small>ใช้วันเรียน วันหยุดพิเศษ และวันชดเชยชุดเดียวกับงานวิชาการ</small></div><a class="btn soft sm" href="{{ calendar_link }}" data-calendar-link><svg class="icon"><use href="#ic-calendar"/></svg> ตั้งค่าปฏิทินวันเรียน</a></div>
   <p data-calendar-restored hidden class="alert warn">คืนค่าที่กรอกไว้แล้ว ตรวจวันสิ้นสุดตามปฏิทินล่าสุดก่อนบันทึก โดยเปลี่ยนจำนวนวันหรือกดคำนวณใหม่</p>
   {% if request.query_params.get('err') %}<p role="alert" class="alert danger">{{ request.query_params.get('err') }}</p>{% endif %}
-  <h2>{{ 'แก้ไข' ~ RW ~ 'ที่ ' ~ edit.seq if edit else 'เพิ่ม' ~ RW }}</h2>
+  <h2 id="new-round">{{ 'แก้ไข' ~ RW ~ 'ที่ ' ~ edit.seq if edit else 'เพิ่ม' ~ RW }}</h2>
   <form data-lunch-round-form data-draft-key="{{ request.session.get('tid') }}:{{ request.session.get('uid') }}:{{ request.url.path }}" method="post" action="{{ ('/lunch/round/' ~ edit.id ~ '/update') if edit else ('/lunch/' ~ p.id ~ '/rounds/add') }}">
     {% if edit %}<input type="hidden" name="procurement_id" value="{{ edit.procurement_id or '' }}">{% endif %}
     <div class="row">
