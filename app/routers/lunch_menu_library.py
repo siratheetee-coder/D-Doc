@@ -10,11 +10,17 @@ from app.services import lunch_menu_sets as service
 from app.thai_utils import be_date_input,parse_be_date
 router=APIRouter()
 
+def _back(v):
+    v=v or '';return v if v.startswith('/lunch/') and '//' not in v else ''
+
+def _wb(url,back):
+    return url+(('&' if '?' in url else '?')+urlencode(dict(back=back)) if back else '')
+
 def context(request,db,pid,**extra):
     p=db.get(LunchProgram,pid)
     if not p:raise HTTPException(404,'ไม่พบโครงการอาหารกลางวัน')
     sets=db.query(LunchMenuSet).order_by(LunchMenuSet.id.desc()).all()
-    out=dict(request=request,p=p,sets=sets,selected=sets[0] if sets else None,editing=False,creating=False,form_name='',form_days=10,form_rows=[],sequence=[],start='',end='',mode='skip',plan=None,error='',message=request.query_params.get('msg',''),be_date=be_date_input)
+    out=dict(back=_back(request.query_params.get('back','')),request=request,p=p,sets=sets,selected=sets[0] if sets else None,editing=False,creating=False,form_name='',form_days=10,form_rows=[],sequence=[],start='',end='',mode='skip',plan=None,error='',message=request.query_params.get('msg',''),be_date=be_date_input)
     rounds=[r for r in p.rounds if r.start_date]
     if rounds:
         current=max(rounds,key=lambda r:r.start_date);out['start']=be_date_input(current.start_date);out['end']=be_date_input(current.end_date) if current.end_date else ''
@@ -42,24 +48,24 @@ async def save(pid:int,request:Request,db:Session=Depends(get_db)):
         db.rollback();mains=f.getlist('main');desserts=f.getlist('dessert');notes=f.getlist('note')
         rows=[dict(main=x,dessert=desserts[i] if i<len(desserts) else '',note=notes[i] if i<len(notes) else '') for i,x in enumerate(mains)]
         ctx.update(selected=obj,editing=bool(obj),creating=not obj,form_name=f.get('name',''),form_days=len(rows) or 10,form_rows=rows,error=str(e));return page(ctx,422)
-    return RedirectResponse('/lunch/'+str(pid)+'/menu/sets?'+urlencode(dict(selected=obj.id,msg='บันทึกชุดเมนูแล้ว')),303)
+    return RedirectResponse(_wb('/lunch/'+str(pid)+'/menu/sets?'+urlencode(dict(selected=obj.id,msg='บันทึกชุดเมนูแล้ว')),_back(f.get('back',''))),303)
 
 @router.post('/lunch/{pid}/menu/sets/{sid}/copy')
 def copy(pid:int,sid:int,request:Request,db:Session=Depends(get_db)):
-    context(request,db,pid);source=db.get(LunchMenuSet,sid)
+    context(request,db,pid);source=db.get(LunchMenuSet,sid);back=_back(request.query_params.get('back',''))
     if not source:raise HTTPException(404,'ไม่พบชุดเมนู')
     rows=[dict(main=i.main,dessert=i.dessert,note=i.note) for i in source.items]
     obj=service.save(db,LunchMenuSet(),source.name[:110]+' (สำเนา)',rows);db.commit()
-    return RedirectResponse(f'/lunch/{pid}/menu/sets?edit={obj.id}',303)
+    return RedirectResponse(_wb(f'/lunch/{pid}/menu/sets?edit={obj.id}',back),303)
 
 @router.post('/lunch/{pid}/menu/sets/use')
 async def use(pid:int,request:Request,db:Session=Depends(get_db)):
     ctx=context(request,db,pid);f=await request.form(max_fields=4000);ids=f.getlist('set_ids');start=f.get('start','');end=f.get('end','');mode=f.get('mode','skip')
-    ctx.update(sequence=ids,start=start,end=end,mode=mode)
+    ctx.update(sequence=ids,start=start,end=end,mode=mode,back=_back(f.get('back','')) or ctx['back'])
     try:
         if f.get('action')=='apply':
             plan=service.apply(db,ctx['p'],ids,start,end,mode,f.get('token',''),f.get('confirm_replace')=='yes');db.commit()
-            return RedirectResponse(f'/lunch/{pid}/menu?'+urlencode(dict(msg=f"สร้างเมนู {plan['created']} วัน แทนที่ {plan['replaced']} วัน ข้ามเมนูเดิม {plan['skipped']} วัน")),303)
+            return RedirectResponse(_wb(f'/lunch/{pid}/menu?'+urlencode(dict(msg=f"สร้างเมนู {plan['created']} วัน แทนที่ {plan['replaced']} วัน ข้ามเมนูเดิม {plan['skipped']} วัน")),ctx['back']),303)
         ctx['plan']=service.preview(db,ctx['p'],ids,start,end,mode)
     except ValueError as e:db.rollback();ctx['error']=str(e);return page(ctx,422)
     return page(ctx)

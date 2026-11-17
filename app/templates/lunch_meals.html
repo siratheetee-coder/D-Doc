@@ -39,9 +39,10 @@
   <h2><svg class="icon"><use href="#ic-clipboard"/></svg> จำนวนนักเรียนที่รับประทาน</h2>
   <p class="muted" style="margin-top:0;">ระบบเติมจำนวนตามสิทธิ์ให้ทุกช่อง แก้เฉพาะวันที่มีนักเรียนขาด แล้วกดบันทึกครั้งเดียวทั้งงวด
     วันไหนไม่ได้จัดอาหาร ใส่ 0</p>
+  {% if classes|rejectattr('num_students')|list %}<label class="ml-allc"><input type="checkbox" onchange="document.getElementById('mlForm').classList.toggle('show-all',this.checked)"> แสดงชั้นที่ไม่มีนักเรียนด้วย ({{ classes|rejectattr('num_students')|list|length }} ชั้น)</label>{% endif %}
   <div class="table-wrap"><table class="ml-grid">
     <thead><tr><th>วันที่</th>
-      {% for c in classes %}<th class="center">{{ c.level }}<small>สิทธิ์ {{ c.num_students }}</small></th>{% endfor %}
+      {% for c in classes %}<th class="center{{ ' ml-zero' if not c.num_students }}">{{ c.level }}<small>สิทธิ์ {{ c.num_students }}</small></th>{% endfor %}
       <th class="right">รวม</th><th></th></tr></thead>
     <tbody>
     {% for d in s.days %}
@@ -52,7 +53,7 @@
           {% if not got %}<span class="ml-new">ยังไม่บันทึก</span>{% endif %}</td>
         {% for c in classes %}
         {% set v = got.get(c.id) if got and c.id in got else c.num_students %}
-        <td class="center"><input type="number" min="0" step="1" inputmode="numeric" class="ml-in" name="m_{{ d.isoformat() }}_{{ c.id }}"
+        <td class="center{{ ' ml-zero' if not c.num_students and not v }}"><input type="number" min="0" step="1" inputmode="numeric" class="ml-in" name="m_{{ d.isoformat() }}_{{ c.id }}"
                value="{{ v }}" data-max="{{ c.num_students }}" aria-label="{{ c.level }} {{ be_date(d) }}"></td>
         {% endfor %}
         <td class="right"><b data-sum>0</b></td>
@@ -61,7 +62,7 @@
     {% endfor %}
     </tbody>
     <tfoot><tr><td><b>รวมทั้งงวด</b></td>
-      {% for c in classes %}<td class="center"><b data-col="{{ loop.index0 }}">0</b></td>{% endfor %}
+      {% for c in classes %}<td class="center{{ ' ml-zero' if not c.num_students }}"><b data-col="{{ loop.index0 }}">0</b></td>{% endfor %}
       <td class="right"><b id="mlTotal">0</b></td><td></td></tr></tfoot>
   </table></div>
 </div>
@@ -162,4 +163,12 @@
   calc();
 })();
 </script>
+<style>
+#mlForm:not(.show-all) .ml-zero{display:none}
+.ml-allc{display:inline-flex;gap:6px;align-items:center;font-size:13.5px;margin:0 0 8px;cursor:pointer}
+.ml-allc input{width:auto}
+.ml-grid thead th{position:sticky;top:0;z-index:2;background:#f8fafc}
+.ml-grid td.ml-day,.ml-grid thead th:first-child,.ml-grid tfoot td:first-child{position:sticky;left:0;z-index:1;background:#fff}
+.ml-grid thead th:first-child{z-index:3}
+</style>
 {% endblock %}

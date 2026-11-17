@@ -72,3 +72,16 @@ def test_flags(env):
     d3, d4 = pv["days"]
     assert not d3["closed"] and not d3["outside"]
     assert d4["closed"] and d4["outside"]
+
+
+def test_menu_sets_keep_back(env):
+    from app.models import LunchProgram
+    c = env; _, db = _db()
+    p = LunchProgram(year=2569, operate_mode="hire"); db.add(p); db.commit()
+    back = "/lunch/round/5/plan"
+    page = c.get(f"/lunch/{p.id}/menu?back={back}").text
+    assert "menu/sets?back=" in page
+    sets = c.get(f"/lunch/{p.id}/menu/sets?back={back}").text
+    assert 'href="/lunch/round/5/plan"' in sets and "กลับหน้ารอบ" in sets
+    r = c.post(f"/lunch/{p.id}/menu/sets/save", data={"name": "ชุด A", "days": "1", "main": ["ข้าวผัด"], "dessert": [""], "note": [""], "back": back}, follow_redirects=False)
+    assert "back=%2Flunch%2Fround%2F5%2Fplan" in r.headers["location"]

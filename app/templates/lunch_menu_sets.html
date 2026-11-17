@@ -1,6 +1,6 @@
 {% extends 'base.html' %}{% block title %}ชุดเมนูอาหาร{% endblock %}{% block content %}
 {% include '_lunch_menu_style.html' %}
-<div class="lm-header"><div><h1>จัดเมนูอาหารกลางวัน</h1><span class="muted">ปีการศึกษา {{ p.year }} · ชุดเมนูใช้ร่วมกันภายในโรงเรียน</span></div><a class="btn gray sm" href="/lunch/{{ p.id }}">← กลับหน้าโครงการ</a></div>
+<div class="lm-header"><div><h1>จัดเมนูอาหารกลางวัน</h1><span class="muted">ปีการศึกษา {{ p.year }} · ชุดเมนูใช้ร่วมกันภายในโรงเรียน</span></div><a class="btn gray sm" href="{{ back or '/lunch/' ~ p.id }}">← {{ 'กลับหน้ารอบ' if back else 'กลับหน้าโครงการ' }}</a></div>
 <nav class="lm-tabs" aria-label="จัดเมนู"><a href="/lunch/{{ p.id }}/menu">เมนูรายวัน</a><a class="active" href="/lunch/{{ p.id }}/menu/sets">ชุดเมนูอาหาร</a></nav>
 {% if error %}<div class="alert warn" role="alert">{{ error }}</div>{% endif %}{% if message %}<div class="alert">{{ message }}</div>{% endif %}
 <div class="lm-grid">
@@ -30,4 +30,12 @@
 {% if plan %}<section class="lm-box lm-preview" id="setPreview"><h2>ตรวจตัวอย่างก่อนยืนยัน</h2><p>วันเรียน {{ plan.total }} วัน · สร้างใหม่ {{ plan.created }} วัน · แทนที่ {{ plan.replaced }} วัน · ข้ามเมนูเดิม {{ plan.skipped }} วัน</p><div class="table-wrap"><table><thead><tr><th>วันที่</th><th>ชุด / ลำดับ</th><th>เมนูที่จะใช้</th><th>เมนูเดิม</th><th>ผลการสร้าง</th></tr></thead><tbody>{% for r in plan.rows %}<tr><td>{{ be_date(r.date) }}</td><td>{{ r.set_name }} · วันที่ {{ r.seq }}</td><td>{{ r.old[0].main if r.action=='skip' else r.item.main }}<br><small>{{ r.old[0].dessert if r.action=='skip' else r.item.dessert }}</small></td><td>{% for m in r.old %}{{ m.main }}{% if not loop.last %}<br>{% endif %}{% else %}-{% endfor %}</td><td><span class="lm-status {{ r.action }}">{{ {'skip':'ข้ามเมนูเดิม','create':'สร้างใหม่','replace':'แทนที่เมนูเดิม'}[r.action] }}</span></td></tr>{% endfor %}</tbody></table></div>
 <p id="previewChanged" class="alert warn" hidden>ปรับตัวเลือกแล้ว กรุณาดูตัวอย่างใหม่ก่อนยืนยัน</p><form method="post" action="/lunch/{{ p.id }}/menu/sets/use" id="applyPreview"><input type="hidden" name="token" value="{{ plan.token }}"><input type="hidden" name="start" value="{{ start }}"><input type="hidden" name="end" value="{{ end }}"><input type="hidden" name="mode" value="{{ mode }}">{% for id in sequence %}<input type="hidden" name="set_ids" value="{{ id }}">{% endfor %}{% if plan.replaced %}<label class="lm-confirm"><input type="checkbox" name="confirm_replace" value="yes" required> ยืนยันแทนที่เมนูเดิม {{ plan.replaced }} วันตามตัวอย่าง</label>{% endif %}{% if plan.created or plan.replaced %}<button class="btn" type="submit" name="action" value="apply" style="margin-top:14px">ยืนยันสร้าง {{ plan.created }} วัน{{ ' และแทนที่ ' ~ plan.replaced ~ ' วัน' if plan.replaced else '' }}</button>{% else %}<p class="muted">ทุกวันมีเมนูอยู่แล้ว จึงไม่มีรายการที่ต้องสร้าง</p>{% endif %}</form></section>{% endif %}
 <script src="/static/lunch-menu-sets.js" defer></script>
+{% if back %}<script>
+(function(){var B={{ back|tojson }};
+document.querySelectorAll('a[href]').forEach(function(a){var h=a.getAttribute('href');if(!h||h.indexOf('back=')>=0)return;
+ if(h.charAt(0)=='?'||h.indexOf('/lunch/{{ p.id }}/menu')==0){var i=h.indexOf('#'),hash=i>=0?h.slice(i):'',base=i>=0?h.slice(0,i):h;a.setAttribute('href',base+(base.indexOf('?')>=0?'&':'?')+'back='+encodeURIComponent(B)+hash);}});
+document.querySelectorAll('form[method=post]').forEach(function(f){if(f.querySelector('[name=back]'))return;var i=document.createElement('input');i.type='hidden';i.name='back';i.value=B;f.appendChild(i);
+ if(/\/copy$/.test(f.getAttribute('action')||''))f.setAttribute('action',f.getAttribute('action')+'?back='+encodeURIComponent(B));});
+})();
+</script>{% endif %}
 {% endblock %}
