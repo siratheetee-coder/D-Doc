@@ -331,6 +331,16 @@ def docnos_peek(request: Request, db: Session = Depends(get_db), year: int | Non
     fy = year or current_fiscal_year()
     items = register_summary(db, {t: doc_year(t,fy) for t in COUNTER_TYPES})
     for item in items: item['date'] = thai_date(item['date']) if item['date'] else ''
+    from app.services import loan_no
+    used = loan_no.used(db, fy)
+    if used:
+        last = max(used, key=lambda r: (loan_no._seq(r.contract_no), r.id))
+        items.append({"label": "สัญญายืมเงิน", "last": last.contract_no, "next": loan_no.next_no(db, fy),
+                      "date": thai_date(last.date) if last.date else "", "subject": " ".join(x for x in (last.borrower, last.purpose) if x)[:80],
+                      "gap": False, "reserved": "", "conflict": False})
+    else:
+        items.append({"label": "สัญญายืมเงิน", "last": "-", "next": loan_no.next_no(db, fy), "date": "", "subject": "",
+                      "gap": False, "reserved": "", "conflict": False})
     return JSONResponse({"year": fy, "items": items})
 
 

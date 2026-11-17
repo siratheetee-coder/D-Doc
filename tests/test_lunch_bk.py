@@ -38,4 +38,6 @@ def test_loan_register(env):
     db.add(MoneyLoan(fiscal_year=2570, contract_no="7/2570", borrower="ครูเอ", amount=500, purpose="ไปราชการ"))
     db.commit()
     page = c.get(f"/lunch/round/{r.id}/plan").text
-    assert "ดูทะเบียนเลข" in page and 'value="8/2570"' in page and "ครูเอ" in page
+    assert "ดูเลขล่าสุด" in page and 'value="8/2570"' in page
+    j = c.get("/docnos/peek?year=2570").json()
+    assert any(i["label"] == "สัญญายืมเงิน" and i["next"] == "8/2570" for i in j["items"])
