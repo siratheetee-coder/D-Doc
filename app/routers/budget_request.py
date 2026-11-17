@@ -4,7 +4,9 @@
 /budget-requests/...    แอดมิน (สิทธิ์งานการเงินหรือพัสดุ กำหนดใน services/access.py)
 /me/budget-requests/... ครูผู้รับผิดชอบ เห็นเฉพาะคำขอที่ผูกกับตัวเอง
 """
-from fastapi import APIRouter, Depends, HTTPException, Request
+from urllib.parse import quote
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -116,9 +118,13 @@ def _get(db, rid):
 
 
 def _detail_ctx(request, db, req, readonly):
-    return {"request": request, "r": req, "readonly": readonly, "groups": svc.by_method(req),
+    groups = svc.groups(db, req)
+    if not readonly:
+        for g in groups:
+            g["candidates"] = svc.candidates(db, req, g["kind"]) if g["pending"] else []
+    return {"request": request, "r": req, "readonly": readonly, "groups": groups,
             "total": svc.total(req), "nums": svc.budget_numbers(db, req), "steps": svc.STEPS,
-            "step": svc.step_of(req),
+            "step": svc.step_of(req, db),
             "doc_href": f"/me/budget-requests/{req.id}/doc.docx" if readonly else f"/budget-requests/{req.id}/doc.docx"}
 
 
@@ -157,6 +163,65 @@ def br_delete(rid: int, db: Session = Depends(get_db)):
     db.delete(req)
     db.commit()
     return RedirectResponse(f"/budget-requests?year={fy}", 303)
+
+
+# ---------------- ช่วงที่ 2: สร้าง/ผูกเอกสารปลายทาง ----------------
+def _method(m):
+    if m not in svc.METHODS:
+        raise HTTPException(400, "วิธีเบิกไม่ถูกต้อง")
+    return m
+
+
+@router.get("/budget-requests/{rid}/go")
+def br_go(rid: int, m: str, db: Session = Depends(get_db)):
+    """ปุ่มสร้างเอกสารปลายทาง: เปิดฟอร์มเดิมของงานนั้นพร้อมเติมข้อมูลจากคำขอ"""
+    req = _get(db, rid)
+    m = _method(m)
+    if not svc.pending_lines(req, m, db):
+        return RedirectResponse(f"/budget-requests/{rid}", 303)
+    kind = svc.TARGET[m][1]
+    q = f"br={rid}&br_m={quote(m)}"
+    url = {"proc": f"/procurement/new?{q}", "loan": f"/finance/loans?year={req.fiscal_year}&{q}#new",
+           "disburse": f"/finance/disburse?year={req.fiscal_year}&{q}"}[kind]
+    return RedirectResponse(url, 303)
+
+
+@router.post("/budget-requests/{rid}/link")
+def br_link(rid: int, m: str = Form(...), target_id: int = Form(0), db: Session = Depends(get_db)):
+    req = _get(db, rid)
+    try:
+        svc.link(db, req, _method(m), target_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    db.commit()
+    return RedirectResponse(f"/budget-requests/{rid}?linked=1", 303)
+
+
+@router.post("/budget-requests/{rid}/unlink")
+def br_unlink(rid: int, m: str = Form(...), target_id: int = Form(0), db: Session = Depends(get_db)):
+    req = _get(db, rid)
+    svc.unlink(db, req, _method(m), target_id)
+    db.commit()
+    return RedirectResponse(f"/budget-requests/{rid}", 303)
+
+
+def link_from_form(db, form, target_id):
+    """เรียกจากฟอร์มปลายทางหลังสร้างเอกสาร (hidden from_br/from_br_m) คืน id คำขอ หรือ None"""
+    rid = _int(form.get("from_br"))
+    m = form.get("from_br_m") or ""
+    req = db.get(BudgetRequest, rid) if rid else None
+    if not req or m not in svc.METHODS:
+        return None
+    svc.link(db, req, m, target_id)
+    return req.id
+
+
+def br_source(db, br, br_m):
+    """คำขอ+วิธีเบิกจาก query ของฟอร์มปลายทาง -> (req, method, prefill) หรือ None"""
+    req = db.get(BudgetRequest, _int(br)) if br else None
+    if not req or br_m not in svc.METHODS or not svc.pending_lines(req, br_m, db):
+        return None
+    return req, br_m, svc.prefill(req, br_m, db)
 
 
 def _docx(db, req):

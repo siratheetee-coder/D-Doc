@@ -20,6 +20,8 @@
 {{ case_staff(request, prefill, False) }}
     {% if lunch_source %}<input type="hidden" name="lunch_inst" value="{{ lunch_source.inst.id if lunch_source.inst else '' }}"><input type="hidden" name="lunch_round" value="{{ lunch_source.rnd.id if not lunch_source.inst else '' }}">{% endif %}
     <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
+    {% if prefill and prefill.from_br %}<input type="hidden" name="from_br" value="{{ prefill.from_br }}"><input type="hidden" name="from_br_m" value="เบิกจ่ายตรง">
+    <div class="alert" style="background:#eef2ff">สร้างจากคำขอใช้งบประมาณ {{ prefill.from_br_no }} บันทึกแล้วรายการเบิกจ่ายตรงในคำขอจะผูกกับบันทึกนี้ให้</div>{% endif %}
     <div class="row">
       <div><label>เลขที่บันทึก</label><input name="memo_no" value="{{ prefill.memo_no if prefill and prefill.memo_no else sug_memo }}"></div>
       <div><label>วันที่บันทึกขอเบิก</label><input name="date" value="{{ be_date(prefill.date) if prefill and prefill.date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>

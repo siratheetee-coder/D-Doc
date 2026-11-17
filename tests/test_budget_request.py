@@ -89,3 +89,66 @@ def test_teacher_sees_only_own_request_read_only(env):
         assert t.post(f"/budget-requests/{a.id}/delete", follow_redirects=False).status_code == 403
     finally:
         db.close()
+
+
+def test_phase2_create_targets_link_and_status(env):
+    """ช่วงที่ 2: ปุ่มสร้างเอกสารปลายทางเติมข้อมูลให้ บันทึกแล้วผูกรายการ เลิกผูกได้ ขั้นตอนขยับตาม"""
+    from app.models import BudgetRequestLine, DisburseMemo, MoneyLoan, Procurement
+    c = env
+    tid, db = _db()
+    try:
+        req = BudgetRequest(fiscal_year=2570, request_no="9/2570", owner="ครูทดสอบ", status="ส่งแล้ว",
+                            inspectors="นาย ก\nนาง ข\nนาย ค")
+        db.add(req); db.flush()
+        for i, (n, m, p) in enumerate([("กระดาษ", "จัดซื้อ", 500), ("อาหารว่าง", "ยืมเงิน", 700),
+                                       ("ค่าวิทยากร", "เบิกจ่ายตรง", 1200)]):
+            db.add(BudgetRequestLine(request_id=req.id, seq=i, cost_type="ค่าวัสดุ", name=n, qty=1, unit="ชุด", price=p, method=m))
+        db.commit(); rid = req.id
+        assert svc.step_of(req, db) == 1
+        # ปุ่มจัดซื้อ -> หน้าเลือกรูปแบบ (พา br ไปด้วย) -> ฟอร์มเติมรายการ+กรรมการ
+        go = c.get(f"/budget-requests/{rid}/go?m=จัดซื้อ", follow_redirects=False)
+        assert go.status_code == 303 and "/procurement/new?br=" in go.headers["location"]
+        form = c.get(go.headers["location"] + "&case=normal")
+        assert "กระดาษ" in form.text and 'name="from_br"' in form.text and "ประธานกรรมการ" in form.text
+        r = c.post("/procurement/new", data={"fiscal_year": "2570", "memo_no": "", "proc_type": "ซื้อ",
+                   "method": "เฉพาะเจาะจง", "subject": "กระดาษ", "inspection_mode": "single", "item_name": ["กระดาษ"],
+                   "item_spec": [""], "item_qty": ["1"], "item_unit": ["ชุด"], "item_price": ["500"], "item_cost_type": [""],
+                   "member_name": ["นาย ก"], "member_position": ["ครู"], "member_role": ["ผู้ตรวจรับ"],
+                   "from_br": str(rid), "from_br_m": "จัดซื้อ"}, follow_redirects=False)
+        pid = int(r.headers["location"].split("/")[-1])
+        db.expire_all()
+        assert db.get(Procurement, pid) and req.lines[0].procurement_id == pid
+        assert svc.step_of(req, db) == 2
+        # ยืมเงิน: ฟอร์มเติมผู้ยืม+ยอด บันทึกแล้วกลับหน้าคำขอ
+        page = c.get(f"/finance/loans?year=2570&br={rid}&br_m=ยืมเงิน")
+        assert 'value="700.0"' in page.text and "ครูทดสอบ" in page.text
+        r = c.post("/finance/loans", data={"fiscal_year": "2570", "borrower": "ครูทดสอบ", "amount": "700",
+                   "within_days": "15", "from_br": str(rid), "from_br_m": "ยืมเงิน"}, follow_redirects=False)
+        assert r.headers["location"] == f"/budget-requests/{rid}?linked=1"
+        db.expire_all()
+        loan = db.query(MoneyLoan).order_by(MoneyLoan.id.desc()).first()
+        assert req.lines[1].loan_id == loan.id and "อาหารว่าง" in loan.items
+        # เบิกจ่ายตรง
+        page = c.get(f"/finance/disburse?year=2570&br={rid}&br_m=เบิกจ่ายตรง")
+        assert "ค่าวิทยากร" in page.text and 'name="from_br"' in page.text
+        r = c.post("/finance/disburse", data={"fiscal_year": "2570", "subject": "ค่าวิทยากร", "payee": "ครูทดสอบ",
+                   "amount": "1200", "proc_kind": "ค่าใช้จ่ายอื่น", "from_br": str(rid), "from_br_m": "เบิกจ่ายตรง"},
+                   follow_redirects=False)
+        mid = int(r.headers["location"].split("/")[-1].split("?")[0])
+        db.expire_all()
+        assert db.get(DisburseMemo, mid) and req.lines[2].disburse_id == mid
+        assert svc.step_of(req, db) == 3   # ทำเรื่องครบ รอจ่าย
+        detail = c.get(f"/budget-requests/{rid}")
+        assert "สัญญายืม" in detail.text and "บันทึกขอเบิก" in detail.text and "ยังไม่ทำเรื่อง" not in detail.text
+        # ปุ่มทำซ้ำไม่ได้เมื่อผูกครบแล้ว
+        assert c.get(f"/budget-requests/{rid}/go?m=ยืมเงิน", follow_redirects=False).headers["location"] == f"/budget-requests/{rid}"
+        # เลิกผูก แล้วผูกกลับกับเอกสารเดิม
+        c.post(f"/budget-requests/{rid}/unlink", data={"m": "ยืมเงิน", "target_id": str(loan.id)})
+        db.expire_all(); assert req.lines[1].loan_id is None
+        c.post(f"/budget-requests/{rid}/link", data={"m": "ยืมเงิน", "target_id": str(loan.id)})
+        db.expire_all(); assert req.lines[1].loan_id == loan.id
+        # เอกสารถูกลบ = กลับเป็นยังไม่ทำเรื่อง
+        db.delete(db.get(DisburseMemo, mid)); db.commit()
+        assert len(svc.pending_lines(req, "เบิกจ่ายตรง", db)) == 1
+    finally:
+        db.close()

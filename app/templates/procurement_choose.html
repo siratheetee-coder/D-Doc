@@ -36,7 +36,7 @@
   <p class="muted" style="margin:8px 0 14px;">เลือกรูปแบบก่อน ระบบจะออกชุดเอกสารให้ตรงตามแบบที่เลือก</p>
   <div class="choose-grid">
     {% for key, c in cases.items() %}
-    <a href="/procurement/new?case={{ key }}{% if project_q %}&project={{ project_q }}{% endif %}{% if activity_q %}&activity={{ activity_q }}{% endif %}"
+    <a href="/procurement/new?case={{ key }}{% if project_q %}&project={{ project_q }}{% endif %}{% if activity_q %}&activity={{ activity_q }}{% endif %}{% if br_q %}&{{ br_q }}{% endif %}"
        class="choose-card{{ ' cc-urgent' if key == 'clause79' }}" title="{{ c.desc }}">
       <span class="cc-head">
         <span class="cc-badge"><svg class="icon"><use href="#{{ 'ic-alert' if key == 'clause79' else 'ic-file' }}"/></svg></span>

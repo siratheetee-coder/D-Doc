@@ -14,7 +14,7 @@
 </style>
 <div class="card">
   <div class="br-head"><img src="/static/images/home3d/f_projects.png" alt=""><h1>คำขอใช้งบประมาณ</h1>
-    <a class="btn" href="/budget-requests/new">+ สร้างคำขอใช้งบประมาณ</a></div>
+    {% if not (request.session.get('director') and not request.session.get('owner')) %}<a class="btn" href="/budget-requests/new">+ สร้างคำขอใช้งบประมาณ</a>{% endif %}</div>
   <p class="muted">คำขอ 1 ใบ ใส่ค่าใช้จ่ายได้หลายรายการ แต่ละรายการเลือกประเภทและวิธีเบิกเอง แล้วออกบันทึกขอใช้งบประมาณเป็น Word</p>
   <form method="get"><label>ปีงบประมาณ</label><input name="year" value="{{ fy }}" inputmode="numeric" style="max-width:140px" onchange="this.form.submit()"></form>
   {% for r in rows %}

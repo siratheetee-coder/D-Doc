@@ -24,6 +24,8 @@
   <p class="muted">บันทึกสัญญายังไม่ตัดเงิน เมื่อจ่ายเงินจริงแล้วให้กด “จ่ายเงินยืม / รับคืนเงินสด” หรือเชื่อมรายการที่ลงจ่ายไว้แล้ว</p>
   <form method="post" action="/finance/loans">
 {{ case_staff(request, None, True) }}
+    {% if br %}<input type="hidden" name="from_br" value="{{ br.req.id }}"><input type="hidden" name="from_br_m" value="{{ br.m }}">
+    <div class="alert" style="background:#eef2ff">สร้างจากคำขอใช้งบประมาณ {{ br.req.request_no }}: {% for ln in br.pre.rows %}{{ ln.name }} {{ '{:,.2f}'.format(ln.amount) }}{% if not loop.last %}, {% endif %}{% endfor %} บาท</div>{% endif %}
     <input type="hidden" name="fiscal_year" value="{{ fiscal_year }}">
     <div class="row loan-dates">
       <div><label>เลขที่สัญญา</label><input name="contract_no" placeholder="เช่น 1/{{ fiscal_year }}"></div>
@@ -33,9 +35,9 @@
       <div><label>วันครบกำหนดส่งใช้</label><input name="due_date" readonly placeholder="วว/ดด/ปปปป" data-date="1"><small class="muted">นับจากวันที่ได้รับเงิน</small></div>
     </div>
     <div class="row">
-      <div style="flex:1.6;"><label>ผู้ยืม *</label><input name="borrower" list="persons" required></div>
+      <div style="flex:1.6;"><label>ผู้ยืม *</label><input name="borrower" list="persons" required value="{{ br.req.owner if br else '' }}"></div>
       <div><label>ตำแหน่ง</label><input name="position" value="ครู"></div>
-      <div><label>จำนวนเงินที่ยืม (บาท) *</label><input name="amount" type="number" step="0.01" min="0" required></div>
+      <div><label>จำนวนเงินที่ยืม (บาท) *</label><input name="amount" type="number" step="0.01" min="0" required value="{{ br.pre.total if br else '' }}"></div>
     </div>
     <div class="row">
       <div style="flex:1.4;"><label>ยื่นต่อ</label><input name="submit_to" placeholder="เช่น ผู้อำนวยการโรงเรียน"></div>
@@ -46,7 +48,7 @@
         </select></div>
     </div>
     <label>เพื่อเป็นค่าใช้จ่ายในการ</label>
-    <input name="purpose" placeholder="เช่น ไปราชการอบรมครูผู้สอน ระหว่างวันที่ ...">
+    <input name="purpose" placeholder="เช่น ไปราชการอบรมครูผู้สอน ระหว่างวันที่ ..." value="{{ br.pre.purpose if br else '' }}">
     <div class="row" style="margin-top:10px;">
       <div style="flex:2;"><label>ใช้ในโครงการ</label>
         <select name="project_id" id="loanProj" data-combo>

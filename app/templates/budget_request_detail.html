@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}คำขอใช้งบประมาณ {{ r.request_no }}{% endblock %}
 {% block content %}
+{% set director_view = request.session.get('director') and not request.session.get('owner') %}
 <style>
 .brd-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .brd-head img{width:58px;height:58px}
@@ -19,14 +20,22 @@
 .brd-line+.brd-line{border-top:1px solid #f1f5f9}
 .brd-line small{color:#64748b;display:block}
 .brd-next{font-size:12.5px;color:#64748b;margin-top:6px}
+.brd-st{display:inline-block;font-size:11.5px;font-weight:700;border-radius:999px;padding:2px 9px;background:#eef2ff;color:#4338ca;margin-top:2px}
+.brd-st.ok{background:#dcfce7;color:#166534}.brd-st.wait{background:#fef3c7;color:#92400e}
+.brd-doc{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;padding:8px 12px;border-radius:12px;background:#f5f3ff;font-size:14px}
+.brd-doc a{font-weight:700;color:#4338ca}.brd-doc form{margin:0 0 0 auto}
+.brd-x{border:0;background:transparent;color:#94a3b8;cursor:pointer;font-size:12.5px}
+.brd-act{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.brd-link{display:flex;gap:6px;align-items:center;flex:1;min-width:240px;margin:0}.brd-link select{margin:0;flex:1}
 </style>
+{% if request.query_params.get('linked') %}<div class="alert" style="background:#ecfdf5">ผูกรายการกับเอกสารแล้ว</div>{% endif %}
 {% if request.query_params.get('saved') %}<div class="alert" style="background:#ecfdf5">บันทึกคำขอแล้ว</div>{% endif %}
 <div class="card">
   <div class="brd-head"><img src="/static/images/home3d/f_projects.png" alt="">
     <div class="t"><h1>คำขอใช้งบประมาณ {{ r.request_no }}</h1>
       <small>{{ r.project.name if r.project else r.purpose }}{% if r.owner %} ผู้รับผิดชอบ {{ r.owner }}{% endif %}{% if r.activity_date %} จัดวันที่ {{ be_date(r.activity_date) }}{% endif %}</small></div>
     <a class="btn" href="{{ doc_href }}"><svg class="icon"><use href="#ic-file"/></svg> บันทึกขอใช้งบประมาณ (Word)</a>
-    {% if not readonly %}<a class="btn gray" href="/budget-requests/{{ r.id }}/edit">แก้ไข</a>{% endif %}
+    {% if not readonly and not director_view %}<a class="btn gray" href="/budget-requests/{{ r.id }}/edit">แก้ไข</a>{% endif %}
   </div>
   <div class="brd-steps">{% for s in steps %}<span class="{{ 'done' if loop.index0 < step else 'now' if loop.index0 == step }}">{{ loop.index }}. {{ s }}</span>{% endfor %}</div>
   <div class="brd-nums">
@@ -43,12 +52,26 @@
   <h2 style="margin-top:0">รายการตามวิธีเบิก</h2>
   {% for g in groups %}
   <div class="brd-group"><h3>{{ g.method }} <em>{{ '{:,.2f}'.format(g.total) }} บาท</em></h3>
-    {% for ln in g.lines %}<div class="brd-line"><span>{{ ln.name }}<small>{{ ln.cost_type }} {{ '%g'|format(ln.qty) }} {{ ln.unit }} x {{ '{:,.2f}'.format(ln.price) }}</small></span><b>{{ '{:,.2f}'.format(ln.amount) }}</b></div>{% endfor %}
-    <div class="brd-next">ขั้นถัดไป: {{ 'สร้างเรื่องจัดซื้อ/จัดจ้าง' if g.method in ('จัดซื้อ','จัดจ้าง') else 'ทำสัญญายืมเงิน' if g.method == 'ยืมเงิน' else 'ออกบันทึกขอเบิก' }} (เร็ว ๆ นี้ สร้างจากหน้านี้ได้เลย)</div>
+    {% for ln in g.lines %}<div class="brd-line"><span>{{ ln.name }}<small>{{ ln.cost_type }} {{ '%g'|format(ln.qty) }} {{ ln.unit }} x {{ '{:,.2f}'.format(ln.price) }}</small></span>
+      <span style="text-align:right"><b>{{ '{:,.2f}'.format(ln.amount) }}</b>
+        {% if ln.target %}<small><span class="brd-st {{ 'ok' if ln.target.done }}">{{ ln.target.status }}</span></small>{% else %}<small><span class="brd-st wait">ยังไม่ทำเรื่อง</span></small>{% endif %}</span></div>{% endfor %}
+    {% for d in g.docs %}
+    <div class="brd-doc"><a href="{{ d.href }}">{{ d.label }}</a> <span class="brd-st {{ 'ok' if d.done }}">{{ d.status }}</span>
+      {% if not readonly and not director_view %}<form method="post" action="/budget-requests/{{ r.id }}/unlink" onsubmit="return confirm('เลิกผูกเอกสารนี้กับคำขอ? ตัวเอกสารไม่ถูกลบ')"><input type="hidden" name="m" value="{{ g.method }}"><input type="hidden" name="target_id" value="{{ d.id }}"><button class="brd-x" type="submit" aria-label="เลิกผูก">เลิกผูก</button></form>{% endif %}</div>
+    {% endfor %}
+    {% if g.pending %}
+      {% if readonly or director_view %}<div class="brd-next">ขั้นถัดไป: {{ g.next_label }} (งานการเงิน/พัสดุดำเนินการ)</div>
+      {% else %}
+      <div class="brd-act"><a class="btn sm" href="/budget-requests/{{ r.id }}/go?m={{ g.method|urlencode }}">{{ g.next_label }} {{ '{:,.2f}'.format(g.pending_total) }} บาท</a>
+        {% if g.candidates %}<form method="post" action="/budget-requests/{{ r.id }}/link" class="brd-link"><input type="hidden" name="m" value="{{ g.method }}">
+          <select name="target_id" required><option value="">หรือผูกกับเอกสารที่ทำไว้แล้ว</option>{% for c in g.candidates %}<option value="{{ c.id }}">{{ c.text }}</option>{% endfor %}</select>
+          <button class="btn gray sm" type="submit">ผูก</button></form>{% endif %}
+      </div>{% endif %}
+    {% endif %}
   </div>
   {% endfor %}
 </div>
-{% if not readonly %}
+{% if not readonly and not director_view %}
 <div class="card"><form method="post" action="/budget-requests/{{ r.id }}/delete" onsubmit="return confirm('ลบคำขอใช้งบประมาณนี้? เลขบันทึกจะถูกคืนออกจากทะเบียน')"><button class="btn red sm" type="submit">ลบคำขอนี้</button> <a class="btn gray sm" href="/budget-requests?year={{ r.fiscal_year }}">กลับรายการ</a></form></div>
 {% endif %}
 {% endblock %}

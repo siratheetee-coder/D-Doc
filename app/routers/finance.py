@@ -950,7 +950,8 @@ def _name_suggest(db) -> dict:
 
 @router.get("/finance/disburse", response_class=HTMLResponse)
 def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | None = None, year: str | None = None,
-                  project: int | None = None, travel: int | None = None, activity: int | None = None, lunch_inst: int | None = None, lunch_round: int | None = None, more: str = ""):
+                  project: int | None = None, travel: int | None = None, activity: int | None = None, lunch_inst: int | None = None, lunch_round: int | None = None, more: str = "",
+                  br: int | None = None, br_m: str = ""):
     from app.services import travel_claim
     lunch_source=None
     if lunch_inst or lunch_round:
@@ -1025,6 +1026,15 @@ def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | N
                        "budget_source": "", "procurement_id": None, "project_id": None,
                        "proc_kind": "ค่าใช้จ่ายอื่น", "memo_no": "", "date": None, "item_id": None,
                        "travel_request_id": tr.id}
+    elif br and br_m == "เบิกจ่ายตรง":
+        from app.routers.budget_request import br_source
+        src = br_source(db, br, br_m)
+        if src:
+            req, _m, pre = src
+            prefill = {"subject": pre["subject"], "payee": req.owner or "", "amount": pre["total"], "budget_source": "",
+                       "procurement_id": None, "project_id": req.project_id, "proc_kind": "ค่าใช้จ่ายอื่น", "memo_no": "",
+                       "date": None, "item_id": None, "activity_id": req.activity_id,
+                       "from_br": req.id, "from_br_no": req.request_no}
     elif project and db.get(Project, project):
         # มาจากปุ่ม "เบิกค่าใช้จ่ายอื่น" หน้าโครงการ: ค่าเดินทาง ค่าตอบแทน ฯลฯ ที่ไม่ผ่านจัดซื้อ
         prefill = {"subject": "", "payee": "", "amount": 0, "budget_source": "", "procurement_id": None,
@@ -1055,7 +1065,8 @@ def disburse_create(db: Session = Depends(get_db), fiscal_year: str = Form(""),
                     item_id: str = Form(""), receiver_name: str = Form(""), register_note: str = Form(""),
                     travel_request_id: str = Form(""), activity_id: str = Form(""), staff_selection: str | None = Form(None), after_save: str = Form(""),
                     split_account: list[str] = Form([]), split_item: list[str] = Form([]), split_amount: list[str] = Form([]),
-                    eb_code: str = Form(""), lunch_inst: str = Form(""), lunch_round: str = Form(""), claim_version: str = Form(""), more: str = Form("")):
+                    eb_code: str = Form(""), lunch_inst: str = Form(""), lunch_round: str = Form(""), claim_version: str = Form(""), more: str = Form(""),
+                    from_br: str = Form(""), from_br_m: str = Form("")):
     lunch_source=None
     if lunch_inst.strip() or lunch_round.strip():
         payments.lock(db)
@@ -1116,6 +1127,9 @@ def disburse_create(db: Session = Depends(get_db), fiscal_year: str = Form(""),
     staff.apply(db, m, staff_selection)
     db.add(m); db.flush()
     if lunch_source:lunch_claim.attach(db,m,lunch_source)
+    if from_br and from_br_m == "เบิกจ่ายตรง":
+        from app.routers.budget_request import link_from_form
+        link_from_form(db, {"from_br": from_br, "from_br_m": from_br_m}, m.id)
     commit_doc_no(db, "memo", fy, no, source="finance", ref_id=m.id, date=m.date,
                   subject=((m.subject or "").strip() if (m.subject or "").strip().startswith("ขออนุมัติเบิกจ่าย")
                            else f"ขออนุมัติเบิกจ่าย {(m.subject or '').strip()}".strip()))
@@ -2159,7 +2173,10 @@ def loans_page(request: Request, db: Session = Depends(get_db), year: int | None
         rows.append({"o": ln, "paid": paid, "left": float(ln.amount or 0) - paid,
                      "project": projects.get(ln.project_id), "activity": acts.get(ln.activity_id),
                      "ap": _ap_state(db, "loan", ln.id, ln)})
-    pre_pj = _to_int(request.query_params.get("project"), 0)
+    from app.routers.budget_request import br_source
+    src = br_source(db, request.query_params.get("br"), request.query_params.get("br_m") or "")
+    br = dict(req=src[0], m=src[1], pre=src[2]) if src and src[1] == "ยืมเงิน" else None
+    pre_pj = br["req"].project_id if br else _to_int(request.query_params.get("project"), 0)
     pre_pj = pre_pj if pre_pj in projects else 0
     return templates.TemplateResponse("finance_loans.html", {
         "request": request, "school": get_school(db), "fiscal_year": fy,
@@ -2168,7 +2185,8 @@ def loans_page(request: Request, db: Session = Depends(get_db), year: int | None
         "persons": _fin_persons(db),
         "projects": list(projects.values()), "pj_acts": activity_maps(db),
         "pre_project": pre_pj,
-        "pre_activity": valid_activity(db, request.query_params.get("activity"), pre_pj) or "",
+        "pre_activity": valid_activity(db, br["req"].activity_id if br else request.query_params.get("activity"), pre_pj) or "",
+        "br": br,
     })
 
 
@@ -2199,7 +2217,18 @@ async def loan_add(request: Request, db: Session = Depends(get_db)):
     ln.project_id = _to_int(form.get("project_id"), 0) or None
     ln.activity_id = _valid_activity(db, form.get("activity_id"), ln.project_id)
     staff.apply(db, ln, form.get("staff_selection"))
-    db.add(ln); db.commit()
+    db.add(ln); db.flush()
+    from app.routers.budget_request import link_from_form
+    from app.models import BudgetRequest
+    breq = db.get(BudgetRequest, _to_int(form.get("from_br"), 0))
+    if breq and form.get("from_br_m") == "ยืมเงิน":
+        import json as _json
+        from app.services import budget_request as _brs
+        ln.items = _json.dumps([{"name": x.name, "amount": x.amount} for x in _brs.pending_lines(breq, "ยืมเงิน", db)], ensure_ascii=False)
+    rid = link_from_form(db, form, ln.id)
+    db.commit()
+    if rid:
+        return RedirectResponse(f"/budget-requests/{rid}?linked=1", status_code=303)
     return RedirectResponse(f"/finance/loans?year={fy}", status_code=303)
 
 

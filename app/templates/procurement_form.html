@@ -33,6 +33,8 @@
     </ol>
   <form method="post" action="{{ action }}" id="procForm">
     {% if pending_file|default('') %}<input type="hidden" name="pending_file" value="{{ pending_file }}">{% endif %}
+    {% if from_br is defined and from_br %}<input type="hidden" name="from_br" value="{{ from_br.id }}"><input type="hidden" name="from_br_m" value="{{ from_br_m }}">
+    <div class="alert" style="background:#eef2ff">สร้างจากคำขอใช้งบประมาณ {{ from_br.request_no }} ({{ from_br_m }}) บันทึกแล้วรายการในคำขอจะผูกกับเรื่องนี้ให้</div>{% endif %}
     <input type="hidden" name="proc_case" value="{{ proc_case if proc_case is defined else (p.proc_case if p and p.proc_case else 'normal') }}">
     {% set is_special = (proc_case if proc_case is defined else (p.proc_case if p and p.proc_case else 'normal')) != 'normal' %}
     <section class="pf-step" data-step="0">

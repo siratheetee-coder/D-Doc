@@ -2155,16 +2155,36 @@ def procurement_project_budget(name: str = "", exclude: int = 0, db: Session = D
 
 @router.get("/procurement/new", response_class=HTMLResponse)
 def procurement_new_form(request: Request, db: Session = Depends(get_db),
-                         case: str | None = None, project: int | None = None, activity: int | None = None):
+                         case: str | None = None, project: int | None = None, activity: int | None = None,
+                         br: int | None = None, br_m: str = ""):
     school = get_school(db)
     fy = current_fiscal_year()
+    from app.routers.budget_request import br_source
+    src = br_source(db, br, br_m)   # มาจากปุ่มในคำขอใช้งบประมาณ
+    if src:
+        project, activity = src[0].project_id, src[0].activity_id
     pj = db.get(Project, project) if project else None   # มาจากปุ่มหน้าโครงการ: เลือกโครงการไว้ให้
     # ยังไม่เลือกรูปแบบ -> แสดงหน้าเลือกรูปแบบก่อน
     if case not in PROC_CASES:
+        from urllib.parse import quote as _q
         return templates.TemplateResponse("procurement_choose.html", {
             "request": request, "cases": PROC_CASES, "project_q": pj.id if pj else None,
             "activity_q": valid_activity(db, activity, pj.id if pj else None),
+            "br_q": f"br={src[0].id}&br_m={_q(src[1])}" if src else "",
         })
+    extra = {}
+    if src:
+        req, m, pre = src
+        names = [x.strip() for x in (req.inspectors or "").splitlines() if x.strip()]
+        roles = (["ประธานกรรมการ"] + ["กรรมการ"] * (len(names) - 2) + ["กรรมการและเลขานุการ"]) if len(names) > 1 else ["ผู้ตรวจรับ"]
+        extra = {
+            "from_br": req, "from_br_m": m, "prefill_subject": pre["subject"], "prefill_purpose": pre["purpose"],
+            "prefill_type": "จ้าง" if m == "จัดจ้าง" else "ซื้อ", "prefill_dept": req.department or "",
+            "prefill_items": [SimpleNamespace(name=ln.name, spec="", cost_type=ln.cost_type, quantity=ln.qty,
+                                              unit=ln.unit or "หน่วย", unit_price=ln.price) for ln in pre["rows"]],
+            "prefill_members": [SimpleNamespace(name=n, position="ครู", role=r) for n, r in zip(names, roles)],
+            "prefill_mode": "committee" if len(names) > 1 else "single",
+        }
     return templates.TemplateResponse("procurement_form.html", {
         "request": request, "p": None, "action": "/procurement/new",
         "prefill_items": [], "prefill_members": [], "prefill_spec_members": [],
@@ -2180,6 +2200,7 @@ def procurement_new_form(request: Request, db: Session = Depends(get_db),
         **_form_lists(db),
         "prefill_project": pj.name if pj else "",
         "prefill_activity": valid_activity(db, activity, pj.id if pj else None) or "",
+        **extra,
     })
 
 
@@ -2198,6 +2219,8 @@ async def procurement_create(request: Request, db: Session = Depends(get_db)):
     db.add(proc)
     db.flush()
     _sync_proc_docnos(db, proc)
+    from app.routers.budget_request import link_from_form
+    link_from_form(db, form, proc.id)
     db.commit()
     db.refresh(proc)
     return RedirectResponse(f"/procurement/{proc.id}", status_code=303)
