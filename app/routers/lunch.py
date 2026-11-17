@@ -1570,6 +1570,9 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
         "loan": _loan_state(rnd) if rnd.program.operate_mode in ("person", "ingredient") else None,
         "bk_days": __import__("app.services.lunch_bk", fromlist=["x"]).day_rows(db, rnd) if rnd.program.operate_mode in ("person", "ingredient") else [],
         "bk_msg": request.query_params.get("bk", ""),
+        "loan_fy": (lambda fy: {"fy": fy, "used": __import__("app.services.loan_no", fromlist=["x"]).used(db, fy),
+                                "next": __import__("app.services.loan_no", fromlist=["x"]).next_no(db, fy)})(
+            current_fiscal_year(rnd.start_date or datetime.now())) if rnd.program.operate_mode in ("person", "ingredient") else None,
         **_close_ctx(rnd),
         "setup": _round_setup(rnd, committees, com_kinds, doc_no_rows, menu_days, ing_total, ing_remaining),
     })

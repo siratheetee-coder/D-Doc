@@ -27,3 +27,15 @@ def test_bk_per_day(env):
     assert f"บค.{start}/70" in page
     from app.services.lunch_ingredient_doc import _bk_no
     assert _bk_no(r, datetime(2026, 11, 4)) == f"บค.{start + 2}/70"
+
+
+def test_loan_register(env):
+    from app.models import LunchProgram, LunchClass, LunchHireRound, MoneyLoan
+    c = env; _, db = _db()
+    p = LunchProgram(year=2569, operate_mode="person", rate_per_head=24); db.add(p); db.flush()
+    db.add(LunchClass(program_id=p.id, level="ป.1", num_students=10, seq=1))
+    r = LunchHireRound(program_id=p.id, seq=1, start_date=datetime(2026, 11, 3), end_date=datetime(2026, 11, 5), days=3); db.add(r)
+    db.add(MoneyLoan(fiscal_year=2570, contract_no="7/2570", borrower="ครูเอ", amount=500, purpose="ไปราชการ"))
+    db.commit()
+    page = c.get(f"/lunch/round/{r.id}/plan").text
+    assert "ดูทะเบียนเลข" in page and 'value="8/2570"' in page and "ครูเอ" in page
