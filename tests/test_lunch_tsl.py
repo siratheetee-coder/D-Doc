@@ -58,3 +58,17 @@ def test_flow(env):
     assert [m.main for m in db.query(LunchMenu).filter(LunchMenu.program_id == pid).all()] == ["กะเพรา"]
     assert db.query(LunchIngredient).filter(LunchIngredient.date == datetime(2026, 11, 3)).count() == 2
     db.close()
+
+
+def test_flags(env):
+    from app.models import LunchProgram, LunchHireRound
+    from app.services import school_calendar as sc
+    from datetime import datetime
+    _, db = _db()
+    p = LunchProgram(year=2569, operate_mode="ingredient"); db.add(p); db.flush()
+    cal = sc.state(db, 2569)
+    cal["2026-11-04"] = False; cal["2026-11-03"] = True
+    pv = t.build_preview(db, p, ROWS, 100, True, (datetime(2026, 11, 3), datetime(2026, 11, 3)))
+    d3, d4 = pv["days"]
+    assert not d3["closed"] and not d3["outside"]
+    assert d4["closed"] and d4["outside"]

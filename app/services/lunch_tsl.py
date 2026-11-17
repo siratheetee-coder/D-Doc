@@ -120,7 +120,13 @@ def price_memory(db):
     return mem
 
 
-def build_preview(db, prog, rows, report_n, with_ings):
+def build_preview(db, prog, rows, report_n, with_ings, span=None):
+    """span = (start, end) ของรอบที่เปิดมาจาก ใช้เตือนวันนอกช่วง"""
+    from app.services import school_calendar as sc
+    try:
+        cal = sc.state(db, prog.year)
+    except Exception:
+        cal = {}
     actual = int(prog.total_students or 0)
     factor = (actual / report_n) if (report_n and actual) else 1.0
     mem = price_memory(db) if with_ings else {}
@@ -137,8 +143,11 @@ def build_preview(db, prog, rows, report_n, with_ings):
                              "qty": scale_qty(g["qty"], g["unit"], factor),
                              "price": mem.get(k, g["price"]), "remembered": k in mem})
         dd = d["date"].date()
+        closed = cal.get(dd.isoformat()) is False
+        outside = bool(span and span[0] and span[1] and not (span[0].date() <= dd <= span[1].date()))
         out.append({"date": d["date"], "main": main, "dessert": dessert, "ings": ings,
-                    "exists": dd in have_menu or (with_ings and dd in have_ing)})
+                    "exists": dd in have_menu or (with_ings and dd in have_ing),
+                    "closed": closed, "outside": outside})
     return {"days": out, "factor": factor, "actual": actual, "report_n": report_n}
 
 

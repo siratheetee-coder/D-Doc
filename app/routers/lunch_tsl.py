@@ -47,7 +47,12 @@ def tsl_preview(pid: int, request: Request, db: Session = Depends(get_db),
         data = []
     if not data and text:
         data = [line.split("\t") for line in text.splitlines()]
-    pv = lunch_tsl.build_preview(db, p, data, lunch_tsl.report_students(text), ctx["with_ings"])
+    import re
+    from app.models import LunchHireRound
+    m = re.search(r"/lunch/round/(\d+)/", back or "")
+    rnd = db.get(LunchHireRound, int(m.group(1))) if m else None
+    span = (rnd.start_date, rnd.end_date) if rnd and rnd.program_id == p.id else None
+    pv = lunch_tsl.build_preview(db, p, data, lunch_tsl.report_students(text), ctx["with_ings"], span)
     if not pv["days"]:
         ctx["error"] = "อ่านตารางไม่ได้ ลองคัดลอกใหม่จากหน้ารายงานวัตถุดิบและปริมาณการจัดซื้อ (กด Ctrl+A แล้ว Ctrl+C)"
     else:
