@@ -70,7 +70,10 @@
     <h2 style="margin-top:18px">กรรมการตรวจรับ</h2>
     <textarea name="inspectors" rows="3" placeholder="บรรทัดละ 1 คน (ต่ำกว่า 5,000 บาท 1 คน ตั้งแต่ 5,000 บาท 3 คน)">{{ r.inspectors or '' }}</textarea>
 
-    <label style="display:flex;gap:10px;align-items:center;margin-top:12px;cursor:pointer"><input type="checkbox" name="status" value="ส่งแล้ว" {{ 'checked' if r.status == 'ส่งแล้ว' }} style="width:20px;height:20px;margin:0;flex:none"><span>เสนอ ผอ. แล้ว (ครูผู้รับผิดชอบจะเห็นขั้นตอนถัดไป)</span></label>
+    {% if r.status == 'ปิดแล้ว' %}<p class="muted">คำขอนี้ปิดแล้ว เปิดใหม่ได้ที่หน้าคำขอ</p>{% else %}
+    <div class="br-grid"><div><label>สถานะ</label><select name="status">
+      {% for v, t in [('ร่าง','ร่าง ยังไม่เสนอ'),('ส่งแล้ว','เสนอ ผอ. แล้ว รออนุมัติ'),('อนุมัติแล้ว','ผอ. อนุมัติแล้ว (กันงบโครงการ)')] %}<option value="{{ v }}" {{ 'selected' if (r.status or 'ร่าง') == v }}>{{ t }}</option>{% endfor %}</select>
+      <small class="muted">ถ้าโรงเรียนเปิดส่ง ผอ. อนุมัติในระบบ ส่งได้ที่หน้าคำขอ ไม่ต้องเลือกตรงนี้</small></div></div>{% endif %}
     <p style="margin-top:16px"><button class="btn" type="submit">บันทึกคำขอ</button> <a class="btn gray" href="{{ '/budget-requests' if is_new else '/budget-requests/' ~ r.id }}">ยกเลิก</a></p>
   </form>
 </div>

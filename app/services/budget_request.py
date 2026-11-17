@@ -72,7 +72,12 @@ def budget_numbers(db, req) -> dict:
     if not proj:
         return {"approved": None, "used": None, "left": None, "request": req_total, "carry": None}
     approved = float(project_budget(proj) or 0)
-    left = float(project_remaining(proj) or 0)
+    # คงเหลือก่อนขอ = บวกคืนทุกอย่างที่คำขอนี้ทำให้งบลดไปแล้ว (ยอดที่กันไว้ + เอกสารที่ทำจากคำขอนี้)
+    own = 0.0
+    if req.id:
+        own = reserved_of(db, req) + sum(actual_amount(db, g["kind"], _target_obj(db, g["kind"], d["id"]))
+                                         for g in groups(db, req) for d in g["docs"])
+    left = float(project_remaining(proj) or 0) + own
     return {"approved": approved, "used": approved - left, "left": left, "request": req_total,
             "carry": left - req_total}
 
@@ -183,15 +188,71 @@ def prefill(req, method, db=None) -> dict:
                 purpose=f"เพื่อใช้ในโครงการ {title}".strip() if title else "")
 
 
+# ---------------- ช่วงที่ 3: อนุมัติ กันงบ ใช้จริงเทียบที่ขอ ปิดคำขอ ----------------
+STATUSES = ["ร่าง", "ส่งแล้ว", "อนุมัติแล้ว", "ปิดแล้ว"]
+
+
+def is_approved(db, req) -> bool:
+    """อนุมัติแล้ว = แอดมินบันทึกว่าอนุมัติ หรือ ผอ. กดอนุมัติในระบบ (เรื่องไม่ถูกแก้หลังอนุมัติ)"""
+    if req.status in ("อนุมัติแล้ว", "ปิดแล้ว"):
+        return True
+    if not req.id:
+        return False
+    from app.services import approval
+    return approval.enabled(db) and approval.approved_for(db, "budget_request", req.id, req) is not None
+
+
+def is_closed(db, req) -> bool:
+    return req.status == "ปิดแล้ว" or step_of(req, db) >= 4
+
+
+def reserved_of(db, req) -> float:
+    """ยอดที่คำขอนี้กันงบไว้ = รายการที่ยังไม่ได้ทำเรื่อง (อนุมัติแล้ว ยังไม่ปิด)"""
+    if req.status == "ปิดแล้ว" or not is_approved(db, req):
+        return 0.0
+    return round(sum(ln.amount for m in METHODS for ln in pending_lines(req, m, db)), 2)
+
+
+def reserved_for_project(db, project_id, exclude_id=None) -> float:
+    from app.models import BudgetRequest
+    q = db.query(BudgetRequest).filter(BudgetRequest.project_id == project_id, BudgetRequest.status != "ปิดแล้ว")
+    return round(sum(reserved_of(db, r) for r in q if r.id != exclude_id), 2)
+
+
+def actual_amount(db, kind, obj) -> float:
+    """ยอดใช้จริงของเอกสาร: จ่ายแล้วใช้ยอดจ่าย เงินยืมใช้ยอดใบสำคัญ+ที่ยังค้าง"""
+    if kind == "loan":
+        from app.services.budget import loan_parts
+        return float(loan_parts(obj)["used"])
+    if kind == "proc":
+        return float(obj.total_amount or 0)
+    return float(obj.amount or 0)
+
+
+def compare(db, req, gs=None) -> dict:
+    """ขอ vs ใช้จริง ต่อกลุ่ม + รวม (ทำเรื่องแล้วเท่านั้นที่นับใช้จริง)"""
+    gs = gs if gs is not None else groups(db, req)
+    rows, asked_all, actual_all = [], 0.0, 0.0
+    for g in gs:
+        kind = g["kind"]
+        done_lines = [ln for ln in g["lines"] if ln.target]
+        asked = round(sum(ln.amount for ln in done_lines), 2)
+        actual = round(sum(actual_amount(db, kind, _target_obj(db, kind, d["id"])) for d in g["docs"]), 2)
+        g.update(asked=asked, actual=actual, diff=round(asked - actual, 2))
+        asked_all += asked
+        actual_all += actual
+    return dict(asked=round(asked_all, 2), actual=round(actual_all, 2), diff=round(asked_all - actual_all, 2))
+
+
 def step_of(req, db=None) -> int:
     """ขั้นปัจจุบัน (0-based) 0 ขอใช้งบ 1 ผอ. อนุมัติ 2 จัดซื้อ/ยืม/เบิก 3 จ่ายครบ 4 = เสร็จทุกขั้น"""
     if db is not None and req.lines:
         gs = groups(db, req)
         if all(not g["pending"] for g in gs):
             return 4 if all(ln.target and ln.target["done"] for g in gs for ln in g["lines"]) else 3
-        if any(g["docs"] for g in gs):
+        if any(g["docs"] for g in gs) or is_approved(db, req):
             return 2
-    return 1 if req.status == "ส่งแล้ว" else 0
+    return 2 if req.status == "อนุมัติแล้ว" else 1 if req.status == "ส่งแล้ว" else 0
 
 
 def teacher_cards(db, pid, limit=3) -> list:
@@ -251,4 +312,7 @@ def render_docx(db, req, school) -> str:
     fname = R._safe_filename(f"บันทึกขอใช้งบประมาณ_{req.request_no or req.id}_{pj or req.purpose or ''}.docx")
     p = out / fname
     tpl.save(str(p))
+    if req.id:
+        from app.services.approval import stamp_current
+        stamp_current("budget_request", req.id, str(p), getattr(school, "director_name", "") or "", tick=("อนุมัติ",))
     return str(p)

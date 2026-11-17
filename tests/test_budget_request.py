@@ -152,3 +152,51 @@ def test_phase2_create_targets_link_and_status(env):
         assert len(svc.pending_lines(req, "เบิกจ่ายตรง", db)) == 1
     finally:
         db.close()
+
+
+def test_phase3_reserve_compare_close_and_director_approval(env):
+    """ช่วงที่ 3: อนุมัติแล้วกันงบโครงการ ทำเรื่องแล้วย้ายไปนับที่เอกสาร (ไม่นับซ้ำ) ใช้จริงเทียบที่ขอ ปิดคำขอคืนงบ"""
+    from app.models import BudgetRequestLine, DisburseMemo, School
+    from app.services import approval
+    from app.services.budget import project_money_summary, project_remaining
+    c = env
+    tid, db = _db()
+    try:
+        pj = Project(name="โครงการกันงบ", budget=10000, plan_year=2570); db.add(pj); db.flush()
+        req = BudgetRequest(fiscal_year=2570, request_no="20/2570", project_id=pj.id, status="ส่งแล้ว")
+        db.add(req); db.flush()
+        for i, (n, m, p) in enumerate([("วัสดุ", "จัดซื้อ", 3000), ("วิทยากร", "เบิกจ่ายตรง", 2000)]):
+            db.add(BudgetRequestLine(request_id=req.id, seq=i, cost_type="ค่าวัสดุ", name=n, qty=1, unit="", price=p, method=m))
+        db.commit(); rid = req.id
+        assert project_remaining(pj) == 10000          # ยังไม่อนุมัติ ไม่กันงบ
+        # ผอ. อนุมัติในระบบ
+        db.query(School).first().approval_on = True; db.commit()
+        a = approval.send(db, "budget_request", rid, "แอดมิน"); db.commit()
+        approval.decide(db, a.id, "approve", None, "ผอ."); db.commit()
+        db.expire_all()
+        assert svc.is_approved(db, req) and svc.reserved_of(db, req) == 5000
+        assert project_remaining(pj) == 5000 and project_money_summary(pj)["reserved"] == 5000
+        nums = svc.budget_numbers(db, req)
+        assert nums["left"] == 10000 and nums["carry"] == 5000   # ไม่หักตัวเองซ้ำ
+        # ทำเรื่องเบิกจ่ายตรง 1,800 (ใช้น้อยกว่าที่ขอ) กันงบเหลือเฉพาะส่วนจัดซื้อ
+        m = DisburseMemo(fiscal_year=2570, memo_no="x1", subject="วิทยากร", amount=1800, project_id=pj.id); db.add(m); db.flush()
+        svc.link(db, req, "เบิกจ่ายตรง", m.id); db.commit()
+        assert svc.reserved_of(db, req) == 3000
+        assert project_remaining(pj) == 10000 - 3000 - 1800
+        assert svc.budget_numbers(db, req)["left"] == 10000
+        cmp = svc.compare(db, req)
+        assert cmp == {"asked": 2000, "actual": 1800, "diff": 200}
+        page = c.get(f"/budget-requests/{rid}")
+        assert "เหลือคืนงบโครงการ" in page.text and "กันงบโครงการไว้ 3,000.00" in page.text
+        # ปิดคำขอ: ไม่ใช้รายการจัดซื้อแล้ว คืนงบ
+        c.post(f"/budget-requests/{rid}/close"); db.expire_all()
+        assert svc.reserved_of(db, req) == 0 and project_remaining(pj) == 8200 and svc.is_closed(db, req)
+        c.post(f"/budget-requests/{rid}/reopen"); db.expire_all()
+        assert svc.reserved_of(db, req) == 3000
+        # แก้คำขอหลังอนุมัติในระบบ = ลายนิ้วมือเปลี่ยน ต้องส่งใหม่ (สถานะแอดมินเลือกยังมีผลแยก)
+        req.status = "ส่งแล้ว"; req.lines[0].price = 3500; db.commit()
+        assert not svc.is_approved(db, req)
+        # หน้าอนุมัติของ ผอ. ออกบันทึกได้
+        doc = c.get(f"/budget-requests/{rid}/doc.docx"); assert doc.status_code == 200
+    finally:
+        db.close()

@@ -33,7 +33,9 @@
 <div class="card">
   <div class="brd-head"><img src="/static/images/home3d/f_projects.png" alt="">
     <div class="t"><h1>คำขอใช้งบประมาณ {{ r.request_no }}</h1>
-      <small>{{ r.project.name if r.project else r.purpose }}{% if r.owner %} ผู้รับผิดชอบ {{ r.owner }}{% endif %}{% if r.activity_date %} จัดวันที่ {{ be_date(r.activity_date) }}{% endif %}</small></div>
+      <small>{{ r.project.name if r.project else r.purpose }}{% if r.owner %} ผู้รับผิดชอบ {{ r.owner }}{% endif %}{% if r.activity_date %} จัดวันที่ {{ be_date(r.activity_date) }}{% endif %}</small>
+      <div style="margin-top:6px"><span class="brd-st {{ 'ok' if approved else 'wait' }}">{{ 'ปิดคำขอแล้ว' if closed else 'ผอ. อนุมัติแล้ว' if approved else 'เสนอ ผอ. แล้ว รออนุมัติ' if r.status == 'ส่งแล้ว' else 'ร่าง ยังไม่เสนอ ผอ.' }}</span>
+      {% if reserved %}<span class="brd-st">กันงบโครงการไว้ {{ '{:,.2f}'.format(reserved) }} บาท</span>{% endif %}</div></div>
     <a class="btn" href="{{ doc_href }}"><svg class="icon"><use href="#ic-file"/></svg> บันทึกขอใช้งบประมาณ (Word)</a>
     {% if not readonly and not director_view %}<a class="btn gray" href="/budget-requests/{{ r.id }}/edit">แก้ไข</a>{% endif %}
   </div>
@@ -46,10 +48,20 @@
     <div style="--b:{{ '#fff1f2' if nums.carry < 0 else '#ecfdf5' }};--c:{{ '#e11d48' if nums.carry < 0 else '#16a34a' }}"><b>{{ '{:,.2f}'.format(nums.carry) }}</b><span>คงเหลือยกไป</span></div>
     {% endif %}
   </div>
+  {% if ap_state and not readonly and not director_view %}{% from "_approval_box.html" import approval_box, approval_style %}
+  <div id="approval" style="margin-top:12px;scroll-margin-top:90px">
+    {% if request.query_params.get('msg') %}<div class="alert">{{ request.query_params.get('msg') }}</div>{% endif %}
+    {% if request.query_params.get('err') %}<div class="alert warn">{{ request.query_params.get('err') }}</div>{% endif %}
+    {{ approval_box(ap_state, '/finance/approval', '/budget-requests/' ~ r.id ~ '#approval', {'ref_id': r.id}) }}{{ approval_style() }}</div>{% endif %}
   {% if nums.carry is not none and nums.carry < 0 %}<div class="alert" role="alert">ยอดที่ขอเกินงบคงเหลือของโครงการ {{ '{:,.2f}'.format(-nums.carry) }} บาท</div>{% endif %}
 </div>
 <div class="card">
   <h2 style="margin-top:0">รายการตามวิธีเบิก</h2>
+  {% if cmp.asked %}<div class="brd-nums" style="margin-bottom:6px">
+    <div><b>{{ '{:,.2f}'.format(cmp.asked) }}</b><span>ขอไว้ (ส่วนที่ทำเรื่องแล้ว)</span></div>
+    <div style="--b:#eef2ff;--c:#4338ca"><b>{{ '{:,.2f}'.format(cmp.actual) }}</b><span>ใช้จริงตามเอกสาร</span></div>
+    <div style="--b:{{ '#fff1f2' if cmp.diff < 0 else '#ecfdf5' }};--c:{{ '#e11d48' if cmp.diff < 0 else '#16a34a' }}"><b>{{ '{:,.2f}'.format(cmp.diff|abs) }}</b><span>{{ 'ใช้เกินที่ขอ' if cmp.diff < 0 else 'เหลือคืนงบโครงการ' }}</span></div>
+  </div>{% endif %}
   {% for g in groups %}
   <div class="brd-group"><h3>{{ g.method }} <em>{{ '{:,.2f}'.format(g.total) }} บาท</em></h3>
     {% for ln in g.lines %}<div class="brd-line"><span>{{ ln.name }}<small>{{ ln.cost_type }} {{ '%g'|format(ln.qty) }} {{ ln.unit }} x {{ '{:,.2f}'.format(ln.price) }}</small></span>
@@ -59,7 +71,9 @@
     <div class="brd-doc"><a href="{{ d.href }}">{{ d.label }}</a> <span class="brd-st {{ 'ok' if d.done }}">{{ d.status }}</span>
       {% if not readonly and not director_view %}<form method="post" action="/budget-requests/{{ r.id }}/unlink" onsubmit="return confirm('เลิกผูกเอกสารนี้กับคำขอ? ตัวเอกสารไม่ถูกลบ')"><input type="hidden" name="m" value="{{ g.method }}"><input type="hidden" name="target_id" value="{{ d.id }}"><button class="brd-x" type="submit" aria-label="เลิกผูก">เลิกผูก</button></form>{% endif %}</div>
     {% endfor %}
-    {% if g.pending %}
+    {% if g.docs %}<div class="brd-next">ขอ {{ '{:,.2f}'.format(g.asked) }} ใช้จริง {{ '{:,.2f}'.format(g.actual) }} บาท{% if g.diff %} ({{ 'เกิน' if g.diff < 0 else 'เหลือ' }} {{ '{:,.2f}'.format(g.diff|abs) }}){% endif %}</div>{% endif %}
+    {% if g.pending and closed %}<div class="brd-next">ปิดคำขอแล้ว รายการที่ยังไม่ทำเรื่องไม่กันงบ</div>
+    {% elif g.pending %}
       {% if readonly or director_view %}<div class="brd-next">ขั้นถัดไป: {{ g.next_label }} (งานการเงิน/พัสดุดำเนินการ)</div>
       {% else %}
       <div class="brd-act"><a class="btn sm" href="/budget-requests/{{ r.id }}/go?m={{ g.method|urlencode }}">{{ g.next_label }} {{ '{:,.2f}'.format(g.pending_total) }} บาท</a>
@@ -72,6 +86,9 @@
   {% endfor %}
 </div>
 {% if not readonly and not director_view %}
-<div class="card"><form method="post" action="/budget-requests/{{ r.id }}/delete" onsubmit="return confirm('ลบคำขอใช้งบประมาณนี้? เลขบันทึกจะถูกคืนออกจากทะเบียน')"><button class="btn red sm" type="submit">ลบคำขอนี้</button> <a class="btn gray sm" href="/budget-requests?year={{ r.fiscal_year }}">กลับรายการ</a></form></div>
+<div class="card">
+  {% if r.status == 'ปิดแล้ว' %}<form method="post" action="/budget-requests/{{ r.id }}/reopen" style="display:inline"><button class="btn gray sm" type="submit">เปิดคำขออีกครั้ง</button></form>
+  {% elif approved %}<form method="post" action="/budget-requests/{{ r.id }}/close" style="display:inline" onsubmit="return confirm('ปิดคำขอนี้? รายการที่ยังไม่ได้ทำเรื่องจะไม่กันงบโครงการอีก')"><button class="btn gray sm" type="submit">ปิดคำขอ (ไม่ใช้รายการที่เหลือ)</button></form>{% endif %}
+  <form method="post" action="/budget-requests/{{ r.id }}/delete" style="display:inline" onsubmit="return confirm('ลบคำขอใช้งบประมาณนี้? เลขบันทึกจะถูกคืนออกจากทะเบียน')"><button class="btn red sm" type="submit">ลบคำขอนี้</button> </form> <a class="btn gray sm" href="/budget-requests?year={{ r.fiscal_year }}">กลับรายการ</a></div>
 {% endif %}
 {% endblock %}

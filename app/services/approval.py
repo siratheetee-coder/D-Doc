@@ -170,7 +170,19 @@ KINDS.update({
 })
 
 # เส้นทางส่ง (อยู่ใต้ path ของงาน สิทธิ์งานเดิมคุม) -> ชนิดที่ส่งได้
-SEND_PATHS = {"/finance/approval": ("disburse", "loan", "revenue"),
+def _fp_br(r) -> str:
+    lines = ";".join(f"{ln.name}|{ln.method}|{float(ln.qty or 0):g}|{float(ln.price or 0):.2f}" for ln in r.lines)
+    return "|".join([str(r.project_id or ""), str(r.activity_id or ""), r.purpose or "", r.owner or "", lines])
+
+
+KINDS["budget_request"] = dict(
+    label="คำขอใช้งบประมาณ", step="ขออนุมัติใช้งบประมาณ", docs=["บันทึกขอใช้งบประมาณ"],
+    get=_get("BudgetRequest"), fp=_fp_br,
+    title=lambda r: ("ขอใช้งบ " + ((r.project.name if r.project else "") or r.purpose or "")).strip(),
+    amount=lambda r: sum(ln.amount for ln in r.lines),
+    link=lambda rid: f"/budget-requests/{rid}", group="การเงิน")
+
+SEND_PATHS = {"/finance/approval": ("disburse", "loan", "revenue", "budget_request"),
               "/admin/approval": ("memo", "order", "letter"),
               "/projects/approval": ("project", "project_report"),
               "/lunch/approval": ("lunch_round", "lunch_pay", "lunch_inst")}

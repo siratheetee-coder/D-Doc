@@ -170,8 +170,14 @@ def project_money_summary(project):
                 if d:
                     k = (d.year, d.month)
                     by_month[k] = by_month.get(k, 0.0) + float(r.amount or 0)
+    # คำขอใช้งบประมาณที่ ผอ. อนุมัติแล้ว: กันงบส่วนที่ยังไม่ได้ทำเรื่อง (ทำเรื่องแล้วนับจากเอกสารด้านบนแทน)
+    reserved = 0.0
+    if db is not None:
+        from app.services.budget_request import reserved_for_project
+        reserved = reserved_for_project(db, project.id)
+        waiting += reserved
     used = round(before + paid + waiting + paid_pre, 2)
-    return dict(paid=round(paid,2), waiting=round(waiting,2), before=round(before + paid_pre, 2),
+    return dict(paid=round(paid,2), waiting=round(waiting,2), reserved=round(reserved, 2), before=round(before + paid_pre, 2),
                 paid_pre=round(paid_pre, 2), spent_before=round(before, 2),
                 used=used, remaining=round(project_budget(project)-used,2),
                 by_month={k: round(v, 2) for k, v in by_month.items()})

@@ -37,7 +37,7 @@
         {% if not p.revisions and b > 0 %}<button type="button" class="pj-edit" onclick="document.getElementById('setBudget').hidden=false; this.hidden=true; document.getElementById('setBudgetIn').focus();">แก้งบ</button>{% endif %}</div>
       <span class="ic-wrap ic-blue"><svg class="icon"><use href="#ic-coins"/></svg></span></div>
     <div class="box"><div><div class="lab">จ่ายจริงในระบบ</div><div class="num">{{ "{:,.2f}".format(money.paid) }}</div><div class="pj-sub">จ่ายจริงตามทะเบียนคุมเงิน</div></div></div>
-    <div class="box"><div><div class="lab">ทำเรื่องแล้วรอจ่าย</div><div class="num">{{ "{:,.2f}".format(money.waiting) }}</div><div class="pj-sub">ยอดเรื่องจัดซื้อ/ขอเบิกที่ยังไม่จ่าย รวมเรื่องร่าง</div></div></div>
+    <div class="box"><div><div class="lab">ทำเรื่องแล้วรอจ่าย</div><div class="num">{{ "{:,.2f}".format(money.waiting) }}</div><div class="pj-sub">ยอดเรื่องจัดซื้อ/ขอเบิกที่ยังไม่จ่าย รวมเรื่องร่าง{% if money.reserved %} และกันงบตามคำขอใช้งบที่อนุมัติแล้ว {{ "{:,.2f}".format(money.reserved) }}{% endif %}</div></div></div>
     <div class="box"><div><div class="lab">งบเหลือทำเรื่องใหม่</div><div class="num" style="color:{{ '#dc2626' if r < 0 else '#16a34a' }};">{{ "{:,.2f}".format(r) }}</div></div></div>
   </div>
 

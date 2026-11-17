@@ -173,6 +173,9 @@ def _render(db, kind, ref_id, doc) -> str:
     elif kind == "disburse":
         from app.services.finance_doc import render_disburse
         path = render_disburse(obj, school)
+    elif kind == "budget_request":
+        from app.services.budget_request import render_docx
+        path = render_docx(db, obj, school)
     elif kind == "loan":
         from app.services.finance_forms_doc import render_loan_contract
         path = render_loan_contract(school, obj)

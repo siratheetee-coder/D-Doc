@@ -79,7 +79,9 @@ def _save(db, req, form):
     req.activity_date = parse_be_date(form.get("activity_date") or "")
     req.purpose = (form.get("purpose") or "").strip()[:1000]
     req.inspectors = (form.get("inspectors") or "").strip()[:2000]
-    req.status = "ส่งแล้ว" if form.get("status") == "ส่งแล้ว" else "ร่าง"
+    st = form.get("status") or "ร่าง"
+    if req.status != "ปิดแล้ว":
+        req.status = st if st in svc.STATUSES[:3] else "ร่าง"
     keep = {ln.seq: ln for ln in req.lines}
     req.lines.clear()
     db.flush()
@@ -122,9 +124,13 @@ def _detail_ctx(request, db, req, readonly):
     if not readonly:
         for g in groups:
             g["candidates"] = svc.candidates(db, req, g["kind"]) if g["pending"] else []
+    from app.services import approval
+    ap_state = approval.state(db, "budget_request", req.id, req) if approval.enabled(db) else None
     return {"request": request, "r": req, "readonly": readonly, "groups": groups,
             "total": svc.total(req), "nums": svc.budget_numbers(db, req), "steps": svc.STEPS,
-            "step": svc.step_of(req, db),
+            "step": svc.step_of(req, db), "ap_state": ap_state, "cmp": svc.compare(db, req, groups),
+            "reserved": svc.reserved_of(db, req), "approved": svc.is_approved(db, req),
+            "closed": svc.is_closed(db, req),
             "doc_href": f"/me/budget-requests/{req.id}/doc.docx" if readonly else f"/budget-requests/{req.id}/doc.docx"}
 
 
@@ -184,6 +190,24 @@ def br_go(rid: int, m: str, db: Session = Depends(get_db)):
     url = {"proc": f"/procurement/new?{q}", "loan": f"/finance/loans?year={req.fiscal_year}&{q}#new",
            "disburse": f"/finance/disburse?year={req.fiscal_year}&{q}"}[kind]
     return RedirectResponse(url, 303)
+
+
+@router.post("/budget-requests/{rid}/close")
+def br_close(rid: int, db: Session = Depends(get_db)):
+    """ปิดคำขอ: รายการที่ยังไม่ได้ทำเรื่องไม่กันงบอีก (เช่น ยกเลิกบางรายการ ใช้ไม่หมด)"""
+    req = _get(db, rid)
+    req.status = "ปิดแล้ว"
+    db.commit()
+    return RedirectResponse(f"/budget-requests/{rid}", 303)
+
+
+@router.post("/budget-requests/{rid}/reopen")
+def br_reopen(rid: int, db: Session = Depends(get_db)):
+    req = _get(db, rid)
+    if req.status == "ปิดแล้ว":
+        req.status = "อนุมัติแล้ว"
+        db.commit()
+    return RedirectResponse(f"/budget-requests/{rid}", 303)
 
 
 @router.post("/budget-requests/{rid}/link")
