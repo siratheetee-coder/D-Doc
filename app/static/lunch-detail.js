@@ -63,6 +63,40 @@
    else{group('docs','เลขที่หนังสือและเอกสารทั้งหมด').append(card);}
  }
  if(steps?.parentElement?.classList.contains('rd-setup'))group('info','ข้อมูลรอบ การแบ่งงวด และขั้นตอนเตรียมงาน').append(steps.parentElement);
+
+ // Add visual field cues without changing controls, names, values or form listeners.
+ function fieldIcon(text,field){
+   const key=(field?.name||field?.dataset.key||'').toLowerCase();
+   if(/^(borrower|name|position|role|kind)$/.test(key)||/กรรมการ|นักเรียน|บทบาท|ตำแหน่ง/.test(text))return 'users';
+   if(/ยืมเงิน|เงินยืม|จ่ายค่าจ้าง/.test(text))return 'coins';
+   if(/date|วันที่|วันเริ่ม|วันสิ้นสุด|วันส่งมอบ|วันตรวจรับ/.test(key+' '+text))return 'calendar';
+   if(/จำนวนวัน|จำนวนงวด|จำนวน|อัตรา|ราคาต่อ|days|rate|quantity|n_inst/.test(key+' '+text))return 'calc';
+   if(/amount|wage|cost|vat|wht|fine|วงเงิน|ยอด|บาท|ค่าจ้าง|เชื้อเพลิง|ภาษี|ค่าปรับ/.test(key+' '+text))return 'coins';
+   if(/vendor|ผู้รับจ้าง|ชื่อร้าน|เจ้าของ/.test(key+' '+text))return 'store';
+   if(/borrower|name|position|role|ผู้ยืม|ชื่อ|ตำแหน่ง|บทบาท|กรรมการ|ผู้รับเงิน/.test(key+' '+text))return 'users';
+   if(/no|เลข|เอกสาร|หนังสือ|สัญญา/.test(key+' '+text))return 'file';
+   if(/เมนู|อาหาร|วัตถุดิบ/.test(text))return 'package';
+   if(/สถานะ|status/.test(key+' '+text))return 'clipboard';
+   return 'edit';
+ }
+ function cue(name){const span=document.createElement('span');span.className='rd-input-icon rd-icon-'+name;span.setAttribute('aria-hidden','true');span.innerHTML=menuIcon(name);return span;}
+ root.querySelectorAll('label').forEach(label=>{
+   if(label.querySelector('svg,input[type=checkbox],input[type=radio]'))return;
+   const field=label.querySelector('input,select,textarea')||label.control||label.parentElement.querySelector('input,select,textarea');
+   if(!label.textContent.trim())return;
+   label.classList.add('rd-field-label');label.prepend(cue(fieldIcon(label.textContent.trim(),field)));
+ });
+ root.querySelectorAll('.rd-fold>summary').forEach(summary=>{
+   if(summary.querySelector('.rd-summary-name'))return;
+   const name=document.createElement('span');name.className='rd-summary-name';
+   name.append(cue(fieldIcon(summary.textContent,null)));
+   while(summary.firstChild)name.append(summary.firstChild);
+   summary.append(name);
+ });
+ root.querySelectorAll('.bf-step h3,.bf-head h2,.rd-fold-content h2,.rd-fold-content h3').forEach(h=>{
+   if(h.querySelector('svg'))return;h.prepend(cue(fieldIcon(h.textContent,null)));
+ });
+ root.querySelectorAll('.bf-fields').forEach(fields=>{if(!fields.querySelector(':scope > .rd-input-icon'))fields.prepend(cue('file'));});
  function reveal(hash){if(!hash)return;let el;try{el=document.getElementById(decodeURIComponent(hash.slice(1)));}catch{return;}if(!el)return;for(let p=el;p&&p!==root;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;const fold=el.querySelector(':scope > details.rd-fold');if(fold)fold.open=true;requestAnimationFrame(()=>el.scrollIntoView({block:'start'}));}
  addEventListener('hashchange',()=>reveal(location.hash));
  root.addEventListener('click',e=>{const a=e.target.closest('a[href^="#"]');if(a)reveal(a.getAttribute('href'));});
