@@ -146,7 +146,7 @@ def test_round_chart_and_doc_checks(env):
     env.post(f"/lunch/installment/{a}/meals", data={f"m_2026-06-08_{cid}": "12", f"m_2026-06-09_{cid}": "9"})
     page = env.get(f"/lunch/round/{rid}/plan").text
     assert "ยอดนักเรียนรายวันทั้งรอบ" in page and 'id="rc-chart"' in page
-    assert "ตรวจก่อนออกเอกสาร" in page and 'data-chk="i%d"' % a in page
+    assert "ข้อมูลที่ยังไม่ครบ" in page and 'data-chk="i%d"' % a in page
 
     chk = json.loads(re.search(r"var CHK = (\{.*?\});\n", page).group(1))
     msgs = lambda k: " | ".join(x["msg"] for x in chk[k])

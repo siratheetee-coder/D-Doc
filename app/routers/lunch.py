@@ -1591,6 +1591,10 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
                                 "next": __import__("app.services.loan_no", fromlist=["x"]).next_no(db, fy)})(
             current_fiscal_year(rnd.start_date or datetime.now())) if rnd.program.operate_mode in ("person", "ingredient") else None,
         **_close_ctx(rnd),
+        "missing": __import__("app.services.lunch_missing", fromlist=["x"]).buy_missing(
+            rnd, committees, com_kinds, doc_no_rows, _loan_state(rnd), ing_total,
+            __import__("app.services.lunch_bk", fromlist=["x"]).day_rows(db, rnd))
+            if rnd.program.operate_mode in ("person", "ingredient") else [],
         "setup": _round_setup(rnd, committees, com_kinds, doc_no_rows, menu_days, ing_total, ing_remaining),
     })
 
@@ -1603,7 +1607,7 @@ def _loan_state(rnd):
 def _close_ctx(rnd) -> dict:
     """ยอดที่จะลงบัญชีตอนปิดรอบ (แม่ครัว/ซื้อวัตถุดิบ) ให้หน้ารอบบอกก่อนกด"""
     if rnd.program.operate_mode not in ("person", "ingredient"):
-        return {"close_amount": 0.0, "close_parts": ""}
+        return {"close_amount": 0.0, "close_parts": "", "close_total": 0.0}
     from app.services.lunch_loan import close_info
     amount, parts = close_info(rnd)
     from sqlalchemy.orm import object_session
@@ -1613,6 +1617,7 @@ def _close_ctx(rnd) -> dict:
             "close_acc": lunch_close_pay.account_name(db, rnd),
             "close_paid": lunch_close_pay.paid_date(db, rnd),
             "today_be": be_date_input(datetime.now()),
+            "close_total": round_spend(rnd),
             "close_dupes": lunch_close_pay.candidates(db, rnd, amount) if rnd.status != "จ่ายแล้ว" else []}
 
 

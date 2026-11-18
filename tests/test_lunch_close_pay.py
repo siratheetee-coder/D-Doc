@@ -57,3 +57,10 @@ def test_disburse_warns_closed_round(env):
         s.add(m); s.commit(); mid = m.id
     r = env.get(f"/finance/disburse/{mid}")
     assert "ระวังจ่ายซ้ำ" in r.text and f"/lunch/round/{rid}/plan" in r.text
+
+
+def test_missing_box_and_flow(env):
+    rid, _ = _setup()
+    t = env.get(f"/lunch/round/{rid}/plan").text
+    assert "ข้อมูลที่ยังไม่ครบ" in t and "ยังไม่ได้แต่งตั้งกรรมการตรวจรับพัสดุ" in t
+    assert "ทำเรื่องและจ่ายเงินครั้งเดียว" not in t

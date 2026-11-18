@@ -35,7 +35,7 @@
   {% endif %}
   <p class="muted" style="margin-bottom:0;">{{ RW }}นี้แบ่งจ่ายเป็นงวดจ่ายเงินได้ (เช่น 5 งวด งวดละ 20 วัน) แต่ละงวด: ส่งมอบ → ตรวจรับ → เมื่อ "จ่ายแล้ว" ระบบลงบัญชีให้อัตโนมัติ</p>
   {% else %}
-  <p class="muted" style="margin-bottom:0;">{{ RW }}นี้ทำเรื่องและจ่ายเงินครั้งเดียว ไม่มีงวด งบคิดจากค่าวัตถุดิบที่กรอกรายวัน (+ ค่าจ้าง/ค่าเชื้อเพลิง) ใส่เมนูและวัตถุดิบด้านล่าง</p>
+  <p class="muted" style="margin-bottom:0;">{{ RW }}นี้ไม่มีงวด งบคิดจากค่าวัตถุดิบที่กรอกรายวัน{{ ' รวมค่าจ้างแม่ครัวและค่าเชื้อเพลิง' if p.operate_mode == 'person' else ' รวมค่าเชื้อเพลิง' }} ขั้นตอนเงิน: ยืมเงินซื้อวัตถุดิบ แล้วส่งใช้ใบสำคัญและคืนเงินที่เหลือ{{ ' จากนั้นปิดรอบจ่ายค่าจ้างแม่ครัว' if p.operate_mode == 'person' else ' จากนั้นปิดรอบ' }}</p>
   {% endif %}
 </div>
 
@@ -245,7 +245,7 @@
   {% set n_err = check_list|selectattr('level', 'equalto', 'err')|list|length %}
   {% set n_warn = check_list|length - n_err %}
   <details class="ck-box {{ 'ck-err' if n_err else ('ck-warn' if n_warn else 'ck-ok') }}" id="doc-check" {{ 'open' if n_err }}>
-    <summary><b>ตรวจก่อนออกเอกสาร</b>
+    <summary><b>{{ "ข้อมูลที่ยังไม่ครบ" if check_list else "ข้อมูลเอกสาร" }}</b>
       {% if n_err %}<span class="ck-tag ck-t-err">ต้องแก้ {{ n_err }} จุด</span>{% endif %}
       {% if n_warn %}<span class="ck-tag ck-t-warn">ควรเช็ค {{ n_warn }} จุด</span>{% endif %}
       {% if not check_list %}<span class="ck-tag ck-t-ok">✓ ข้อมูลครบ พร้อมออกเอกสาร</span>{% endif %}
@@ -536,7 +536,7 @@
 <!-- ============ เตือนก่อนออกเอกสาร (ปุ่มที่มี data-chk) ============ -->
 <div class="ck-modal" id="ck-modal" hidden>
   <div class="ck-dialog" role="dialog" aria-modal="true" aria-labelledby="ck-title">
-    <h3 id="ck-title" style="margin:0 0 4px;">ตรวจก่อนออกเอกสาร</h3>
+    <h3 id="ck-title" style="margin:0 0 4px;">ข้อมูลที่ยังไม่ครบ</h3>
     <p class="muted" style="margin:0 0 8px; font-size:13.5px;">เอกสารฉบับนี้มีจุดที่ควรแก้ก่อน ถ้าออกตอนนี้ข้อมูลในเอกสารอาจไม่ครบหรือไม่ตรง</p>
     <ul class="ck-list" id="ck-items"></ul>
     <div class="iq-act" style="justify-content:flex-end;">

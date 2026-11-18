@@ -1,4 +1,20 @@
 {# ปิดรอบ (แม่ครัว/ซื้อวัตถุดิบ): ตั้งสถานะ "จ่ายแล้ว" ระบบลงบัญชีเฉพาะส่วนที่เงินยืมไม่ได้จ่าย (lunch_loan.py) #}
+{# สรุปเงินรอบนี้ในจุดเดียว: ยืม -> ใช้จริง -> คืน -> จ่ายตอนปิดรอบ -> รวม #}
+{% set L = loan if loan is defined and loan else none %}
+{% if L and L.loan %}<div class="mflow">
+  <span><small>รับเงินยืม</small><b>{{ "{:,.2f}".format(L.amount) }}</b></span><i>→</i>
+  <span><small>ใช้จากเงินยืม</small><b>{{ "{:,.2f}".format([L.spent, L.amount]|min) }}</b></span><i>→</i>
+  <span><small>คืนเงินเหลือ</small><b>{{ "{:,.2f}".format(L.cash) if L.repaid else 'ยังไม่ส่งใช้' }}</b></span><i>→</i>
+  <span><small>จ่ายเพิ่มตอนปิดรอบ</small><b>{{ "{:,.2f}".format(close_amount) }}</b></span><i>=</i>
+  <span class="tot"><small>รวมใช้จริงทั้งรอบ</small><b>{{ "{:,.2f}".format(close_total or 0) }}</b></span>
+</div>{% endif %}
+<style>
+.mflow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 12px;padding:10px 12px;border-radius:14px;background:linear-gradient(135deg,#f8fafc,#eef2ff)}
+.mflow span{display:flex;flex-direction:column;background:#fff;border-radius:10px;padding:6px 10px;box-shadow:0 1px 3px #0f172a12}
+.mflow small{font-size:11.5px;color:#64748b}.mflow b{font-size:15px}
+.mflow .tot{background:linear-gradient(135deg,#10b981,#059669);color:#fff}.mflow .tot small{color:#d1fae5}
+.mflow i{font-style:normal;color:#94a3b8;font-weight:700}
+</style>
 {% set PAID = r.status == 'จ่ายแล้ว' %}
 <div class="bf-repay {{ 'is-done' if PAID }}">
   {% if PAID %}
@@ -34,9 +50,9 @@
       {% if close_dupes %}
       <div class="cpd-warn">
         <b>พบรายการจ่ายยอดเท่ากันในทะเบียนคุมเงินแล้ว</b> ถ้าเป็นการจ่ายครั้งเดียวกัน ให้เลือกรายการนั้น ระบบจะไม่ลงจ่ายซ้ำ
-        <label class="cpd-opt"><input type="radio" name="link_txn" value="" checked onchange="this.form.paid_date.disabled=false"> ลงรายการจ่ายใหม่</label>
+        <label class="cpd-opt"><input type="radio" name="link_txn" value="" checked onchange="this.form.paid_date.disabled=false"><span class="cpd-ck"></span><span><b>ลงรายการจ่ายใหม่</b><small>เป็นการจ่ายคนละครั้งกับรายการด้านล่าง</small></span></label>
         {% for t in close_dupes %}
-        <label class="cpd-opt"><input type="radio" name="link_txn" value="{{ t.id }}" onchange="this.form.paid_date.disabled=true"> ใช้รายการเดิม {{ t.date.strftime('%d/%m/') ~ (t.date.year + 543) if t.date else '' }} {{ t.ref or '' }} {{ (t.note or '')[:40] }}</label>
+        <label class="cpd-opt"><input type="radio" name="link_txn" value="{{ t.id }}" onchange="this.form.paid_date.disabled=true"><span class="cpd-ck"></span><span><b>ใช้รายการเดิม {{ t.ref or '' }}</b><small>{{ t.date.strftime('%d/%m/') ~ (t.date.year + 543) if t.date else '' }} {{ (t.note or '')[:40] }}</small></span></label>
         {% endfor %}
       </div>
       {% endif %}
@@ -53,8 +69,15 @@
   .cpd-hd{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:19px}
   .cpd-x{border:0;border-radius:50%;width:34px;height:34px;background:#f1f5f9;font-size:22px;cursor:pointer;flex:none;padding:0}
   .cpd-warn{margin-top:12px;background:linear-gradient(135deg,#fffbeb,#fef3c7);color:#78350f;border-radius:12px;padding:12px 14px;font-size:13.5px;line-height:1.6}
-  .cpd-opt{display:flex!important;align-items:flex-start;gap:8px;margin:8px 0 0;font-weight:400;cursor:pointer}
-  .cpd-opt input[type=radio]{width:18px!important;height:18px;min-width:0;margin:3px 0 0;flex:none;padding:0}
+  .cpd-opt{display:flex!important;align-items:center;gap:10px;margin:8px 0 0;padding:10px 12px;border-radius:12px;background:#fff;font-weight:400;cursor:pointer;box-shadow:0 1px 3px #0f172a14;transition:.15s}
+  .cpd-opt input{position:absolute;opacity:0;width:1px!important;height:1px;pointer-events:none}
+  .cpd-opt small{display:block;color:#64748b;font-size:12.5px}
+  .cpd-opt b{color:#1e293b}
+  .cpd-ck{flex:none;width:22px;height:22px;border-radius:7px;background:#e2e8f0;display:flex;align-items:center;justify-content:center}
+  .cpd-opt:has(input:checked){background:linear-gradient(135deg,#ecfdf5,#d1fae5);box-shadow:0 0 0 2px #10b981}
+  .cpd-opt:has(input:checked) .cpd-ck{background:linear-gradient(135deg,#10b981,#059669)}
+  .cpd-opt:has(input:checked) .cpd-ck::after{content:"";width:6px;height:11px;border:solid #fff;border-width:0 2.5px 2.5px 0;transform:rotate(45deg) translate(-1px,-1px)}
+  .cpd-opt:has(input:focus-visible){outline:2px solid #6366f1}
   .cpd-ft{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;flex-wrap:wrap}
   </style>
   {% else %}
