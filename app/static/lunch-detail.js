@@ -45,6 +45,11 @@
    const bar=document.createElement('div');bar.className='rd-controls';cell.append(bar);bar.append(docs,manage);
    docs.querySelector('summary').innerHTML=menuIcon('download')+'<span>เอกสาร</span><span class="rd-chevron" aria-hidden="true">⌄</span>';
  });
+ root.addEventListener('toggle',e=>{
+   const menu=e.target;if(!menu.matches('.rd-undo')||!menu.open)return;
+   menu.classList.remove('rd-menu-up');
+   requestAnimationFrame(()=>{const body=menu.querySelector('.rd-menu-content');const box=body.getBoundingClientRect();const trigger=menu.querySelector('summary').getBoundingClientRect();if(box.bottom>innerHeight-100 && trigger.top-box.height>80)menu.classList.add('rd-menu-up');});
+ },true);
  document.addEventListener('click',e=>root.querySelectorAll('.rd-undo[open]').forEach(menu=>{if(!menu.contains(e.target))menu.open=false;}));
  document.addEventListener('keydown',e=>{if(e.key==='Escape')root.querySelectorAll('.rd-undo[open]').forEach(menu=>{menu.open=false;menu.querySelector('summary').focus();});});
  const steps=root.querySelector('.fs-card');if(steps){const box=document.createElement('details');box.className='rd-fold rd-setup';const s=document.createElement('summary');s.textContent='ขั้นตอนเตรียมงานและตรวจความพร้อม';box.append(s);steps.before(box);box.append(steps);root.append(box);}

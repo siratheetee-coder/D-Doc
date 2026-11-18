@@ -23,3 +23,4 @@
 .rd-page .rd-controls>.lf-docs{margin:0}.rd-page .rd-controls>.lf-docs[open]{flex-basis:100%}.rd-page .bf-repay:has(.rd-undo[open]){position:relative;z-index:20}
 @media(max-width:650px){.rd-page .rd-controls{gap:8px}.rd-page .rd-undo>summary,.rd-page .rd-controls>.lf-docs>summary{font-size:12px;min-height:39px;padding:9px 12px}.rd-page .rd-menu-content{right:auto;left:0;width:255px}.rd-page .iq-acts .rd-menu-content{left:auto;right:0}}
 .rd-page .rd-menu-content a,.rd-page .rd-menu-content button{box-shadow:none;transform:none}
+.rd-page .rd-undo.rd-menu-up>.rd-menu-content{top:auto;bottom:calc(100% + 6px)}
