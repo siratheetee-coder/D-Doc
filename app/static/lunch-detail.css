@@ -20,7 +20,7 @@
 .rd-page .rd-menu-content button[type=submit]{color:#b95b0a;background:#fff8ed}.rd-page .rd-menu-content button:hover,.rd-page .rd-menu-content a:hover{background:#edf2f8}.rd-page .rd-menu-content button[type=submit]:hover{background:#fff0d9}
 .rd-page .rd-menu-content .icon{width:16px;height:16px;flex-shrink:0}.rd-page .rd-menu-content p{margin:4px 8px 7px;font-size:11px;line-height:1.6}
 .rd-page .iq-table tr[data-iid]{position:relative}.rd-page .iq-table tr[data-iid]:has(.rd-undo[open]){z-index:20}
-.rd-page .rd-controls>.lf-docs{margin:0}.rd-page .rd-controls>.lf-docs[open]{flex-basis:100%}.rd-page .bf-repay:has(.rd-undo[open]){position:relative;z-index:20}
+.rd-page .rd-controls>.lf-docs{margin:0}.rd-page .bf-repay:has(.rd-undo[open]){position:relative;z-index:20}
 @media(max-width:650px){.rd-page .rd-controls{gap:8px}.rd-page .rd-undo>summary,.rd-page .rd-controls>.lf-docs>summary{font-size:12px;min-height:39px;padding:9px 12px}.rd-page .rd-menu-content{right:auto;left:0;width:255px}.rd-page .iq-acts .rd-menu-content{left:auto;right:0}}
 .rd-page .rd-menu-content a,.rd-page .rd-menu-content button{box-shadow:none;transform:none}
 .rd-page .rd-undo.rd-menu-up>.rd-menu-content{top:auto;bottom:calc(100% + 6px)}
@@ -28,3 +28,4 @@
 .rd-page .rd-input-icon{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;flex-shrink:0;width:30px;height:30px;margin-right:7px;background:transparent;border:0}
 .rd-page .rd-input-icon>img{display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 2px 2px #26354b18)}
 .rd-page .rd-field-label>.rd-input-icon{width:27px;height:27px;margin-right:6px}.rd-page .rd-summary-name{display:inline-flex;align-items:center;gap:5px;min-width:0}.rd-page .rd-summary-name>.rd-input-icon{margin-right:4px}.rd-page .bf-fields>.rd-input-icon{align-self:center}.rd-page .bf-step h3>.rd-input-icon{margin-right:8px}.rd-page .iq-dates .rd-input-icon{width:22px;height:22px;margin:0 4px 0 0}
+.rd-page .rd-pop{position:relative;display:inline-block}.rd-page .rd-pop>summary{list-style:none}.rd-page .rd-pop>summary::-webkit-details-marker{display:none}.rd-page .iq-table tr[data-iid]:has(.rd-pop[open]){z-index:20}.rd-page .rd-pop.rd-menu-up>.rd-menu-content{top:auto;bottom:calc(100% + 6px)}.rd-page .rd-pop .rd-menu-content a{color:#52647e}

@@ -3,7 +3,7 @@
 {% block title %}รอบจัด{{ "ซื้อ" if p.operate_mode == "ingredient" else "จ้าง" }}ที่ {{ r.seq }}{% endblock %}
 {% block content %}
 {% set RW = 'รอบจัดซื้อ' if p.operate_mode == 'ingredient' else 'รอบจัดจ้าง' %}
-<link rel="stylesheet" href="/static/lunch-dashboard.css?v=1"><link rel="stylesheet" href="/static/lunch-detail.css?v=9">
+<link rel="stylesheet" href="/static/lunch-dashboard.css?v=1"><link rel="stylesheet" href="/static/lunch-detail.css?v=10">
 <div class="rd-page" data-round-detail data-mode="{{ p.operate_mode }}">
 {% include "_lunch_detail_header.html" %}
 <div class="card" id="round-info">
@@ -216,7 +216,7 @@
   {% set nxt = (installments|rejectattr('status', 'in', DONE)|list or [None])[0] %}
   <div class="iq-sum">{{ 'ตรวจรับแล้ว' if RP else 'จ่ายแล้ว' }} <b>{{ n_paid }}</b> จาก {{ installments|length }} งวด
     <div class="iq-bar"><span style="width:{{ (n_paid / installments|length * 100)|round(0) }}%"></span></div></div>
-  {% if nxt %}<div class="lf-task"><div><b>กำลังดำเนินการ · งวดที่ {{ nxt.seq }}</b><p>ส่งมอบ → ตรวจรับ{% if not RP %} → ทำเรื่องขอเบิกในการเงิน → จ่ายแล้ว{% endif %}</p></div><a class="btn sm gray" href="#inst-{{ nxt.id }}">ไปที่งวดนี้ <svg class="icon"><use href="#ic-arrow-right"/></svg></a></div>{% elif not RP %}<div class="iq-done">✔ จ่ายครบทุกงวดแล้ว</div>{% endif %}
+  {% if nxt %}<div class="lf-task"><div><b>งวดที่ {{ nxt.seq }} กำลังดำเนินการ</b><p>ส่งมอบ → ตรวจรับ{% if not RP %} → ทำเรื่องขอเบิกในการเงิน → จ่ายแล้ว{% endif %}</p></div><a class="btn sm gray" href="#inst-{{ nxt.id }}">ไปที่งวดนี้ <svg class="icon"><use href="#ic-arrow-right"/></svg></a></div>{% elif not RP %}<div class="iq-done">✔ จ่ายครบทุกงวดแล้ว</div>{% endif %}
   {% if RP and round_pay %}
   {# จ่ายครั้งเดียวทั้งรอบ: สรุปยอดรวมทุกงวด + เอกสารขอเบิกทั้งรอบ + บันทึกว่าจ่ายแล้ว #}
   <div class="rp-box {{ 'is-paid' if round_pay.paid else ('is-ready' if round_pay.ready else '') }}">
@@ -853,5 +853,5 @@
 {% include 'lunch_dates_dialog.html' %}
 <link rel="stylesheet" href="/static/lunch_payment_flow.css?v=1">
 </div>
-<script src="/static/lunch-detail.js?v=9" defer></script>
+<script src="/static/lunch-detail.js?v=10" defer></script>
 {% endblock %}

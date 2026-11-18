@@ -11,7 +11,7 @@
  function menuIcon(name){return '<svg class="icon" aria-hidden="true"><use href="#ic-'+name+'"></use></svg>';}
  root.querySelectorAll('.rd-undo').forEach(menu=>{
    const summary=menu.querySelector(':scope > summary');if(!summary)return;
-   summary.innerHTML=menuIcon('settings')+'<span>จัดการ</span><span class="rd-chevron" aria-hidden="true">⌄</span>';
+   summary.innerHTML=menuIcon('settings')+'<span>จัดการ</span>';
    const body=document.createElement('div');body.className='rd-menu-content';
    while(summary.nextSibling)body.append(summary.nextSibling);
    menu.append(body);
@@ -23,15 +23,19 @@
    const docs=cell.querySelector(':scope > .lf-docs'),manage=cell.querySelector(':scope > .rd-undo');
    if(!docs||!manage)return;
    const bar=document.createElement('div');bar.className='rd-controls';cell.append(bar);bar.append(docs,manage);
-   docs.querySelector('summary').innerHTML=menuIcon('download')+'<span>เอกสาร</span><span class="rd-chevron" aria-hidden="true">⌄</span>';
+   const ds=docs.querySelector(':scope>summary');ds.innerHTML=menuIcon('download')+'<span>เอกสาร</span>';
+   // เอกสารเป็นการ์ดลอยแบบเดียวกับปุ่มจัดการ
+   docs.classList.add('rd-pop');const body=document.createElement('div');body.className='rd-menu-content';
+   while(ds.nextSibling)body.append(ds.nextSibling);docs.append(body);
+   body.querySelectorAll('a').forEach(a=>{if(!a.querySelector('svg'))a.insertAdjacentHTML('afterbegin',menuIcon('file'));});
  });
  root.addEventListener('toggle',e=>{
-   const menu=e.target;if(!menu.matches('.rd-undo')||!menu.open)return;
+   const menu=e.target;if(!menu.matches('.rd-undo,.rd-pop')||!menu.open)return;
    menu.classList.remove('rd-menu-up');
    requestAnimationFrame(()=>{const body=menu.querySelector('.rd-menu-content');const box=body.getBoundingClientRect();const trigger=menu.querySelector('summary').getBoundingClientRect();if(box.bottom>innerHeight-100 && trigger.top-box.height>80)menu.classList.add('rd-menu-up');});
  },true);
- document.addEventListener('click',e=>root.querySelectorAll('.rd-undo[open]').forEach(menu=>{if(!menu.contains(e.target))menu.open=false;}));
- document.addEventListener('keydown',e=>{if(e.key==='Escape')root.querySelectorAll('.rd-undo[open]').forEach(menu=>{menu.open=false;menu.querySelector('summary').focus();});});
+ document.addEventListener('click',e=>root.querySelectorAll('.rd-undo[open],.rd-pop[open]').forEach(menu=>{if(!menu.contains(e.target))menu.open=false;}));
+ document.addEventListener('keydown',e=>{if(e.key==='Escape')root.querySelectorAll('.rd-undo[open],.rd-pop[open]').forEach(menu=>{menu.open=false;menu.querySelector('summary').focus();});});
 
  // Add visual field cues without changing controls, names, values or form listeners.
  function fieldIcon(text,field){
