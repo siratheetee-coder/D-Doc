@@ -22,6 +22,9 @@
   {% if request.query_params.get("posted") %}<div class="alert">✔ ลงรายการจ่ายเงินเข้าทะเบียนคุมเงินแล้ว</div>{% endif %}
   {% if request.query_params.get("payment_error") %}<div class="alert">กรุณาเลือกบัญชีที่จ่ายเงิน ข้อมูลยังไม่ได้บันทึก</div>{% endif %}
   {% if not posted and m.status == 'จ่ายแล้ว' %}<div class="alert">ยังไม่พบรายการจ่ายในทะเบียนคุมเงินของบันทึกนี้ กรุณาตรวจรายการเดิมก่อนลงจ่าย เพื่อป้องกันการจ่ายซ้ำ</div>{% endif %}
+  {% if lunch_closed_like %}<div class="alert warn"><b>ระวังจ่ายซ้ำ</b> ยอดนี้ปิดรอบอาหารกลางวันและลงจ่ายในทะเบียนคุมเงินไว้แล้ว
+    {% for x in lunch_closed_like %}<div>รอบที่ {{ x.seq }} ลงจ่าย {{ "{:,.2f}".format(x.amount) }} บาท{% if x.date %} วันที่ {{ x.date.strftime('%d/%m/') ~ (x.date.year + 543) }}{% endif %} <a href="/lunch/round/{{ x.rid }}/plan#close">ดูรอบ</a></div>{% endfor %}
+    ถ้าเป็นการจ่ายครั้งเดียวกัน ให้เชื่อมรายการจ่ายเดิมที่ส่วน "เคยบันทึกจ่ายเงินไว้แล้วหรือไม่?" แทนการลงจ่ายใหม่</div>{% endif %}
   {% if request.query_params.get('check_existing') %}<div class="alert warn">พบรายการจ่ายที่อาจเป็นครั้งเดียวกับบันทึกนี้ กรุณาตรวจที่ส่วน "เคยบันทึกจ่ายเงินไว้แล้วหรือไม่?" ก่อนลงจ่าย</div>{% endif %}
   {% if request.query_params.get('payment_message') %}<div class="alert">{{ request.query_params.get('payment_message') }}</div>{% endif %}
   {% if request.query_params.get('linked') %}<div class="alert">เชื่อมรายการจ่ายเดิมแล้ว ยอดเงินคงเหลือไม่เปลี่ยน และไม่ได้สร้างรายการจ่ายเพิ่ม</div>{% endif %}

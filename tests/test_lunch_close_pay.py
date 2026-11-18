@@ -46,3 +46,14 @@ def test_link_existing_no_double(env):
     env.post(f"/lunch/round/{rid}/status", data={"status": "จ้างแล้ว"})
     with _db() as s:
         assert s.get(FinanceTxn, tid) is not None
+
+
+def test_disburse_warns_closed_round(env):
+    from app.models import DisburseMemo
+    rid, _ = _setup()
+    env.post(f"/lunch/round/{rid}/status", data={"status": "จ่ายแล้ว", "paid_date": "20/06/2570"})
+    with _db() as s:
+        m = DisburseMemo(fiscal_year=2570, subject="ค่าจ้างแม่ครัว", amount=4700, date=datetime(2027, 6, 21))
+        s.add(m); s.commit(); mid = m.id
+    r = env.get(f"/finance/disburse/{mid}")
+    assert "ระวังจ่ายซ้ำ" in r.text and f"/lunch/round/{rid}/plan" in r.text

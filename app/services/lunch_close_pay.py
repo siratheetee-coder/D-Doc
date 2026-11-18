@@ -100,3 +100,25 @@ def release(db, rnd, led):
         led.finance_txn_id = None
     if tid:
         _set_link(rnd, None)
+
+
+def rounds_like(db, memo):
+    """หน้าบันทึกขอเบิก: รอบแม่ครัว/ซื้อวัตถุดิบที่ปิดรอบลงจ่ายยอดเท่ากันไว้แล้ว (กันเบิกซ้ำ)"""
+    from app.models import LunchLedger, FinanceTxn
+    amt = round(memo.amount or 0, 2)
+    if amt <= 0:
+        return []
+    out = []
+    for led in db.query(LunchLedger).filter(LunchLedger.round_id.isnot(None), LunchLedger.kind == "out"):
+        if round(led.amount or 0, 2) != amt:
+            continue
+        t = db.get(FinanceTxn, led.finance_txn_id) if led.finance_txn_id else None
+        if t and t.disburse_id == memo.id:
+            continue
+        rnd = led.round if hasattr(led, "round") and led.round else None
+        if rnd is None:
+            from app.models import LunchHireRound
+            rnd = db.get(LunchHireRound, led.round_id)
+        if rnd and rnd.program.operate_mode in ("person", "ingredient"):
+            out.append({"rid": rnd.id, "seq": rnd.seq, "date": led.date, "amount": amt})
+    return out[:5]

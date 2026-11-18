@@ -1177,6 +1177,7 @@ def disburse_detail(mid: int, request: Request, db: Session = Depends(get_db)):
         "request": request, "m": m, "school": get_school(db),
         "posted": db.query(FinanceTxn).filter_by(disburse_id=m.id).first() is not None,
         "payment_info": payment_info, "payment_relation": payment_relation, "payment_date_edit": date_edit, "lunch_source": lunch_claim.for_memo(db,m),
+        "lunch_closed_like": [] if db.query(FinanceTxn).filter_by(disburse_id=m.id).first() else __import__("app.services.lunch_close_pay", fromlist=["x"]).rounds_like(db, m),
         "proc_claimed": sum(float(x.amount or 0) for x in db.query(DisburseMemo).filter_by(procurement_id=m.procurement_id)) if m.procurement_id else 0,
         "payment_candidates": payments.candidates(db, m),
         "payment_near": [] if db.query(FinanceTxn).filter_by(disburse_id=m.id).first() else payments.near(db, m),
