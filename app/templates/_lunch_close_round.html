@@ -3,7 +3,11 @@
 <div class="bf-repay {{ 'is-done' if PAID }}">
   {% if PAID %}
   <div class="bf-loan-status" style="margin:0;">
-    <span class="bf-chip ok">ปิดรอบแล้ว{% if close_amount > 0 %} ลงจ่ายในบัญชี {{ "{:,.2f}".format(close_amount) }} บาท{% endif %}</span>
+    <span class="bf-chip ok">ปิดรอบแล้ว{% if close_amount > 0 %} ลงจ่ายในบัญชี {{ "{:,.2f}".format(close_amount) }} บาท{% if close_paid %} วันที่ {{ close_paid.strftime('%d/%m/') ~ (close_paid.year + 543) }}{% endif %}{% endif %}</span>
+    {% if close_amount > 0 %}<form method="post" action="/lunch/round/{{ r.id }}/paid-date" style="display:inline-flex;gap:6px;align-items:center;margin:0;">
+      <input name="paid_date" data-date="1" placeholder="วว/ดด/ปปปป" maxlength="10" style="width:120px" required aria-label="แก้วันที่จ่ายจริง">
+      <button class="btn sm gray" type="submit" data-no-floating-save>แก้วันที่จ่าย</button>
+    </form>{% endif %}
     <form method="post" action="/lunch/round/{{ r.id }}/status" style="display:inline; margin:0;" onsubmit="return confirm('ยกเลิกการปิดรอบ? รายการจ่ายตอนปิดรอบในบัญชีจะถูกลบ');">
       <input type="hidden" name="status" value="จ้างแล้ว"><input type="hidden" name="back" value="/lunch/round/{{ r.id }}/plan#close">
       <button class="btn sm gray" type="submit" data-no-floating-save>ยกเลิกการปิดรอบ</button>
@@ -15,10 +19,40 @@
       <span class="muted">({{ close_parts }})</span>
     {% else %}ค่าใช้จ่ายทั้งหมดของรอบนี้จ่ายจากเงินยืมแล้ว ปิดรอบโดยไม่ต้องลงบัญชีเพิ่ม{% endif %}
   </div>
+  {% set btn = 'จ่ายค่าจ้างแล้ว ปิดรอบ' if p.operate_mode == 'person' else 'ปิดรอบ' %}
+  {% if close_amount > 0 %}
+  <button class="btn" type="button" style="margin-top:8px" data-no-floating-save onclick="document.getElementById('closePay{{ r.id }}').showModal()"><svg class="icon"><use href="#ic-check"/></svg> {{ btn }}</button>
+  <dialog id="closePay{{ r.id }}" class="qpd">
+    <form method="post" action="/lunch/round/{{ r.id }}/status" data-no-floating-save>
+      <input type="hidden" name="status" value="จ่ายแล้ว"><input type="hidden" name="back" value="/lunch/round/{{ r.id }}/plan#close">
+      <header><h2>ยืนยันการจ่ายและปิดรอบ</h2><button type="button" onclick="this.closest('dialog').close()" aria-label="ปิด">×</button></header>
+      <div style="background:linear-gradient(135deg,#f0fdf4,#ecfeff);border-radius:12px;padding:12px 14px;margin-top:12px;font-size:14px;line-height:1.8">
+        <div>บัญชีที่จ่าย <b>{{ close_acc }}</b></div>
+        <div>{{ close_parts }}</div>
+        <div>รวมลงจ่าย <b style="font-size:18px">{{ "{:,.2f}".format(close_amount) }}</b> บาท</div>
+      </div>
+      {% if close_dupes %}
+      <div class="qpd-warning" style="margin-top:12px">
+        <b>พบรายการจ่ายยอดเท่ากันในทะเบียนคุมเงินแล้ว</b> ถ้าเป็นการจ่ายครั้งเดียวกัน ให้เลือกรายการนั้น ระบบจะไม่ลงจ่ายซ้ำ
+        <label style="display:flex;gap:8px;margin-top:6px"><input type="radio" name="link_txn" value="" checked onchange="this.form.paid_date.disabled=false"> ลงรายการจ่ายใหม่</label>
+        {% for t in close_dupes %}
+        <label style="display:flex;gap:8px"><input type="radio" name="link_txn" value="{{ t.id }}" onchange="this.form.paid_date.disabled=true"> ใช้รายการเดิม {{ t.date.strftime('%d/%m/') ~ (t.date.year + 543) if t.date else '' }} {{ t.ref or '' }} {{ (t.note or '')[:40] }}</label>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <label style="margin-top:12px;display:block">วันที่จ่ายเงินจริง</label>
+      <input name="paid_date" value="{{ today_be }}" placeholder="วว/ดด/ปปปป" inputmode="numeric" maxlength="10" data-date="1" required autocomplete="off">
+      <p class="qpd-hint muted">ใช้วันนี้ลงทะเบียนคุมเงิน ไม่ใช่วันสิ้นสุดรอบ{% if loan and loan.loan and not loan.repaid %}<br><b style="color:#b45309">ยังไม่ได้บันทึกส่งใช้เงินยืม</b>{% endif %}</p>
+      <footer><button type="button" class="btn gray" onclick="this.closest('dialog').close()">ยกเลิก</button><button class="btn" type="submit"><svg class="icon"><use href="#ic-check"/></svg> ยืนยัน {{ btn }}</button></footer>
+    </form>
+  </dialog>
+  <link rel="stylesheet" href="/static/quick-payment-date.css?v=1">
+  {% else %}
   <form method="post" action="/lunch/round/{{ r.id }}/status" style="margin:8px 0 0;"
         {% if loan and loan.loan and not loan.repaid %}onsubmit="return confirm('ยังไม่ได้บันทึกส่งใช้เงินยืม ปิดรอบเลยหรือไม่?');"{% endif %}>
     <input type="hidden" name="status" value="จ่ายแล้ว"><input type="hidden" name="back" value="/lunch/round/{{ r.id }}/plan#close">
-    <button class="btn" type="submit" data-no-floating-save><svg class="icon"><use href="#ic-check"/></svg> {{ 'จ่ายค่าจ้างแล้ว ปิดรอบ' if p.operate_mode == 'person' else 'ปิดรอบ' }}</button>
+    <button class="btn" type="submit" data-no-floating-save><svg class="icon"><use href="#ic-check"/></svg> {{ btn }}</button>
   </form>
+  {% endif %}
   {% endif %}
 </div>

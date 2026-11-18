@@ -1602,6 +1602,7 @@ class LunchHireRound(Base):
     status = Column(String, default="ร่าง")          # ร่าง / จ้างแล้ว / จ่ายแล้ว
     note = Column(String, default="")
     pay_mode = Column(String, default="installment")  # installment=จ่ายทุกงวด / round=ส่งมอบตรวจรับรายงวด จ่ายครั้งเดียวทั้งรอบ
+    paid_date = Column(DateTime, nullable=True)   # วันที่จ่ายจริงตอนปิดรอบ (แยกจากวันสิ้นสุดรอบ)
     loan_id = Column(Integer, ForeignKey("money_loan.id"), nullable=True)  # สัญญายืมเงินซื้อวัตถุดิบ (แม่ครัว/ซื้อวัตถุดิบ) ในทะเบียนคุมเงินยืม
     created_at = Column(DateTime, default=datetime.now)
 

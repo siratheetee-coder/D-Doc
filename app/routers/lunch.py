@@ -625,7 +625,7 @@ def _sync_round_ledger(db: Session, rnd: LunchHireRound) -> None:
         amount = close_info(rnd)[0]
     if rnd.status == "จ่ายแล้ว" and amount > 0:
         detail = _round_ledger_detail(rnd)
-        d = rnd.end_date or rnd.start_date or datetime.now()
+        d = getattr(rnd, "paid_date", None) or rnd.end_date or rnd.start_date or datetime.now()
         if existing:
             existing.amount = amount
             existing.detail = detail
@@ -640,6 +640,8 @@ def _sync_round_ledger(db: Session, rnd: LunchHireRound) -> None:
         db.flush()
         _mirror_finance(db, led)
     elif existing:
+        from app.services import lunch_close_pay
+        lunch_close_pay.release(db, rnd, existing)
         _delete_ledger(db, existing)
 
 
@@ -1020,7 +1022,7 @@ async def round_loan_repay(rid: int, request: Request, db: Session = Depends(get
 
 @router.post("/lunch/round/{rid}/status")
 async def round_set_status(rid: int, request: Request, db: Session = Depends(get_db),
-                           status: str = Form("")):
+                           status: str = Form(""), paid_date: str = Form(""), link_txn: str = Form("")):
     """เปลี่ยนสถานะรอบตรงจากตาราง (ร่าง/จ้างแล้ว/จ่ายแล้ว) - เปลี่ยนกลับไปมาได้
     ซิงก์เรื่องจัดจ้าง + บัญชีให้อัตโนมัติ (จ่ายแล้ว->ลงบัญชี, ถอย->ลบรายการบัญชี)"""
     rnd = db.get(LunchHireRound, rid)
@@ -1029,6 +1031,8 @@ async def round_set_status(rid: int, request: Request, db: Session = Depends(get
         try:lunch_claim.guard_source(db,rnd)
         except ValueError as e:return _calendar_error(f'/lunch/round/{rnd.id}/plan',e)
     if rnd and status.strip() in ("ร่าง", "จ้างแล้ว", "จ่ายแล้ว"):
+        from app.services import lunch_close_pay
+        lunch_close_pay.before_status(db, rnd, status.strip(), paid_date, link_txn)
         rnd.status = status.strip()
         _sync_round_procurement(db, rnd)
         _sync_round_ledger(db, rnd)
@@ -1593,7 +1597,28 @@ def _close_ctx(rnd) -> dict:
         return {"close_amount": 0.0, "close_parts": ""}
     from app.services.lunch_loan import close_info
     amount, parts = close_info(rnd)
-    return {"close_amount": amount, "close_parts": parts}
+    from sqlalchemy.orm import object_session
+    from app.services import lunch_close_pay
+    db = object_session(rnd)
+    return {"close_amount": amount, "close_parts": parts,
+            "close_acc": lunch_close_pay.account_name(db, rnd),
+            "close_paid": lunch_close_pay.paid_date(db, rnd),
+            "today_be": be_date_input(datetime.now()),
+            "close_dupes": lunch_close_pay.candidates(db, rnd, amount) if rnd.status != "จ่ายแล้ว" else []}
+
+
+@router.post("/lunch/round/{rid}/paid-date")
+def round_paid_date(rid: int, db: Session = Depends(get_db), paid_date: str = Form("")):
+    """แก้วันที่จ่ายจริงของรายการปิดรอบ (ไม่ผูกกับวันสิ้นสุดรอบ)"""
+    rnd = db.get(LunchHireRound, rid)
+    if not rnd:
+        return RedirectResponse("/lunch", status_code=303)
+    d = parse_be_date(paid_date)
+    if d and rnd.status == "จ่ายแล้ว":
+        rnd.paid_date = d
+        _sync_round_ledger(db, rnd)
+        db.commit()
+    return RedirectResponse(f"/lunch/round/{rid}/plan#close", status_code=303)
 
 
 def _pays_by_round(rnd):

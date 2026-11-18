@@ -194,6 +194,7 @@ MIGRATIONS = [
     ("lunch_installment", "penalty_days", "INTEGER DEFAULT 0"),
     ("lunch_hire_round", "pay_mode", "VARCHAR DEFAULT 'installment'"),
     ("lunch_hire_round", "loan_id", "INTEGER"),
+    ("lunch_hire_round", "paid_date", "DATETIME"),
     ("lunch_ledger", "loan_id", "INTEGER"),
     ("lunch_ledger", "loan_return_id", "INTEGER"),
     ("letter_recipient", "email_status", "VARCHAR DEFAULT ''"),
