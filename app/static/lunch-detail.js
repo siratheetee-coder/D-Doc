@@ -66,7 +66,14 @@
  }
  if(steps?.parentElement?.classList.contains('rd-setup'))group('info',INFO_T).append(steps.parentElement);
  // วางกลุ่มตามลำดับงาน: ข้อมูลรอบ > กรรมการ > เมนู > เอกสาร และกลุ่มที่มีการ์ดเดียวไม่ต้องพับซ้อน 2 ชั้น
- ORDER.forEach(k=>{const g=groups[k];if(!g)return;root.append(g);
+ const flow=root.querySelector(':scope>#installments,:scope>#buy,:scope>#hire');
+ const gaps=new Set([...root.querySelectorAll('.mi-box a[href^="#"]')].map(a=>a.getAttribute('href').slice(1)));
+ if(root.querySelector('.fs-card'))gaps.add('round-info');
+ const need={info:['round-info'],committee:['committee'],menus:['menus']};
+ ORDER.forEach(k=>{const g=groups[k];if(!g)return;
+   // เตรียมงาน (ข้อมูลรอบ กรรมการ เมนู) อยู่ก่อนขั้นตอนทำงาน เอกสารอยู่ท้ายสุด
+   if(k!=='docs'&&flow)flow.before(g);else root.append(g);
+   if((need[k]||[]).some(id=>gaps.has(id))){const b=document.createElement('span');b.className='rd-gap';b.textContent='ยังไม่ครบ';g.querySelector(':scope>summary').append(b);}
    const inner=g.querySelectorAll(':scope>.card>.rd-fold');
    if(g.children.length===2&&inner.length===1){inner[0].open=true;inner[0].classList.add('rd-solo');}});
 
