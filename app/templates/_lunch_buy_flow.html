@@ -49,7 +49,7 @@
   {# ข้อมูลที่ยังไม่ครบ (services/lunch_missing.py) เตือนเฉยๆ ไม่บังคับ #}
   <details class="mi-box {{ 'mi-ok' if not missing }}">
     <summary>{% if missing %}<b>ข้อมูลที่ยังไม่ครบ</b> <span class="mi-tag">{{ missing|length }} จุด</span>{% else %}<b>✓ ข้อมูลครบแล้ว</b>{% endif %}</summary>
-    {% if missing %}<ul>{% for x in missing %}<li><span>{{ x.msg }}</span><a href="{{ x.href }}">ไปกรอก ›</a></li>{% endfor %}</ul>
+    {% if missing %}<ul>{% for x in missing %}<li><span>{{ x.msg }}</span><a href="{{ x.href }}" data-hl="{{ x.hl or x.href }}" class="mi-go">ไปกรอก ›</a></li>{% endfor %}</ul>
     <div class="muted" style="font-size:12.5px">ออกเอกสารและปิดรอบได้ตามปกติ แต่ช่องที่ว่างจะเป็นจุดไข่ปลาในเอกสาร</div>{% endif %}
   </details>
   <style>
@@ -60,8 +60,15 @@
   .mi-box ul{list-style:none;margin:8px 0;padding:0;display:grid;gap:5px}
   .mi-box li{display:flex;gap:8px;align-items:baseline;font-size:14px;padding:6px 10px;border-radius:10px;background:#fff}
   .mi-box li a{margin-left:auto;white-space:nowrap;font-size:13px;font-weight:600}
-  [id^=dn-],#loan,#bk-days{scroll-margin-top:90px}
+  [id^=dn-],#loan,#bk-days,#round-info,#menus,#committee{scroll-margin-top:90px}
+  .mi-hl{animation:miHl 2.4s ease-out 1;border-radius:12px}
+  @keyframes miHl{0%,40%{box-shadow:0 0 0 4px #fbbf24;background:#fffbeb}100%{box-shadow:0 0 0 0 transparent}}
   </style>
+  <script>
+  document.addEventListener('click',function(e){var a=e.target.closest('.mi-go');if(!a)return;
+    setTimeout(function(){a.dataset.hl.split(',').forEach(function(q){var el=document.querySelector(q);if(!el)return;
+      var d=el.closest('details');if(d)d.open=true;el.classList.remove('mi-hl');void el.offsetWidth;el.classList.add('mi-hl');});},60);});
+  </script>
 
   {# ---------- 1 ขอซื้อ ---------- #}
   {% if not PERSON %}

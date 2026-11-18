@@ -15,8 +15,8 @@ def buy_missing(rnd, committees, com_kinds, doc_rows, loan, ing_total, bk_days):
     n_bk = sum(1 for d in bk_days or [] if not d["no"])
     if n_bk:
         out.append({"msg": f"เลข บค. ยังไม่ได้ออก {n_bk} วัน", "href": "#bk-days"})
-    for d in doc_rows:
-        empty = [f["label"] for f in d["fields"] if not f["value"]]
-        if empty:
-            out.append({"msg": f"{d['label']}: ยังไม่มี{' และ'.join(empty)}", "href": f"#dn-{d['kind']}"})
+    gaps = [d for d in doc_rows if any(not f["value"] for f in d["fields"])]
+    if gaps:
+        out.append({"msg": f"เอกสาร {len(gaps)} ฉบับยังไม่มีเลขที่และวันที่ครบ", "href": f"#dn-{gaps[0]['kind']}",
+                    "hl": ",".join("#dn-" + d["kind"] for d in gaps)})
     return out
