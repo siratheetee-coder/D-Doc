@@ -28,6 +28,25 @@
    const fold=document.createElement('details');fold.className='rd-undo';const summary=document.createElement('summary');
    summary.textContent='ย้อนสถานะ / จัดการรายการ';form.before(fold);fold.append(summary,form);
  });
+ function menuIcon(name){return '<svg class="icon" aria-hidden="true"><use href="#ic-'+name+'"></use></svg>';}
+ root.querySelectorAll('.rd-undo').forEach(menu=>{
+   const summary=menu.querySelector(':scope > summary');if(!summary)return;
+   summary.innerHTML=menuIcon('settings')+'<span>จัดการ</span><span class="rd-chevron" aria-hidden="true">⌄</span>';
+   const body=document.createElement('div');body.className='rd-menu-content';
+   while(summary.nextSibling)body.append(summary.nextSibling);
+   menu.append(body);
+   body.querySelectorAll('button,a').forEach(item=>{if(!item.querySelector('svg'))item.insertAdjacentHTML('afterbegin',menuIcon(item.tagName==='A'?'coins':'undo'));});
+   const row=menu.closest('tr[data-iid]'),dateButton=row?.querySelector('.iq-edit');
+   if(dateButton){const view=document.createElement('button');view.type='button';view.innerHTML=menuIcon('calendar')+'ดูวันจัดอาหาร';view.addEventListener('click',()=>{menu.open=false;dateButton.click();});body.append(view);}
+ });
+ root.querySelectorAll('.iq-acts').forEach(cell=>{
+   const docs=cell.querySelector(':scope > .lf-docs'),manage=cell.querySelector(':scope > .rd-undo');
+   if(!docs||!manage)return;
+   const bar=document.createElement('div');bar.className='rd-controls';cell.append(bar);bar.append(docs,manage);
+   docs.querySelector('summary').innerHTML=menuIcon('download')+'<span>เอกสาร</span><span class="rd-chevron" aria-hidden="true">⌄</span>';
+ });
+ document.addEventListener('click',e=>root.querySelectorAll('.rd-undo[open]').forEach(menu=>{if(!menu.contains(e.target))menu.open=false;}));
+ document.addEventListener('keydown',e=>{if(e.key==='Escape')root.querySelectorAll('.rd-undo[open]').forEach(menu=>{menu.open=false;menu.querySelector('summary').focus();});});
  const steps=root.querySelector('.fs-card');if(steps){const box=document.createElement('details');box.className='rd-fold rd-setup';const s=document.createElement('summary');s.textContent='ขั้นตอนเตรียมงานและตรวจความพร้อม';box.append(s);steps.before(box);box.append(steps);root.append(box);}
  const groups={};
  function group(key,title){if(groups[key])return groups[key];const d=document.createElement('details');d.className='rd-fold rd-group card';const h=document.createElement('summary');h.textContent=title;d.append(h);root.append(d);groups[key]=d;return d;}
