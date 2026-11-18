@@ -7,7 +7,22 @@
 <div class="card">
   <h1><svg class="icon"><use href="#ic-file"/></svg> ออกบันทึกขออนุมัติเบิกจ่ายเงิน</h1>
   <p class="muted" style="margin-top:0;">กรอกข้อมูลเอง หรือ เลือกดึงข้อมูลจากเรื่องจัดซื้อ/จัดจ้างเพื่อให้ระบบกรอกให้ จากนั้นบันทึกเพื่อออกเอกสาร</p>
-  {% if lunch_source %}<div class="alert" style="background:#fff7ed"><b>ขอเบิกจาก{{ lunch_source.title }}</b><br>ระบบเติมผู้รับจ้าง ยอดเงิน ภาษี และค่าปรับจากงวดให้แล้ว การบันทึกขอเบิกยังไม่ตัดเงิน<br><a href="{{ lunch_source.back }}">กลับหน้างวดอาหารกลางวัน</a></div>{% endif %}
+  {% if lunch_source %}<div class="ls-card">
+    <img src="/static/images/home3d/mod_lunch.png" alt="" width="52" height="52" onerror="this.remove()">
+    <div class="ls-main"><small>ขอเบิกจากงานอาหารกลางวัน</small><b>{{ lunch_source.title }}</b>
+      <p>ระบบเติมผู้รับจ้าง ยอดเงิน ภาษี และค่าปรับจากงวดให้แล้ว การบันทึกขอเบิกยังไม่ตัดเงิน</p></div>
+    <div class="ls-amt"><small>ยอดขอเบิก</small><b>{{ "{:,.2f}".format(lunch_source.amount or 0) }}</b><span>บาท</span></div>
+    <a class="ls-back" href="{{ lunch_source.back }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับหน้างวด</a>
+  </div>
+  <style>
+  .ls-card{display:flex;align-items:center;gap:16px;margin:12px 0 4px;padding:16px 20px;border-radius:16px;background:linear-gradient(120deg,#fff7ed,#fef3c7)}
+  .ls-card>img{flex-shrink:0;filter:drop-shadow(0 3px 4px #92400e22)}
+  .ls-main{flex:1;min-width:0}.ls-main small,.ls-amt small{display:block;font-size:12px;color:#b45309}
+  .ls-main b{display:block;font-size:16px;color:#7c2d12;margin:2px 0}.ls-main p{margin:0;font-size:13px;color:#78716c}
+  .ls-amt{text-align:right;white-space:nowrap}.ls-amt b{font-size:22px;color:#9a3412}.ls-amt span{font-size:12px;color:#78716c;margin-left:4px}
+  .ls-back{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;padding:9px 14px;border-radius:10px;background:#fff;color:#9a3412;font-size:13px;font-weight:600;text-decoration:none;box-shadow:0 2px 6px #92400e14}
+  @media(max-width:650px){.ls-card{flex-wrap:wrap;padding:14px}.ls-amt{text-align:left}.ls-back{width:100%;justify-content:center}}
+  </style>{% endif %}
   {% if travel_source %}<div class="alert" style="background:#eff6ff;">
     <b>เบิกค่าใช้จ่ายจากคำขอไปราชการที่อนุมัติแล้ว</b><br>
     {{ travel_source.subject }} · งบประมาณที่ขอไว้ {{ '{:,.2f}'.format(travel_source.budget or 0) }} บาท<br>
