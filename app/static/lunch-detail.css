@@ -25,6 +25,6 @@
 .rd-page .rd-menu-content a,.rd-page .rd-menu-content button{box-shadow:none;transform:none}
 .rd-page .rd-undo.rd-menu-up>.rd-menu-content{top:auto;bottom:calc(100% + 6px)}
 
-.rd-page .rd-input-icon{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;color:#e36a1c;flex-shrink:0;width:22px;height:22px;border-radius:6px;background:#fff1e5;margin-right:6px}
-.rd-page .rd-input-icon>.icon{width:14px;height:14px;stroke-width:1.8}.rd-page .rd-icon-calendar{color:#5571c4;background:#eef2ff}.rd-page .rd-icon-users,.rd-page .rd-icon-store{color:#7659bb;background:#f2ecff}.rd-page .rd-icon-coins{color:#159466;background:#e6f7ef}.rd-page .rd-icon-file,.rd-page .rd-icon-clipboard{color:#3b79bd;background:#eaf3fe}
-.rd-page .rd-field-label>.rd-input-icon{width:20px;height:20px;margin-right:5px}.rd-page .rd-summary-name{display:inline-flex;align-items:center;gap:4px;min-width:0}.rd-page .rd-summary-name>.rd-input-icon{margin-right:4px}.rd-page .bf-fields>.rd-input-icon{align-self:center}.rd-page .bf-step h3>.rd-input-icon{margin-right:7px}.rd-page .iq-dates .rd-input-icon{width:17px;height:17px;background:transparent;margin:0 2px 0 0}.rd-page .iq-dates .rd-input-icon>.icon{width:13px;height:13px}
+.rd-page .rd-input-icon{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;flex-shrink:0;width:30px;height:30px;margin-right:7px;background:transparent;border:0}
+.rd-page .rd-input-icon>img{display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 2px 2px #26354b18)}
+.rd-page .rd-field-label>.rd-input-icon{width:27px;height:27px;margin-right:6px}.rd-page .rd-summary-name{display:inline-flex;align-items:center;gap:5px;min-width:0}.rd-page .rd-summary-name>.rd-input-icon{margin-right:4px}.rd-page .bf-fields>.rd-input-icon{align-self:center}.rd-page .bf-step h3>.rd-input-icon{margin-right:8px}.rd-page .iq-dates .rd-input-icon{width:22px;height:22px;margin:0 4px 0 0}

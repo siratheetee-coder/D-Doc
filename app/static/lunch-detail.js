@@ -79,7 +79,8 @@
    if(/สถานะ|status/.test(key+' '+text))return 'clipboard';
    return 'edit';
  }
- function cue(name){const span=document.createElement('span');span.className='rd-input-icon rd-icon-'+name;span.setAttribute('aria-hidden','true');span.innerHTML=menuIcon(name);return span;}
+ const fieldArt={calendar:'home3d/calendar',users:'academic3d/students',store:'home3d/p_hire',coins:'finance3d/wallet-paid',calc:'home3d/f_subsidy',file:'finance3d/document-money',clipboard:'home3d/todo',package:'home3d/p_material',edit:'home3d/t_edit'};
+ function cue(name){const span=document.createElement('span');span.className='rd-input-icon rd-icon-'+name;span.setAttribute('aria-hidden','true');const img=document.createElement('img');img.src='/static/images/'+(fieldArt[name]||fieldArt.edit)+'.png';img.alt='';img.width=32;img.height=32;img.decoding='async';span.append(img);return span;}
  root.querySelectorAll('label').forEach(label=>{
    if(label.querySelector('svg,input[type=checkbox],input[type=radio]'))return;
    const field=label.querySelector('input,select,textarea')||label.control||label.parentElement.querySelector('input,select,textarea');
