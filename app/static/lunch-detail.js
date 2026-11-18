@@ -54,7 +54,7 @@
  document.addEventListener('keydown',e=>{if(e.key==='Escape')root.querySelectorAll('.rd-undo[open]').forEach(menu=>{menu.open=false;menu.querySelector('summary').focus();});});
  const steps=root.querySelector('.fs-card');if(steps){const box=document.createElement('details');box.className='rd-fold rd-setup';const s=document.createElement('summary');s.textContent='ขั้นตอนเตรียมงานและตรวจความพร้อม';box.append(s);steps.before(box);box.append(steps);root.append(box);}
  const groups={};
- const INFO_T=root.dataset.mode==='hire'?'ข้อมูลรอบ การแบ่งงวด และขั้นตอนเตรียมงาน':'ข้อมูลรอบและขั้นตอนเตรียมงาน';
+ const INFO_T=root.dataset.mode==='hire'?'ข้อมูลรอบและการแบ่งงวด':'ข้อมูลรอบและสรุปรายละเอียด';
  const ORDER=['info','committee','menus','docs'];
  function group(key,title){if(groups[key])return groups[key];const d=document.createElement('details');d.className='rd-fold rd-group card';const h=document.createElement('summary');h.textContent=title;d.append(h);groups[key]=d;return d;}
  for(const card of more){
@@ -64,12 +64,13 @@
    else if(card.id==='round-info'||title.includes('เพิ่มงวด')){if(title.includes('เพิ่มงวด'))card.id='installment-setup';group('info',INFO_T).append(card);}
    else{group('docs','เลขที่หนังสือและเอกสารทั้งหมด').append(card);}
  }
- if(steps?.parentElement?.classList.contains('rd-setup'))group('info',INFO_T).append(steps.parentElement);
  // วางกลุ่มตามลำดับงาน: ข้อมูลรอบ > กรรมการ > เมนู > เอกสาร และกลุ่มที่มีการ์ดเดียวไม่ต้องพับซ้อน 2 ชั้น
  const flow=root.querySelector(':scope>#installments,:scope>#buy,:scope>#hire');
  const gaps=new Set([...root.querySelectorAll('.mi-box a[href^="#"]')].map(a=>a.getAttribute('href').slice(1)));
- if(root.querySelector('.fs-card'))gaps.add('round-info');
  const need={info:['round-info'],committee:['committee'],menus:['menus']};
+ // คู่มือขั้นตอนเตรียมงาน แยกเป็นส่วนของตัวเอง อยู่ก่อนกลุ่มเตรียมงานทั้งหมด
+ const guide=steps?.closest('.rd-setup');
+ if(guide){guide.classList.add('rd-guide');guide.open=true;if(flow)flow.before(guide);else root.append(guide);}
  ORDER.forEach(k=>{const g=groups[k];if(!g)return;
    // เตรียมงาน (ข้อมูลรอบ กรรมการ เมนู) อยู่ก่อนขั้นตอนทำงาน เอกสารอยู่ท้ายสุด
    if(k!=='docs'&&flow)flow.before(g);else root.append(g);

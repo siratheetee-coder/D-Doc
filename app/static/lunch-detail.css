@@ -30,3 +30,4 @@
 .rd-page .rd-field-label>.rd-input-icon{width:27px;height:27px;margin-right:6px}.rd-page .rd-summary-name{display:inline-flex;align-items:center;gap:5px;min-width:0}.rd-page .rd-summary-name>.rd-input-icon{margin-right:4px}.rd-page .bf-fields>.rd-input-icon{align-self:center}.rd-page .bf-step h3>.rd-input-icon{margin-right:8px}.rd-page .iq-dates .rd-input-icon{width:22px;height:22px;margin:0 4px 0 0}
 .rd-solo>summary{display:none}.rd-solo>.rd-fold-content{padding-top:4px}.rd-group>.card:has(>.rd-solo){border:0;padding:0}
 .rd-gap{margin-left:auto;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:600;white-space:nowrap;background:linear-gradient(120deg,#fef3c7,#fde68a);color:#92400e}
+.rd-guide>summary{display:none}.rd-page>.rd-guide{padding:0;background:linear-gradient(120deg,#eff6ff,#f0fdfa);border:0}
