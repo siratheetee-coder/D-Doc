@@ -94,6 +94,7 @@
     tr.grouphdr input[type=checkbox] { width:20px; height:20px; cursor:pointer; }
     .clschips { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 12px; }
     .clschip { background:#eef2fb; color:#1e3a8a; border-radius:999px; padding:5px 13px; font-size:13.5px; font-weight:600; }
+    td.nmcol { min-width:230px; } td.nmcol input { width:100%; min-width:220px; }
     .clschip b { color:#5a6a85; font-weight:600; }
   </style>
   {% if groups %}
@@ -118,7 +119,7 @@
       <tr data-sid="{{ s.id }}" data-group="{{ gi }}">
         <td class="pickcol"><label class="pickbox"><input type="checkbox" class="bs-pick" data-g="{{ gi }}" value="{{ s.id }}" onchange="updateCount()"></label></td>
         <td><input name="student_no" value="{{ s.student_no }}" style="width:90px;"></td>
-        <td><input name="name" value="{{ s.name }}"></td>
+        <td class="nmcol"><input name="name" value="{{ s.name }}"></td>
         <td><select name="sex" style="width:100px;"><option value="" {{ 'selected' if not s.sex }}>-</option><option value="ช" {{ 'selected' if s.sex=='M' }}>ชาย</option><option value="ญ" {{ 'selected' if s.sex=='F' }}>หญิง</option></select></td>
         <td><input name="birthdate" value="{{ be_date(s.birthdate) if s.birthdate else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="width:140px;"></td>
         <td><input name="level" value="{{ s.level }}" style="width:80px;"></td>
