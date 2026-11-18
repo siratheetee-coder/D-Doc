@@ -23,14 +23,14 @@
   {% if P %}
   <div class="lh-scope">
     {% if D.programs|length > 1 %}
-    <form action="/lunch" method="get"><input type="hidden" name="year" value="{{ D.year }}"><label for="lh-program">โครงการที่แสดง</label><select id="lh-program" name="pid" onchange="this.form.requestSubmit()">{% for p in D.programs %}<option value="{{ p.id }}" {{ 'selected' if p.id == P.id }}>โครงการ {{ loop.index }} · {{ D.modes.get(p.operate_mode, 'อาหารกลางวัน') }} · {{ p.days }} วัน</option>{% endfor %}</select><noscript><button type="submit">เลือกโครงการ</button></noscript></form>
+    <form action="/lunch" method="get"><input type="hidden" name="year" value="{{ D.year }}"><label for="lh-program">โครงการที่แสดง</label><select id="lh-program" name="pid" onchange="this.form.requestSubmit()">{% for p in D.programs %}<option value="{{ p.id }}" {{ 'selected' if p.id == P.id }}>โครงการ {{ loop.index }}  {{ D.modes.get(p.operate_mode, 'อาหารกลางวัน') }}  {{ p.days }} วัน</option>{% endfor %}</select><noscript><button type="submit">เลือกโครงการ</button></noscript></form>
     {% else %}<span class="lh-mode">{{ D.modes.get(P.operate_mode, 'อาหารกลางวัน') }}</span>{% endif %}
     <a href="/lunch/{{ P.id }}">ดูข้อมูลโครงการ {{ arrow() }}</a>
   </div>
 
   <section class="lh-stats" aria-label="สรุปโครงการที่เลือก">
     <a class="lh-stat" href="/lunch/{{ P.id }}">{{ art('academic3d/students') }}<div><span>นักเรียนในโครงการ</span><strong>{{ '{:,}'.format(P.total_students) }} <small>คน</small></strong><p>ปีการศึกษา {{ D.year }}</p></div></a>
-    <a class="lh-stat" href="/lunch/{{ P.id }}/edit">{{ art('finance3d/wallet-pending') }}<div><span>งบประมาณโครงการ</span><strong>{{ '{:,.2f}'.format(P.budget) }} <small>บาท</small></strong><p>{{ P.days }} วัน · {{ '%g'|format(P.rate_per_head or 0) }} บาท/คน/วัน</p></div></a>
+    <a class="lh-stat" href="/lunch/{{ P.id }}/edit">{{ art('finance3d/wallet-pending') }}<div><span>งบประมาณโครงการ</span><strong>{{ '{:,.2f}'.format(P.budget) }} <small>บาท</small></strong><p>{{ P.days }} วัน  {{ '%g'|format(P.rate_per_head or 0) }} บาท/คน/วัน</p></div></a>
     <a class="lh-stat" href="/lunch/{{ P.id }}#ledger">{{ art('finance3d/document-money') }}<div><span>จ่ายจากบัญชีแล้ว</span><strong>{{ '{:,.2f}'.format(D.paid) }} <small>บาท</small></strong><p>{{ 'หักเงินยืมที่รับคืนแล้ว' if D.returned else 'รายการจ่ายของโครงการนี้' }}</p></div></a>
     <a class="lh-stat" href="#lunch-tasks">{{ art('home3d/calendar') }}<div><span>งานรอดำเนินการ</span><strong>{{ D.task_count }} <small>รายการ</small></strong><p>{{ 'ดูขั้นตอนที่ต้องทำต่อ' if D.task_count else 'ไม่มีงานค้างที่ตรวจพบ' }}</p></div></a>
   </section>
@@ -41,7 +41,7 @@
       {% for t in D.tasks[:4] %}
       <a class="lh-task lh-tone-{{ t.tone }}" href="{{ t.href }}">{{ art('home3d/' ~ t.icon) }}<div class="lh-task-copy"><strong>{{ t.title }}</strong><span>{{ t.detail }}</span></div><span class="lh-action">{{ t.cta }} {{ arrow() }}</span></a>
       {% else %}<div class="lh-empty lh-empty-tasks">{{ art('home3d/todo') }}<div><strong>{{ 'รอบที่มีอยู่ดำเนินการครบแล้ว' if D.rounds else 'เริ่มสร้างรอบจัดอาหารได้เลย' }}</strong><p>{{ 'เปิดรอบเพื่อตรวจรายละเอียดหรือดาวน์โหลดเอกสารได้' if D.rounds else 'กำหนดช่วงวัน ผู้รับจ้าง และวงเงินในรอบเดียว' }}</p></div></div>{% endfor %}
-      {% if D.task_count > 4 %}<a class="lh-more" href="/lunch/{{ P.id }}/rounds">ยังมีอีก {{ D.task_count - 4 }} รายการ · เปิดรอบทั้งหมด {{ arrow() }}</a>{% endif %}
+      {% if D.task_count > 4 %}<a class="lh-more" href="/lunch/{{ P.id }}/rounds">ยังมีอีก {{ D.task_count - 4 }} รายการ  เปิดรอบทั้งหมด {{ arrow() }}</a>{% endif %}
     </section>
 
     <section class="lh-panel lh-menu" aria-labelledby="lh-menu-title">
@@ -59,7 +59,7 @@
     {% for c in D.rounds[:4] %}
     <a class="lh-round {{ 'is-complete' if c.complete }}" href="{{ c.href }}">
       {{ art('home3d/mod_lunch' if P.operate_mode == 'hire' else 'home3d/p_hire' if P.operate_mode == 'person' else 'home3d/p_material') }}
-      <div class="lh-round-copy"><h3>รอบที่ {{ c.r.seq }} · {{ c.mode }}</h3><p>{{ be_date(c.r.start_date) if c.r.start_date else 'ยังไม่ระบุวันเริ่ม' }} – {{ be_date(c.r.end_date) if c.r.end_date else 'ยังไม่ระบุวันสิ้นสุด' }}{% if c.r.vendor %} · {{ c.r.vendor.name }}{% endif %}</p></div>
+      <div class="lh-round-copy"><h3>รอบที่ {{ c.r.seq }}  {{ c.mode }}</h3><p>{{ be_date(c.r.start_date) if c.r.start_date else 'ยังไม่ระบุวันเริ่ม' }} – {{ be_date(c.r.end_date) if c.r.end_date else 'ยังไม่ระบุวันสิ้นสุด' }}{% if c.r.vendor %}  {{ c.r.vendor.name }}{% endif %}</p></div>
       <div class="lh-round-value"><strong>{{ '{:,.2f}'.format(c.amount) }} <small>บาท</small></strong><span class="lh-badge {{ 'lh-done' if c.complete }}">{{ c.status }}</span></div>
       <div class="lh-progress">{% if c.complete %}<span class="lh-complete-mark"><svg class="icon" aria-hidden="true"><use href="#ic-check"/></svg>{{ c.caption }}</span>{% elif P.operate_mode == 'hire' %}{{ payment_flow('ตรวจรับแล้ว' if c.level >= 2 else 'ส่งมอบแล้ว' if c.level == 1 else '', claimed=c.level == 3) }}{% else %}<ol class="lh-mini-flow" aria-label="ความคืบหน้ารอบ">{% for label in c.labels %}<li class="{{ 'done' if loop.index <= c.level else 'current' if loop.index == c.level + 1 }}"><span>{{ '✓' if loop.index <= c.level else loop.index }}</span><small>{{ label }}</small></li>{% endfor %}</ol>{% endif %}{% if c.caption and not c.complete %}<small class="lh-progress-caption">{{ c.caption }}</small>{% endif %}</div>
       <span class="lh-action">{{ 'ดูรายละเอียด' if c.complete else 'เปิดรอบ' }} {{ arrow() }}</span>

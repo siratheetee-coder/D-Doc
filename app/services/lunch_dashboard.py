@@ -130,7 +130,7 @@ def overview(db, current_year, year=0, pid=0, can_finance=False, today=None):
             card = round_card(db, rnd, can_finance)
             cards.append(card)
             if card["task"]:
-                tasks.append(dict(card["task"], detail=f"{card['mode']} · รอบที่ {rnd.seq}"))
+                tasks.append(dict(card["task"], detail=f"{card['mode']}  รอบที่ {rnd.seq}"))
             # Flag actual differences only; the overview never realigns served days.
             if not card["complete"] and prog.operate_mode == "hire":
                 affected = [i for i in rnd.installments if i.status in ("", "ร่าง") and i.start_date and i.end_date
@@ -138,7 +138,7 @@ def overview(db, current_year, year=0, pid=0, can_finance=False, today=None):
                 if affected:
                     tasks.append(dict(_task("วันในงวดต่างจากปฏิทินโรงเรียน", "ตรวจวันในงวด",
                         f"/lunch/round/{rnd.id}/calendar-review", "calendar", "blue"),
-                        detail=f"รอบที่ {rnd.seq} · {len(affected)} งวดที่ควรตรวจ"))
+                        detail=f"รอบที่ {rnd.seq}  {len(affected)} งวดที่ควรตรวจ"))
     # Prefer active rounds while retaining completed rounds in a compact list.
     cards.sort(key=lambda c: (c["complete"], -(c["r"].start_date or datetime.min).toordinal(), -c["r"].id))
     return dict(year=selected_year, years=years, programs=choices, program=prog, modes=MODE_LABELS,
