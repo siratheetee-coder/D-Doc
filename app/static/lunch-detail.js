@@ -1,28 +1,8 @@
 // Keep the original controls, form names, ids and event listeners; group only their presentation.
 (() => {
  const root=document.querySelector('[data-round-detail]');if(!root)return;
- const priority=['approval','installments','buy','hire'];
- const cards=[...root.children].filter(el=>el.classList.contains('card'));
- const main=cards.filter(el=>priority.includes(el.id));
- const more=cards.filter(el=>!priority.includes(el.id)&&!el.classList.contains('fs-card'));
- const overview=root.querySelector('.rd-overview');
- let cursor=overview;
- for(const id of priority){const card=main.find(el=>el.id===id);if(card){cursor.after(card);cursor=card;}}
- const names={'round-info':'ข้อมูลรอบและสรุปรายละเอียด','committee':'กรรมการและวันมอบหมายตรวจรับ','round-chart':'ยอดนักเรียนรายวันและกราฟทั้งรอบ','menus':'เมนูอาหารรายวัน / ชุดเมนู','docnos':'เลขที่หนังสือและเอกสาร'};
- for(const card of more){
-   const h=card.querySelector(':scope > h2, :scope > div > h2, :scope > h1, :scope > div > h1');
-   const title=names[card.id]||h?.textContent.trim()||'รายละเอียดและการตั้งค่า';
-   const fold=document.createElement('details');fold.className='rd-fold';
-   const summary=document.createElement('summary');summary.textContent=title;
-   const content=document.createElement('div');content.className='rd-fold-content';
-   while(card.firstChild)content.append(card.firstChild);
-   fold.append(summary,content);card.append(fold);cursor.after(card);cursor=card;
- }
- root.querySelectorAll('#buy .bf-rows,#hire .bf-rows').forEach((rows,index)=>{
-   const fold=document.createElement('details');fold.className='rd-fold rd-doc-group';
-   const summary=document.createElement('summary');summary.textContent='เอกสาร / เลขที่หนังสือ ('+rows.querySelectorAll('.bf-row').length+' รายการ)';
-   rows.before(fold);fold.append(summary,rows);
- });
+ // จัดหน้าตามลำดับการ์ดเดิมในหน้า (ไม่ย้ายตำแหน่ง ไม่พับกลุ่ม) ใส่เฉพาะไอคอนและเมนูจัดการ
+ root.querySelectorAll(':scope>.card h2').forEach(h=>{if(h.textContent.includes('เพิ่มงวด')&&!h.closest('.card').id)h.closest('.card').id='installment-setup';});
  root.querySelectorAll('form[action$="/loan/repay"],form[action$="/status"]').forEach(form=>{
    if(!form.querySelector('[name="action"][value="undo"],[name="status"][value="จ้างแล้ว"]'))return;
    const fold=document.createElement('details');fold.className='rd-undo';const summary=document.createElement('summary');
@@ -52,31 +32,6 @@
  },true);
  document.addEventListener('click',e=>root.querySelectorAll('.rd-undo[open]').forEach(menu=>{if(!menu.contains(e.target))menu.open=false;}));
  document.addEventListener('keydown',e=>{if(e.key==='Escape')root.querySelectorAll('.rd-undo[open]').forEach(menu=>{menu.open=false;menu.querySelector('summary').focus();});});
- const steps=root.querySelector('.fs-card');if(steps){const box=document.createElement('details');box.className='rd-fold rd-setup';const s=document.createElement('summary');s.textContent='ขั้นตอนเตรียมงานและตรวจความพร้อม';box.append(s);steps.before(box);box.append(steps);root.append(box);}
- const groups={};
- const INFO_T=root.dataset.mode==='hire'?'ข้อมูลรอบและการแบ่งงวด':'ข้อมูลรอบและสรุปรายละเอียด';
- const ORDER=['info','committee','menus','docs'];
- function group(key,title){if(groups[key])return groups[key];const d=document.createElement('details');d.className='rd-fold rd-group card';const h=document.createElement('summary');h.textContent=title;d.append(h);groups[key]=d;return d;}
- for(const card of more){
-   const title=card.querySelector('summary')?.textContent||'';
-   if(card.id==='committee'){group('committee','คณะกรรมการและวันมอบหมายตรวจรับ').append(card);}
-   else if(['menus','round-chart'].includes(card.id)||title.includes('คัดลอก')){group('menus','เมนูอาหาร ยอดนักเรียนรายวัน และการคัดลอก').append(card);}
-   else if(card.id==='round-info'||title.includes('เพิ่มงวด')){if(title.includes('เพิ่มงวด'))card.id='installment-setup';group('info',INFO_T).append(card);}
-   else{group('docs','เลขที่หนังสือและเอกสารทั้งหมด').append(card);}
- }
- // วางกลุ่มตามลำดับงาน: ข้อมูลรอบ > กรรมการ > เมนู > เอกสาร และกลุ่มที่มีการ์ดเดียวไม่ต้องพับซ้อน 2 ชั้น
- const flow=root.querySelector(':scope>#installments,:scope>#buy,:scope>#hire');
- const gaps=new Set([...root.querySelectorAll('.mi-box a[href^="#"]')].map(a=>a.getAttribute('href').slice(1)));
- const need={info:['round-info'],committee:['committee'],menus:['menus']};
- // คู่มือขั้นตอนเตรียมงาน แยกเป็นส่วนของตัวเอง อยู่ก่อนกลุ่มเตรียมงานทั้งหมด
- const guide=steps?.closest('.rd-setup');
- if(guide){guide.classList.add('rd-guide');guide.open=true;if(flow)flow.before(guide);else root.append(guide);}
- ORDER.forEach(k=>{const g=groups[k];if(!g)return;
-   // เตรียมงาน (ข้อมูลรอบ กรรมการ เมนู) อยู่ก่อนขั้นตอนทำงาน เอกสารอยู่ท้ายสุด
-   if(k!=='docs'&&flow)flow.before(g);else root.append(g);
-   if((need[k]||[]).some(id=>gaps.has(id))){const b=document.createElement('span');b.className='rd-gap';b.textContent='ยังไม่ครบ';g.querySelector(':scope>summary').append(b);}
-   const inner=g.querySelectorAll(':scope>.card>.rd-fold');
-   if(g.children.length===2&&inner.length===1){inner[0].open=true;inner[0].classList.add('rd-solo');}});
 
  // Add visual field cues without changing controls, names, values or form listeners.
  function fieldIcon(text,field){
@@ -108,7 +63,7 @@
    while(summary.firstChild)name.append(summary.firstChild);
    summary.append(name);
  });
- root.querySelectorAll('.bf-step h3,.bf-head h2,.rd-fold-content h2,.rd-fold-content h3').forEach(h=>{
+ root.querySelectorAll('.bf-step h3,.bf-head h2,[data-round-detail]>.card h2,[data-round-detail]>.card h3').forEach(h=>{
    if(h.querySelector('svg'))return;h.prepend(cue(fieldIcon(h.textContent,null)));
  });
  root.querySelectorAll('.bf-fields').forEach(fields=>{if(!fields.querySelector(':scope > .rd-input-icon'))fields.prepend(cue('file'));});
