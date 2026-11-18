@@ -3,7 +3,10 @@
 {% block title %}รอบจัด{{ "ซื้อ" if p.operate_mode == "ingredient" else "จ้าง" }}ที่ {{ r.seq }}{% endblock %}
 {% block content %}
 {% set RW = 'รอบจัดซื้อ' if p.operate_mode == 'ingredient' else 'รอบจัดจ้าง' %}
-<div class="card">
+<link rel="stylesheet" href="/static/lunch-dashboard.css?v=1"><link rel="stylesheet" href="/static/lunch-detail.css?v=1">
+<div class="rd-page" data-round-detail data-mode="{{ p.operate_mode }}">
+{% include "_lunch_detail_header.html" %}
+<div class="card" id="round-info">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
     <h1 style="margin:0;">{{ RW }}ที่ {{ r.seq }} (ปีการศึกษา {{ p.year }})</h1>
     <a class="btn sm gray" href="/lunch/{{ p.id }}/rounds"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับรายการ{{ RW }}</a>
@@ -312,6 +315,13 @@
           {% if i.status in ('ร่าง','ส่งมอบแล้ว') %}<button class="btn sm lf-primary" type="button" data-no-floating-save onclick="saveLunchStep(this,'{{ 'ส่งมอบแล้ว' if i.status=='ร่าง' else 'ตรวจรับแล้ว' }}')"><svg class="icon"><use href="#ic-{{ 'package' if i.status=='ร่าง' else 'clipboard' }}"/></svg> {{ 'บันทึกส่งมอบงาน' if i.status=='ร่าง' else 'บันทึกผลตรวจรับ' }}</button>
           {% elif not RP and can_finance %}{% if claim %}<a class="btn sm lf-primary" href="{{ claim.url }}"><svg class="icon"><use href="#ic-coins"/></svg> {{ 'ดูการจ่ายในการเงิน' if i.status=='จ่ายแล้ว' else 'เปิดเรื่องขอเบิกในการเงิน' }}</a>{% else %}<a class="btn sm lf-primary" href="/finance/disburse?lunch_inst={{ i.id }}"><svg class="icon"><use href="#ic-coins"/></svg> {{ 'เชื่อมเรื่องขอเบิกกับรายการจ่ายเดิม' if i.status=='จ่ายแล้ว' else 'ทำเรื่องขอเบิกในการเงิน' }}</a>{% endif %}{% endif %}
           {% if not RP and not can_finance and i.status in ('ตรวจรับแล้ว','จ่ายแล้ว') %}<p class="lf-note">{{ 'จ่ายแล้ว' if i.status=='จ่ายแล้ว' else 'รอเจ้าหน้าที่การเงินทำเรื่องขอเบิก' }}</p>{% endif %}
+          <details class="rd-undo"><summary>ย้อนสถานะ / จัดการรายการ</summary>
+          {% set whole_claim=lunch_claims.get('r:' ~ r.id) %}
+          {% if claim or whole_claim %}{% if can_finance %}<a class="btn sm gray" href="{{ (claim or whole_claim).url }}">จัดการที่เรื่องขอเบิกในการเงิน →</a>{% else %}<p>ติดต่อเจ้าหน้าที่การเงินเพื่อจัดการเรื่องขอเบิกก่อน</p>{% endif %}<p>ต้องจัดการรายการจ่ายหรือยกเลิกการเชื่อมก่อนย้อนขั้นตอน</p>
+          {% elif i.status in ['ส่งมอบแล้ว','ตรวจรับแล้ว'] and r.status != 'จ่ายแล้ว' %}
+          <form method="post" action="/lunch/installment/{{ i.id }}/undo-step" onsubmit="return confirm('ย้อนขั้นตอนนี้? วันที่ของขั้นตอนที่ยกเลิกจะถูกล้าง ต้องบันทึกใหม่ และตรวจการอนุมัติเอกสารอีกครั้ง');"><input type="hidden" name="expected_status" value="{{ i.status }}"><button type="submit" data-no-floating-save><svg class="icon"><use href="#ic-undo"/></svg> {{ 'ยกเลิกตรวจรับ กลับไปส่งมอบแล้ว' if i.status=='ตรวจรับแล้ว' else 'ยกเลิกส่งมอบ กลับเป็นร่าง' }}</button></form>
+          {% elif i.status=='จ่ายแล้ว' or r.status=='จ่ายแล้ว' %}<p>มีการจ่ายแล้ว กรุณาตรวจรายการจ่ายที่ต้นทางก่อนย้อนสถานะ</p><a href="/lunch/{{ p.id }}#ledger">ดูรายการบัญชี →</a>{% else %}<p>ยังไม่ได้ดำเนินการ ไม่มีขั้นตอนให้ย้อน</p>{% endif %}
+          </details>
           <details class="lf-docs"><summary>เอกสารและข้อมูล</summary><a href="/lunch/installment/{{ i.id }}/doc" data-chk="i{{ i.id }}">พิมพ์เอกสารส่งมอบ / ตรวจรับ</a>{% if not RP %}<a href="/lunch/installment/{{ i.id }}/disburse-doc" data-chk="d{{ i.id }}">พิมพ์เอกสารขอเบิกเดิม</a>{% endif %}<a href="/lunch/installment/{{ i.id }}/meals">ยอดนักเรียนรายวัน</a></details>
           {% if i.status!='จ่ายแล้ว' and not claim %}<button class="btn sm gray" type="button" onclick="saveInst(this)"><svg class="icon"><use href="#ic-save"/></svg> บันทึกวันที่</button>{% endif %}
           {% if i.status=='ร่าง' and not claim %}<form method="post" action="/lunch/installment/{{ i.id }}/delete" onsubmit="return confirm('ลบงวดนี้?');" style="display:inline;margin:0"><button class="btn sm gray" type="submit" title="ลบงวดนี้" aria-label="ลบงวดนี้">✕</button></form>{% endif %}
@@ -842,4 +852,6 @@
 </script>
 {% include 'lunch_dates_dialog.html' %}
 <link rel="stylesheet" href="/static/lunch_payment_flow.css?v=1">
+</div>
+<script src="/static/lunch-detail.js?v=1" defer></script>
 {% endblock %}

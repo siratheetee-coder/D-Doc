@@ -1562,6 +1562,7 @@ def contract_plan(rid: int, request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("lunch_contract.html", {
         "ap_lunch": _ap_lunch_boxes(db, rnd),
         "request": request, "school": get_school(db), "r": rnd, "p": rnd.program,
+        "detail_ui": _detail_ui(db, rnd, request),
         "installments": rnd.installments, "paid": paid, "lunch_claims": lunch_claim.view_map(db,rnd), "can_finance": bool(request.session.get("owner") or request.session.get("director") or "finance" in parse_modules(request.session.get("mods",""))),
         "ing_total": ing_total, "fuel_cost": fuel_cost, "wage": wage, "round_budget": round_budget,
         "ing_budget": ing_budget, "ing_remaining": ing_remaining,
@@ -2341,3 +2342,38 @@ async def installment_dates_preview(iid:int,request:Request,db:Session=Depends(g
 @router.post('/lunch/installment/{iid}/dates-confirm')
 async def installment_dates_confirm(iid:int,request:Request,db:Session=Depends(get_db)):
     return await _selected_dates_page(iid,request,db,confirm=True)
+
+
+def _detail_ui(db, rnd, request):
+    from app.services.lunch_dashboard import round_card
+    ids = {i.id for i in rnd.installments}
+    rows = [l for l in rnd.program.ledger if l.round_id == rnd.id or l.installment_id in ids
+            or (rnd.loan_id and l.loan_id == rnd.loan_id)]
+    paid = sum(float(l.amount or 0) * (1 if l.kind == "out" else -1 if l.loan_return_id else 0) for l in rows)
+    can_finance = bool(request.session.get("owner") or request.session.get("director")
+                       or "finance" in parse_modules(request.session.get("mods", "")))
+    return dict(card=round_card(db, rnd, can_finance), paid=round(paid,2),
+                budget=float(rnd.program.total_students or 0)*float(rnd.program.rate_per_head or 0)*float(rnd.days or 0))
+
+
+@router.post("/lunch/installment/{iid}/undo-step")
+def undo_installment_step(iid: int, db: Session = Depends(get_db), expected_status: str = Form("")):
+    from app.services.disburse_payments import lock
+    lock(db)
+    inst = db.get(LunchInstallment, iid)
+    if not inst:
+        db.rollback();return RedirectResponse('/lunch',status_code=303)
+    db.refresh(inst)
+    rnd=inst.round;back=f'/lunch/round/{rnd.id}/plan'
+    claims=lunch_claim.view_map(db,rnd)
+    posted=db.query(LunchLedger).filter((LunchLedger.installment_id==iid)|(LunchLedger.round_id==rnd.id)).first()
+    if inst.status!=expected_status or inst.status not in ('ส่งมอบแล้ว','ตรวจรับแล้ว'):
+        db.rollback();return _calendar_error(back,'สถานะงวดเปลี่ยนแล้ว กรุณาโหลดหน้าใหม่ก่อนย้อนขั้นตอน')
+    if rnd.status=='จ่ายแล้ว' or posted or claims.get(f'i:{iid}') or claims.get(f'r:{rnd.id}'):
+        db.rollback();return _calendar_error(back,'มีรายการบัญชีหรือเรื่องขอเบิกที่เชื่อมอยู่ กรุณาจัดการที่ต้นทางก่อนย้อนสถานะ')
+    if inst.status=='ตรวจรับแล้ว':
+        inst.status='ส่งมอบแล้ว';inst.inspect_date=None
+    else:
+        inst.status='ร่าง';inst.deliver_date=None;inst.inspect_date=None
+    db.commit()
+    return RedirectResponse(back+f'#inst-{iid}',status_code=303)
