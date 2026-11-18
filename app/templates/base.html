@@ -189,6 +189,8 @@
         {% elif module == 'lunch' %}
         <div class="nav-sec">งานอาหารกลางวัน</div>
         <a href="/lunch" class="lunch-home-link {{ 'active' if path == '/lunch' }}"><svg class="icon"><use href="#ic-home"/></svg> ภาพรวมอาหารกลางวัน</a>
+        {% set lunch_nav_prog = p if p is defined and p else dashboard.program if dashboard is defined else none %}
+        {% if lunch_nav_prog %}<a href="/lunch/{{ lunch_nav_prog.id }}/rounds" class="{{ 'active' if '/rounds' in path or path.startswith('/lunch/round/') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> {{ 'รอบจัดซื้อ' if lunch_nav_prog.operate_mode == 'ingredient' else 'รอบจัดจ้าง' }}</a>{% endif %}
         <a href="/lunch/setup" class="{{ 'active' if path.startswith('/lunch/setup') }}"><svg class="icon"><use href="#ic-file-plus"/></svg> สร้างโครงการใหม่</a>
         <a href="/lunch/nutrition" class="{{ 'active' if path.startswith('/lunch/nutrition') }}"><svg class="icon"><use href="#ic-users"/></svg> ภาวะโภชนาการ</a>
 

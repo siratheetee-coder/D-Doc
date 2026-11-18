@@ -1,57 +1,50 @@
 {% extends "base.html" %}
-{% block title %}รอบจัด{{ "ซื้อ" if p.operate_mode == "ingredient" else "จ้าง" }} {{ p.year }}{% endblock %}
+{% block title %}รอบจัด{{ "ซื้อ" if p.operate_mode == "ingredient" else "จ้าง" }}อาหารกลางวัน{% endblock %}
 {% block content %}
+<link rel="stylesheet" href="/static/lunch-dashboard.css?v=1">
+<link rel="stylesheet" href="/static/lunch-rounds.css?v=1">
 {% set RW = 'รอบจัดซื้อ' if p.operate_mode == 'ingredient' else 'รอบจัดจ้าง' %}
-<div class="card">
-  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-    <h1 style="margin:0;">{{ RW }} {{ {"hire":"จ้างเหมาประกอบอาหาร","person":"จ้างแม่ครัว","ingredient":"ซื้อวัตถุดิบ"}.get(p.operate_mode, "") }} (ปีการศึกษา {{ p.year }})</h1>
-    <a class="btn sm gray" href="/lunch/{{ p.id }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับหน้าโครงการ</a>
+{% macro icon(name) %}<svg class="icon" aria-hidden="true"><use href="#ic-{{ name }}"/></svg>{% endmacro %}
+{% macro art(name) %}<img class="lh-art" src="/static/images/{{ name }}.png" width="72" height="72" alt="" aria-hidden="true">{% endmacro %}
+{% macro progress(c) %}
+{% set icons = ['package','clipboard','file','coins'] if p.operate_mode == 'hire' else ['coins','package','undo','check'] %}
+<ol class="lr-flow" aria-label="ขั้นตอน{{ RW }}">
+  {% for label in c.labels %}<li class="{{ 'done' if loop.index <= c.level else 'now' if loop.index == c.level + 1 }}"{% if loop.index == c.level + 1 %} aria-current="step"{% endif %}><span class="lr-dot">{{ icon('check' if loop.index <= c.level else icons[loop.index0]) }}</span><span>{{ label }}</span></li>{% endfor %}
+</ol>
+{% endmacro %}
+<div class="lh-dashboard lr-page">
+  <header class="lh-header">
+    <div class="lh-heading">{{ art('home3d/mod_lunch') }}<div><h1>{{ RW }}อาหารกลางวัน</h1><p>{{ school.name or 'โครงการอาหารกลางวัน' }}</p></div></div>
+    <div class="lh-header-actions"><span class="lr-year">{{ icon('calendar') }} ปีการศึกษา {{ p.year }}</span><a class="lh-button lh-primary" href="/lunch/{{ p.id }}/rounds#new-round">{{ icon('plus') }} สร้าง{{ RW }}</a></div>
+  </header>
+  <div class="lh-scope">
+    {% if program_choices|length > 1 %}<div class="lr-program"><label for="lr-project">โครงการที่แสดง</label><select id="lr-project" aria-label="เลือกโครงการอาหารกลางวัน" onchange="location.href=this.value">{% for choice in program_choices %}<option value="/lunch/{{ choice.id }}/rounds" {{ 'selected' if choice.id == p.id }}>{{ mode_labels.get(choice.operate_mode, 'อาหารกลางวัน') }} {{ choice.days }} วัน</option>{% endfor %}</select></div>{% else %}<span class="lh-mode">{{ mode_labels.get(p.operate_mode, 'อาหารกลางวัน') }}</span>{% endif %}
+    <div class="lr-scope-links"><details class="lr-help"><summary>{{ icon('info') }} วิธีใช้งาน</summary><div>{% if p.operate_mode == 'hire' %}<b>หนึ่งรอบคือการจัดจ้างหนึ่งครั้ง</b><p>กำหนดช่วงวันและวงเงิน แล้วแบ่งเป็นงวดส่งมอบ/ตรวจรับได้ ทำเรื่องขอเบิกและลงจ่ายเงินจริงผ่านงานการเงิน</p>{% else %}<b>แยกเงินซื้อวัตถุดิบกับค่าจ้างให้ชัด</b><p>รับเงินยืม บันทึกซื้อวัตถุดิบ แล้วส่งใช้เงินยืม{% if p.operate_mode == 'person' %} จากนั้นจ่ายค่าจ้างแม่ครัว{% endif %}และปิดรอบ ระบบเชื่อมรายการกับการเงินให้</p>{% endif %}</div></details><a href="/lunch/{{ p.id }}">ดูข้อมูลโครงการ {{ icon('arrow-right') }}</a></div>
   </div>
-  {# รอบ กับ งวด ฟังเหมือนกันว่า "ช่วงเวลา" แต่เป็นคนละชั้น: รอบ = ทำเรื่อง 1 ครั้ง / งวด = แบ่งจ่ายในรอบนั้น
-     งวดมีเฉพาะจ้างเหมา (แม่ครัว/ซื้อวัตถุดิบ 1 รอบ = ทำเรื่องและจ่าย 1 ครั้ง) จึงบอกตามโหมด #}
-  <div class="lw-explain">
-    {% if p.operate_mode == 'hire' %}
-    <b>1 รอบจัดจ้าง</b> = ทำเรื่องจ้างเหมา 1 ครั้ง (ใบสั่งจ้าง 1 ใบ) ข้างในแบ่งจ่ายได้หลาย <b>งวดจ่ายเงิน</b>
-    <div class="lw-eg">ตัวอย่าง: ภาคเรียนที่ 1 จ้าง 1 รอบ 100 วัน 220,000 บาท แบ่งจ่าย 5 งวด งวดละ 20 วัน 44,000 บาท</div>
-    {% elif p.operate_mode == 'person' %}
-    <b>1 รอบจัดจ้าง</b> = ทำเรื่องจ้างแม่ครัวและจ่ายเงิน 1 ครั้ง ไม่มีงวด
-    <div class="lw-eg">ตัวอย่าง: จ้างรายเดือน เดือนละ 1 รอบ หรือจ้างทั้งภาคเรียน 1 รอบ</div>
-    {% else %}
-    <b>1 รอบจัดซื้อ</b> = ทำเรื่องซื้อวัตถุดิบและจ่ายเงิน 1 ครั้ง ไม่มีงวด งบคิดจากค่าวัตถุดิบที่กรอกรายวัน
-    <div class="lw-eg">ตัวอย่าง: ซื้อรายสัปดาห์ สัปดาห์ละ 1 รอบ หรือรายเดือน เดือนละ 1 รอบ</div>
-    {% endif %}
-  </div>
-  <style>
-    .lw-explain{ margin-top:10px; padding:10px 14px; border-radius:12px; background:linear-gradient(120deg,#eff6ff,#f0fdf4); font-size:14.5px; color:#1e3a8a; }
-    .lw-eg{ font-size:13px; color:#475569; margin-top:3px; }
-  </style>
-  <p class="muted" style="margin:8px 0 0;">เมื่อตั้งสถานะ{{ RW }}เป็น "จ่ายแล้ว" ระบบลงบัญชีจ่ายให้อัตโนมัติ</p>
-  <div style="display:flex; gap:24px; flex-wrap:wrap; margin-top:10px; font-size:16px;">
-    <div>งบทั้งปี: <b>{{ "{:,.2f}".format(p.budget) }}</b></div>
-    <div>ผูกวงเงินแล้ว (ทุก{{ RW }}): <b {{ 'style="color:#dc2626;"' if committed > p.budget else '' }}>{{ "{:,.2f}".format(committed) }}</b></div>
-    <div>จ่ายแล้ว: <b style="color:var(--brand-dark);">{{ "{:,.2f}".format(paid) }}</b></div>
-    <div>คงเหลือจากงบ: <b {{ 'style="color:#dc2626;"' if (p.budget - committed) < 0 else '' }}>{{ "{:,.2f}".format(p.budget - committed) }}</b></div>
-  </div>
-  {% if committed > p.budget %}
-  <div class="alert danger" style="margin-top:12px;">
-    <svg class="icon"><use href="#ic-alert"/></svg><span>ผูกจ้างเกินงบทั้งปี {{ "{:,.2f}".format(committed - p.budget) }} บาท - ตรวจสอบวงเงินแต่ละ{{ RW }}อีกครั้ง</span>
-  </div>
-  {% endif %}
-</div>
+  <section class="lh-stats" aria-label="สรุปงบของโครงการนี้">
+    <a class="lh-stat" href="/lunch/{{ p.id }}/edit">{{ art('finance3d/document-money') }}<div><span>งบโครงการ</span><strong>{{ '{:,.2f}'.format(p.budget) }} <small>บาท</small></strong><p>{{ p.total_students }} คน {{ p.days }} วัน</p></div></a>
+    <a class="lh-stat" href="#round-list">{{ art('finance3d/wallet-pending') }}<div><span>วงเงินที่กำหนดให้รอบแล้ว</span><strong>{{ '{:,.2f}'.format(committed) }} <small>บาท</small></strong><p>รวม {{ round_cards|length }} รอบ</p></div></a>
+    <a class="lh-stat" href="/lunch/{{ p.id }}#ledger">{{ art('finance3d/wallet-paid') }}<div><span>จ่ายจากบัญชีแล้ว</span><strong>{{ '{:,.2f}'.format(paid) }} <small>บาท</small></strong><p>{{ 'หักเงินยืมที่รับคืนแล้ว' if returned else 'รายการจ่ายที่ลงบัญชีแล้ว' }}</p></div></a>
+    <a class="lh-stat" href="/lunch/{{ p.id }}/rounds#new-round">{{ art('home3d/calendar') }}<div><span>วงเงินที่ยังสร้างรอบได้</span><strong class="{{ 'lr-negative' if p.budget < committed }}">{{ '{:,.2f}'.format(p.budget-committed) }} <small>บาท</small></strong><p>งบโครงการหักวงเงินทุกรอบ</p></div></a>
+  </section>
+  {% if committed > p.budget %}<div class="alert danger">{{ icon('alert') }} วงเงินทุกรอบเกินงบโครงการ {{ '{:,.2f}'.format(committed-p.budget) }} บาท กรุณาตรวจวงเงินก่อนสร้างรอบเพิ่ม</div>{% endif %}
 
-<div class="card">
-  <div class="lunch-calendar-bar"><div><b>นับวันจัดอาหารตามปฏิทินของโรงเรียน</b><small>ใช้วันเรียน วันหยุดพิเศษ และวันชดเชยชุดเดียวกับงานวิชาการ</small></div><a class="btn soft sm" href="{{ calendar_link }}" data-calendar-link><svg class="icon"><use href="#ic-calendar"/></svg> ตั้งค่าปฏิทินวันเรียน</a></div>
-  <p data-calendar-restored hidden class="alert warn">คืนค่าที่กรอกไว้แล้ว ตรวจวันสิ้นสุดตามปฏิทินล่าสุดก่อนบันทึก โดยเปลี่ยนจำนวนวันหรือกดคำนวณใหม่</p>
-  {% if request.query_params.get('err') %}<p role="alert" class="alert danger">{{ request.query_params.get('err') }}</p>{% endif %}
-  <h2 id="new-round">{{ 'แก้ไข' ~ RW ~ 'ที่ ' ~ edit.seq if edit else 'เพิ่ม' ~ RW }}</h2>
-  <form data-lunch-round-form data-draft-key="{{ request.session.get('tid') }}:{{ request.session.get('uid') }}:{{ request.url.path }}" method="post" action="{{ ('/lunch/round/' ~ edit.id ~ '/update') if edit else ('/lunch/' ~ p.id ~ '/rounds/add') }}">
+  <details class="lh-panel lr-form" id="new-round"{% if edit or request.query_params.get('err') %} open{% endif %}>
+    <summary>{{ icon('edit' if edit else 'plus') }} {{ 'แก้ไข' ~ RW ~ 'ที่ ' ~ edit.seq if edit else 'สร้าง' ~ RW ~ 'ใหม่' }}<span class="lr-form-hint">กำหนดวัน ผู้รับจ้าง และวงเงิน</span></summary>
+    <div class="lr-form-content">
+      <div class="lunch-calendar-bar"><div><b>ใช้ปฏิทินวันเรียนเดียวกับงานวิชาการ</b><small>ระบบข้ามวันหยุดและนับวันชดเชยให้ตามที่โรงเรียนตั้งไว้</small></div><a class="lh-button lh-outline" href="{{ calendar_link }}" data-calendar-link>{{ icon('calendar') }} ตั้งค่าปฏิทินวันเรียน</a></div>
+      <p data-calendar-restored hidden class="alert warn">คืนค่าที่กรอกไว้แล้ว ตรวจวันสิ้นสุดตามปฏิทินล่าสุดก่อนบันทึก โดยเปลี่ยนจำนวนวันหรือกดคำนวณใหม่</p>
+      {% if request.query_params.get('err') %}<p role="alert" class="alert danger">{{ request.query_params.get('err') }}</p>{% endif %}
+        <form data-lunch-round-form data-draft-key="{{ request.session.get('tid') }}:{{ request.session.get('uid') }}:{{ request.url.path }}" method="post" action="{{ ('/lunch/round/' ~ edit.id ~ '/update') if edit else ('/lunch/' ~ p.id ~ '/rounds/add') }}">
     {% if edit %}<input type="hidden" name="procurement_id" value="{{ edit.procurement_id or '' }}">{% endif %}
+    <h3 class="lr-form-step">1. วันจัดอาหาร</h3>
     <div class="row">
       <div><label>วันที่เริ่ม</label><input name="start_date" id="sd" value="{{ be_date(edit.start_date) if edit else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" oninput="onStart()"></div>
       <div><label>จำนวนวันจัดอาหาร <span class="muted">(ตามปฏิทิน)</span></label><input name="days" id="days" type="number" min="0" value="{{ edit.days if edit else 0 }}" oninput="fromDays()"></div>
       <div><label>วันที่สิ้นสุด <span class="muted">(คำนวณให้)</span></label><input name="end_date" id="ed" value="{{ be_date(edit.end_date) if edit else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" oninput="onEnd()"></div>
     </div>
     <div id="sdWarn" style="display:none; margin:6px 0 0; padding:7px 12px; border-radius:8px; background:#fff4e5; border:1px solid #fcd9a5; color:#b45309; font-size:13.5px;"></div>
+    <h3 class="lr-form-step">2. ผู้รับจ้างและวงเงิน</h3>
     <div class="row">
       <div style="flex:2;"><label>ผู้รับจ้าง</label><select name="vendor_id" id="vsel" data-combo data-combo-placeholder="พิมพ์ชื่อผู้รับจ้างเพื่อค้นหา หรือคลิกเพื่อเลือก">
         <option value="">- ไม่ระบุ -</option>
@@ -73,6 +66,9 @@
       {% if p.operate_mode == 'person' %}<div><label>ค่าจ้างแม่ครัว (รอบนี้)</label><input name="cook_wage" type="number" step="0.01" value="{{ '%g'|format(edit.cook_wage) if edit and edit.cook_wage else '' }}" placeholder="เช่น 5000"></div>{% endif %}
       <div><label>ค่าเชื้อเพลิง (รอบนี้)</label><input name="fuel_cost" type="number" step="0.01" value="{{ '%g'|format(edit.fuel_cost) if edit and edit.fuel_cost else '' }}" placeholder="เช่น 500"></div>
       {% endif %}
+    </div>
+    <h3 class="lr-form-step">3. ข้อมูลเอกสาร</h3>
+    <div class="row">
       <div><label>เลขที่ตกลงจ้าง/สั่งจ้าง</label><input name="order_no" value="{{ edit.order_no if edit else '' }}" placeholder="เช่น 27/2568"></div>
       <div><label>วันที่ตกลงจ้าง/สั่งจ้าง</label><input name="order_date" value="{{ be_date(edit.order_date) if edit and edit.order_date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1" style="min-width:150px;"></div>
       <div><label>สถานะ</label><select name="status">
@@ -108,45 +104,31 @@
     <label>หมายเหตุ</label><input name="note" value="{{ edit.note if edit else '' }}">
     <p class="muted" id="sug" style="margin:8px 0;"></p>
     <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> {{ 'บันทึกการแก้ไข' if edit else 'เพิ่ม' ~ RW }}</button>
-    {% if edit %}<a class="btn gray" href="/lunch/{{ p.id }}/rounds">ยกเลิก</a>{% endif %}
+    <a class="btn gray" href="/lunch/{{ p.id }}/rounds">{{ 'ยกเลิก' if edit else 'กลับรายการรอบ' }}</a>
   </form>
-</div>
+    </div>
+  </details>
 
-<div class="card">
-  <h2>{{ RW }}ทั้งหมด</h2>
-  {% if rounds %}
-  <div class="table-wrap">
-  <table>
-    <thead><tr><th>{{ RW }}ที่</th><th>ช่วงเวลา</th><th class="right">วัน</th><th>ผู้รับจ้าง</th><th class="right">วงเงิน</th><th>สถานะ</th><th>บัญชี</th><th></th></tr></thead>
-    <tbody>
-    {% for r in rounds %}
-      <tr>
-        <td>{{ r.seq }}</td>
-        <td>{{ be_date(r.start_date) if r.start_date else '-' }} ถึง {{ be_date(r.end_date) if r.end_date else '-' }}</td>
-        <td class="right">{{ r.days }}</td>
-        <td>{{ r.vendor.name if r.vendor else '-' }}</td>
-        <td class="right">{{ "{:,.2f}".format(r.amount or 0) }}</td>
-        <td><select class="rstatus" data-rid="{{ r.id }}" onchange="saveRoundStatus(this)" title="เปลี่ยนสถานะได้ที่นี่" style="width:120px;">
-          {% for s in ['ร่าง','จ้างแล้ว','จ่ายแล้ว'] %}<option {{ 'selected' if r.status==s }}>{{ s }}</option>{% endfor %}
-        </select></td>
-        <td>{% if r.status=='จ่ายแล้ว' %}<span class="muted" title="ลงบัญชีจ่ายอัตโนมัติแล้ว">✔ ลงแล้ว</span>{% else %}<span class="muted">-</span>{% endif %}</td>
-        <td style="white-space:nowrap;">
-          <a class="btn sm" href="/lunch/round/{{ r.id }}/plan">{{ "เปิดรอบ งวดจ่ายเงิน" if p.operate_mode == "hire" else "เปิด" ~ RW }}</a>
-          <a class="btn sm gray" href="/lunch/round/{{ r.id }}/edit">แก้ไข</a>
-          <form method="post" action="/lunch/round/{{ r.id }}/duplicate" onsubmit="return confirm('คัดลอกรอบนี้เป็นรอบใหม่? (ก็อปกรรมการ+ผู้รับจ้าง+วงเงิน เลื่อนวันไปงวดถัดไป)');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit"><svg class="icon"><use href="#ic-file-plus"/></svg> คัดลอก</button></form>
-          {% if r.procurement_id %}<a class="btn sm gray" href="/procurement/{{ r.procurement_id }}?keep=1" title="ดู/พิมพ์เอกสารจัดจ้างในงานพัสดุ">เอกสารจัดจ้าง</a>{% endif %}
-          <form method="post" action="/lunch/round/{{ r.id }}/delete" onsubmit="return confirm('ลบรอบนี้? (รวมรายการบัญชีที่ผูกไว้)');" style="display:inline; margin:0;"><button class="btn sm gray" type="submit">ลบ</button></form>
-        </td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-  </div>
-  {% else %}
-  <p class="muted">ยังไม่มี{{ RW }} เพิ่มด้านบน</p>
-  {% endif %}
+  <section class="lh-panel lr-list" id="round-list" aria-labelledby="lr-list-title">
+    <div class="lh-panel-head"><h2 id="lr-list-title">{{ RW }}ทั้งหมด <small>{{ round_cards|length }} รอบ</small></h2><a class="lh-button lh-outline" href="{{ calendar_link }}" data-calendar-link>{{ icon('calendar') }} ปฏิทินวันเรียน</a></div>
+    <div class="lr-tools"><div class="lr-filters" role="group" aria-label="กรองสถานะรอบ"><button type="button" class="on" data-round-filter="all" aria-pressed="true">ทั้งหมด <b>{{ round_cards|length }}</b></button><button type="button" data-round-filter="active" aria-pressed="false">กำลังดำเนินการ <b>{{ active_count }}</b></button><button type="button" data-round-filter="complete" aria-pressed="false">{{ 'จ่ายครบแล้ว' if p.operate_mode == 'hire' else 'ปิดรอบแล้ว' }} <b>{{ complete_count }}</b></button></div><label class="lr-search">{{ icon('search') }}<span class="lr-sr">ค้นหาผู้รับจ้าง เลขที่ใบสั่งจ้าง หรือรอบ</span><input id="lr-search" type="search" placeholder="ค้นหาผู้รับจ้าง / เลขที่ใบสั่งจ้าง" autocomplete="off"></label></div>
+    <div class="lr-cards">
+    {% for c in round_cards %}{% set r = c.r %}
+      <article class="lr-round {{ 'is-complete' if c.complete }}" data-detail-card data-round-state="{{ 'complete' if c.complete else 'active' }}" data-round-search="รอบที่ {{ r.seq }} {{ r.vendor.name if r.vendor else '' }} {{ r.order_no or '' }} {{ c.status }} {{ be_date(r.start_date) if r.start_date else '' }} {{ be_date(r.end_date) if r.end_date else '' }}">
+        <div class="lr-card-head">
+          {{ art('home3d/mod_lunch' if p.operate_mode == 'hire' else 'home3d/p_hire' if p.operate_mode == 'person' else 'home3d/p_material') }}
+          <div class="lr-card-title"><a class="detail-card-link" href="{{ c.href }}"><h3>{{ RW }}ที่ {{ r.seq }} <span>{{ c.mode }}</span></h3></a><p>{{ be_date(r.start_date) if r.start_date else 'ยังไม่ระบุวันเริ่ม' }} – {{ be_date(r.end_date) if r.end_date else 'ยังไม่ระบุวันสิ้นสุด' }}<span>{{ r.days or 0 }} วัน</span></p><p>ผู้รับจ้าง: {{ r.vendor.name if r.vendor else 'ยังไม่ระบุ' }}<span>{{ 'ใบสั่งจ้าง ' ~ r.order_no if r.order_no else 'ยังไม่ลงเลขที่ใบสั่งจ้าง' }}</span></p></div>
+          <div class="lr-amount"><strong>{{ '{:,.2f}'.format(r.amount or 0) }} <small>บาท</small></strong><span class="lh-badge {{ 'lh-done' if c.complete }}">{{ c.status }}</span>{% if p.operate_mode in ['person','ingredient'] %}<small>วงเงินอ้างอิง</small>{% endif %}</div>
+          <details class="lr-more"><summary aria-label="เพิ่มเติม {{ RW }}ที่ {{ r.seq }}">•••</summary><nav aria-label="การจัดการ{{ RW }}ที่ {{ r.seq }}"><a href="/lunch/round/{{ r.id }}/edit">{{ icon('edit') }} แก้ไขรอบ</a><form method="post" action="/lunch/round/{{ r.id }}/duplicate" onsubmit="return confirm('คัดลอกรอบนี้เป็นรอบใหม่? ระบบจะคัดลอกกรรมการ ผู้รับจ้าง และวงเงิน พร้อมเลื่อนช่วงวัน');"><button type="submit">{{ icon('file-plus') }} คัดลอกรอบ</button></form>{% if r.procurement_id %}<a href="/procurement/{{ r.procurement_id }}?keep=1">{{ icon('file') }} เอกสารจัดจ้าง</a>{% endif %}<form method="post" action="/lunch/round/{{ r.id }}/delete" onsubmit="return confirm('ลบรอบนี้ รวมรายการบัญชีที่ผูกไว้?');"><button class="lr-delete" type="submit">{{ icon('trash') }} ลบรอบ</button></form></nav></details>
+        </div>
+        <div class="lr-card-foot"><span class="lr-caption">{{ c.caption or ('ขั้นตอนถัดไป: ' ~ c.status) }}</span><div class="lr-status">{{ progress(c) }}</div><a class="lh-button lh-outline lr-open" href="{{ c.href }}">{{ 'ดูรายละเอียด' if c.complete else 'เปิด' ~ RW }} {{ icon('arrow-right') }}</a></div>
+      </article>
+    {% else %}<div class="lh-empty">{{ art('home3d/calendar') }}<div><strong>ยังไม่มี{{ RW }}ในโครงการนี้</strong><p>กดสร้างรอบเพื่อกำหนดวัน ผู้รับจ้าง และวงเงิน</p><a class="lh-button lh-primary" href="#new-round">สร้าง{{ RW }}แรก {{ icon('arrow-right') }}</a></div></div>{% endfor %}
+    </div>
+    {% if round_cards %}<p class="lr-no-matches" id="lr-no-matches" role="status" hidden>ไม่พบรอบที่ตรงกับการค้นหาหรือสถานะที่เลือก</p>{% endif %}
+    <p class="lr-list-hint">{{ icon('info') }} เลือกรอบเพื่อดูรายละเอียด{% if p.operate_mode == 'hire' %} ส่งมอบ ตรวจรับ และทำเรื่องขอเบิก{% else %} วัตถุดิบ เงินยืม และการปิดรอบ{% endif %}</p>
+  </section>
 </div>
-
 <script>
   var STUDENTS = {{ p.total_students }}, RATE = {{ p.rate_per_head or 0 }};
   var HOLIDAYS = {{ holidays | tojson }};
@@ -242,19 +224,7 @@
     });
   });
   calcAmt();
-  // เปลี่ยนสถานะรอบตรงจากตาราง (บันทึกทันที ไม่ต้องเข้าหน้าแก้ไข)
-  function saveRoundStatus(sel){
-    var rid = sel.getAttribute('data-rid');
-    sel.disabled = true;
-    var d = new URLSearchParams(); d.append('status', sel.value);
-    fetch('/lunch/round/' + rid + '/status', {
-      method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'fetch'}, body:d
-    }).then(function(r){ if(!r.ok) throw 0;
-      if(window.showToast) showToast('อัปเดตสถานะแล้ว');
-      // โหลดหน้าใหม่ให้คอลัมน์บัญชี + ยอดผูกจ้างอัปเดตตามสถานะใหม่
-      setTimeout(function(){ location.reload(); }, 500);
-    }).catch(function(){ sel.disabled=false; alert('อัปเดตสถานะไม่สำเร็จ ลองใหม่'); });
-  }
+
 </script>
 {% if p.operate_mode == 'hire' and not edit %}
 {# บอกล่วงหน้าว่าแต่ละงวดได้กี่วัน กี่บาท (ตรงกับ _split_parts ฝั่งเซิร์ฟเวอร์) #}
@@ -273,6 +243,8 @@ function splitHint(){
 document.addEventListener('input', function(e){ if(e.target && (e.target.id==='days'||e.target.id==='amt')) splitHint(); });
 </script>
 {% endif %}
-<style>.lunch-calendar-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:#f0f9ff;border:1px solid #dbeafe;border-radius:12px;padding:14px 16px;margin-bottom:16px}.lunch-calendar-bar small{display:block;color:#64748b;font-size:12px;margin-top:5px}[data-calendar-restored][hidden]{display:none!important}</style>
-<script src="/static/lunch-calendar-link.js?v=1" defer></script>
+
+<script src="/static/lunch-calendar-link.js?v=2" defer></script>
+
+<script src="/static/lunch-rounds.js?v=1" defer></script>
 {% endblock %}

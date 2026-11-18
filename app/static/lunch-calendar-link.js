@@ -3,6 +3,7 @@
   if(!form)return;
   const key='lunchCalendarDraft:'+form.dataset.draftKey;
   document.querySelectorAll('[data-calendar-link]').forEach(link=>link.addEventListener('click',()=>{
+    if(form.closest('details') && !form.closest('details').open)return;
     try{
       const fields=[...form.elements].filter(e=>e.name&&e.type!=='file'&&e.type!=='password')
         .map(e=>({name:e.name,value:e.value,checked:e.checked,type:e.type}));

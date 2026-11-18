@@ -662,12 +662,20 @@ def _lunch_holidays(prog) -> dict:
 
 def _rounds_page(request, db, prog, edit=None):
     vendors = db.query(Vendor).order_by(Vendor.name).all()
-    paid = sum(r.amount or 0 for r in prog.rounds if r.status == "จ่ายแล้ว")
+    from app.services.lunch_dashboard import round_card, MODE_LABELS
+    cards = [round_card(db, r) for r in prog.rounds]
+    cards.sort(key=lambda c: (c["complete"], -(c["r"].start_date or datetime.min).toordinal(), -c["r"].id))
+    returned = sum(float(l.amount or 0) for l in prog.ledger if l.kind == "in" and l.loan_return_id)
+    paid = round(sum(float(l.amount or 0) for l in prog.ledger if l.kind == "out") - returned, 2)
     committed = sum(r.amount or 0 for r in prog.rounds)
+    choices = db.query(LunchProgram).filter(LunchProgram.year == prog.year,
+        (LunchProgram.pool == 0) | LunchProgram.pool.is_(None)).order_by(LunchProgram.id.desc()).all()
     return templates.TemplateResponse("lunch_rounds.html", {
         "request": request, "school": get_school(db), "p": prog,
         "rounds": prog.rounds, "vendors": vendors, "periods": PERIOD_TYPES,
         "edit": edit, "paid": paid, "committed": committed,
+        "round_cards": cards, "returned": returned, "mode_labels": MODE_LABELS, "program_choices": choices,
+        "complete_count": sum(c["complete"] for c in cards), "active_count": sum(not c["complete"] for c in cards),
         "default_period": "month", "holidays": _lunch_holidays(prog),
         "school_days":sc.state(db,prog.year),"calendar_link":sc.settings_link(prog.year,request.url.path),
     })
