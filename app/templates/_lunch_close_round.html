@@ -22,31 +22,41 @@
   {% set btn = 'จ่ายค่าจ้างแล้ว ปิดรอบ' if p.operate_mode == 'person' else 'ปิดรอบ' %}
   {% if close_amount > 0 %}
   <button class="btn" type="button" style="margin-top:8px" data-no-floating-save onclick="document.getElementById('closePay{{ r.id }}').showModal()"><svg class="icon"><use href="#ic-check"/></svg> {{ btn }}</button>
-  <dialog id="closePay{{ r.id }}" class="qpd">
+  <dialog id="closePay{{ r.id }}" class="cpd">
     <form method="post" action="/lunch/round/{{ r.id }}/status" data-no-floating-save>
       <input type="hidden" name="status" value="จ่ายแล้ว"><input type="hidden" name="back" value="/lunch/round/{{ r.id }}/plan#close">
-      <header><h2>ยืนยันการจ่ายและปิดรอบ</h2><button type="button" onclick="this.closest('dialog').close()" aria-label="ปิด">×</button></header>
+      <div class="cpd-hd"><b>ยืนยันการจ่ายและปิดรอบ</b><button type="button" class="cpd-x" onclick="this.closest('dialog').close()" aria-label="ปิด">×</button></div>
       <div style="background:linear-gradient(135deg,#f0fdf4,#ecfeff);border-radius:12px;padding:12px 14px;margin-top:12px;font-size:14px;line-height:1.8">
         <div>บัญชีที่จ่าย <b>{{ close_acc }}</b></div>
         <div>{{ close_parts }}</div>
         <div>รวมลงจ่าย <b style="font-size:18px">{{ "{:,.2f}".format(close_amount) }}</b> บาท</div>
       </div>
       {% if close_dupes %}
-      <div class="qpd-warning" style="margin-top:12px">
+      <div class="cpd-warn">
         <b>พบรายการจ่ายยอดเท่ากันในทะเบียนคุมเงินแล้ว</b> ถ้าเป็นการจ่ายครั้งเดียวกัน ให้เลือกรายการนั้น ระบบจะไม่ลงจ่ายซ้ำ
-        <label style="display:flex;gap:8px;margin-top:6px"><input type="radio" name="link_txn" value="" checked onchange="this.form.paid_date.disabled=false"> ลงรายการจ่ายใหม่</label>
+        <label class="cpd-opt"><input type="radio" name="link_txn" value="" checked onchange="this.form.paid_date.disabled=false"> ลงรายการจ่ายใหม่</label>
         {% for t in close_dupes %}
-        <label style="display:flex;gap:8px"><input type="radio" name="link_txn" value="{{ t.id }}" onchange="this.form.paid_date.disabled=true"> ใช้รายการเดิม {{ t.date.strftime('%d/%m/') ~ (t.date.year + 543) if t.date else '' }} {{ t.ref or '' }} {{ (t.note or '')[:40] }}</label>
+        <label class="cpd-opt"><input type="radio" name="link_txn" value="{{ t.id }}" onchange="this.form.paid_date.disabled=true"> ใช้รายการเดิม {{ t.date.strftime('%d/%m/') ~ (t.date.year + 543) if t.date else '' }} {{ t.ref or '' }} {{ (t.note or '')[:40] }}</label>
         {% endfor %}
       </div>
       {% endif %}
       <label style="margin-top:12px;display:block">วันที่จ่ายเงินจริง</label>
       <input name="paid_date" value="{{ today_be }}" placeholder="วว/ดด/ปปปป" inputmode="numeric" maxlength="10" data-date="1" required autocomplete="off">
-      <p class="qpd-hint muted">ใช้วันนี้ลงทะเบียนคุมเงิน ไม่ใช่วันสิ้นสุดรอบ{% if loan and loan.loan and not loan.repaid %}<br><b style="color:#b45309">ยังไม่ได้บันทึกส่งใช้เงินยืม</b>{% endif %}</p>
-      <footer><button type="button" class="btn gray" onclick="this.closest('dialog').close()">ยกเลิก</button><button class="btn" type="submit"><svg class="icon"><use href="#ic-check"/></svg> ยืนยัน {{ btn }}</button></footer>
+      <p class="muted" style="font-size:12.5px;margin:6px 0 0">ใช้วันนี้ลงทะเบียนคุมเงิน ไม่ใช่วันสิ้นสุดรอบ{% if loan and loan.loan and not loan.repaid %}<br><b style="color:#b45309">ยังไม่ได้บันทึกส่งใช้เงินยืม</b>{% endif %}</p>
+      <div class="cpd-ft"><button type="button" class="btn gray" onclick="this.closest('dialog').close()">ยกเลิก</button><button class="btn" type="submit"><svg class="icon"><use href="#ic-check"/></svg> ยืนยัน {{ btn }}</button></div>
     </form>
   </dialog>
-  <link rel="stylesheet" href="/static/quick-payment-date.css?v=1">
+  <style>
+  .cpd{border:0;border-radius:20px;padding:22px;width:min(460px,calc(100vw - 24px));max-height:90dvh;box-sizing:border-box;box-shadow:0 24px 80px #0f172a40;overflow:auto}
+  .cpd::backdrop{background:#0f172a70;backdrop-filter:blur(2px)}
+  .cpd form{margin:0}
+  .cpd-hd{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:19px}
+  .cpd-x{border:0;border-radius:50%;width:34px;height:34px;background:#f1f5f9;font-size:22px;cursor:pointer;flex:none;padding:0}
+  .cpd-warn{margin-top:12px;background:linear-gradient(135deg,#fffbeb,#fef3c7);color:#78350f;border-radius:12px;padding:12px 14px;font-size:13.5px;line-height:1.6}
+  .cpd-opt{display:flex!important;align-items:flex-start;gap:8px;margin:8px 0 0;font-weight:400;cursor:pointer}
+  .cpd-opt input[type=radio]{width:18px!important;height:18px;min-width:0;margin:3px 0 0;flex:none;padding:0}
+  .cpd-ft{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;flex-wrap:wrap}
+  </style>
   {% else %}
   <form method="post" action="/lunch/round/{{ r.id }}/status" style="margin:8px 0 0;"
         {% if loan and loan.loan and not loan.repaid %}onsubmit="return confirm('ยังไม่ได้บันทึกส่งใช้เงินยืม ปิดรอบเลยหรือไม่?');"{% endif %}>
