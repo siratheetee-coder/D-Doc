@@ -483,6 +483,8 @@ app.include_router(finance.router)
 app.include_router(lunch.router)
 from app.routers import lunch_menu_library
 app.include_router(lunch_menu_library.router)
+from app.routers import lunch_recipe as _lunch_recipe
+app.include_router(_lunch_recipe.router)
 from app.routers import lunch_tsl
 app.include_router(lunch_tsl.router)
 app.include_router(hr.router)

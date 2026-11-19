@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}สูตรอาหาร{% endblock %}
+{% block content %}
+{% set bq = ('?back=' ~ back) if back else '' %}
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+    <h1 style="margin:0">สูตรอาหาร</h1>
+    <a class="btn sm gray" href="/lunch/{{ p.id }}/ingredients{{ bq }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับหน้าวัตถุดิบรายวัน</a>
+  </div>
+  <p class="muted" style="margin:6px 0 0">ตั้งปริมาณวัตถุดิบต่อ<b>นักเรียน 10 คน</b> แยกระดับชั้นครั้งเดียว แล้วใช้กดคำนวณได้ทุกวัน ชื่อสูตรต้องตรงกับชื่อเมนูของวัน ระบบจึงจับคู่ให้เอง</p>
+  <div class="rc-tiers">
+    <span>อนุบาล <b>{{ tiers[0] }}</b> คน</span><span>ประถม <b>{{ tiers[1] }}</b> คน</span><span>มัธยม <b>{{ tiers[2] }}</b> คน</span>
+    <span class="muted">ยอดจากชั้นที่ตั้งไว้ในโครงการ</span>
+  </div>
+</div>
+
+<div class="card">
+  <h2>{{ 'แก้สูตร ' ~ cur.name if cur else 'เพิ่มสูตรใหม่' }}</h2>
+  <form method="post" action="/lunch/{{ p.id }}/recipes/save" id="rcForm">
+    {% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}
+    {% if cur %}<input type="hidden" name="rid" value="{{ cur.id }}">{% endif %}
+    <label>ชื่อเมนู *</label>
+    <input name="name" required value="{{ cur.name if cur else '' }}" data-cp-list="rc_menus" placeholder="เช่น ผัดกะเพราไก่" style="max-width:420px">
+    <datalist id="rc_menus">{% for n in menu_names %}<option value="{{ n }}">{% endfor %}</datalist>
+    <div style="overflow-x:auto;margin-top:12px">
+    <table class="rc-tbl">
+      <thead><tr><th>วัตถุดิบ</th><th>หน่วย</th><th>อนุบาล</th><th>ประถม</th><th>มัธยม</th><th title="ไม่ลดตอนปรับให้พอดีงบ">ล็อก</th><th></th></tr></thead>
+      <tbody id="rcRows">
+      {% set items = cur.items if cur else [] %}
+      {% for it in items %}
+      <tr><td><input name="i_name" value="{{ it.name }}"></td><td><input name="i_unit" value="{{ it.unit }}" list="rc_units" class="u"></td>
+        <td><input name="i_k" type="number" step="0.01" min="0" value="{{ it.q_k|round(2) }}" class="n"></td>
+        <td><input name="i_p" type="number" step="0.01" min="0" value="{{ it.q_p|round(2) }}" class="n"></td>
+        <td><input name="i_m" type="number" step="0.01" min="0" value="{{ it.q_m|round(2) }}" class="n"></td>
+        <td style="text-align:center"><input type="checkbox" class="lk" {{ 'checked' if it.locked }}></td>
+        <td><button type="button" class="btn sm gray" onclick="this.closest('tr').remove()">ลบ</button></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <datalist id="rc_units"><option value="กก."><option value="ฟอง"><option value="ลิตร"><option value="ขวด"><option value="ถุง"><option value="ผล"><option value="มัด"></datalist>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+      <button type="button" class="btn sm gray" id="rcAdd"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มวัตถุดิบ</button>
+      <button class="btn" type="submit">บันทึกสูตร</button>
+      {% if cur %}<a class="btn gray" href="/lunch/{{ p.id }}/recipes{{ bq }}">ยกเลิก</a>{% endif %}
+    </div>
+    <p class="muted" style="font-size:13px;margin:8px 0 0">ถ้าไม่แยกชั้น กรอกเลขเท่ากันทั้ง 3 ช่อง ติ๊ก "ล็อก" กับรายการที่ต้องได้ครบทุกคน เช่น ไข่ 1 ฟองต่อคน</p>
+  </form>
+</div>
+
+<div class="card">
+  <h2>สูตรที่มี ({{ recipes|length }})</h2>
+  {% if recipes %}
+  <div class="rc-list">
+  {% for r in recipes %}
+    <div class="rc-item">
+      <div><b>{{ r.name }}</b><div class="muted" style="font-size:13px">{{ r.items|map(attribute='name')|join(', ') or 'ยังไม่มีวัตถุดิบ' }}</div></div>
+      <span style="display:flex;gap:6px">
+        <a class="btn sm" href="/lunch/{{ p.id }}/recipes?edit={{ r.id }}{{ ('&back=' ~ back) if back else '' }}">แก้</a>
+        <form method="post" action="/lunch/{{ p.id }}/recipes/{{ r.id }}/delete" onsubmit="return confirm('ลบสูตรนี้?')" style="margin:0">{% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}<button class="btn sm gray">ลบ</button></form>
+      </span>
+    </div>
+  {% endfor %}
+  </div>
+  {% else %}<p class="muted">ยังไม่มีสูตร เพิ่มสูตรแรกด้านบน</p>{% endif %}
+</div>
+
+<style>
+  .rc-tiers{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+  .rc-tiers span{padding:6px 12px;border-radius:99px;background:linear-gradient(135deg,#eff6ff,#e0e7ff);font-size:14px}
+  .rc-tiers span.muted{background:none;padding:0}
+  .rc-tbl{width:100%;border-collapse:collapse;min-width:560px}
+  .rc-tbl th{font-size:13px;text-align:left;padding:4px 6px;color:#64748b}
+  .rc-tbl td{padding:4px 6px}
+  .rc-tbl input.n{width:80px}.rc-tbl input.u{width:80px}
+  .rc-list{display:grid;gap:8px}
+  .rc-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;background:linear-gradient(135deg,#f8fafc,#f1f5f9)}
+</style>
+<script>
+(function(){
+  var body=document.getElementById('rcRows');
+  function row(){var tr=document.createElement('tr');
+    tr.innerHTML='<td><input name="i_name"></td><td><input name="i_unit" list="rc_units" class="u"></td>'+
+      '<td><input name="i_k" type="number" step="0.01" min="0" value="0" class="n"></td>'+
+      '<td><input name="i_p" type="number" step="0.01" min="0" value="0" class="n"></td>'+
+      '<td><input name="i_m" type="number" step="0.01" min="0" value="0" class="n"></td>'+
+      '<td style="text-align:center"><input type="checkbox" class="lk"></td>'+
+      '<td><button type="button" class="btn sm gray">ลบ</button></td>';
+    tr.querySelector('button').onclick=function(){tr.remove();};body.appendChild(tr);return tr;}
+  document.getElementById('rcAdd').onclick=function(){row().querySelector('input').focus();};
+  if(!body.children.length){row();row();row();}
+  document.getElementById('rcForm').addEventListener('submit',function(){
+    var f=this;f.querySelectorAll('input[name=i_lock]').forEach(function(x){x.remove();});
+    body.querySelectorAll('tr').forEach(function(tr,i){if(tr.querySelector('.lk').checked){var h=document.createElement('input');h.type='hidden';h.name='i_lock';h.value=i;f.appendChild(h);}});
+  });
+})();
+</script>
+{% endblock %}

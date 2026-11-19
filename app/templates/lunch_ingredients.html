@@ -41,6 +41,40 @@
   <p class="muted" style="font-size:13px; margin:6px 0 0;">เคล็ดลับ: เลือกวันจากรายการเมนูที่ตั้งไว้ (มีชื่อเมนูของแต่ละวันให้เลือก) ถ้ายังไม่มีเมนู ให้สร้างเมนูในช่วงสัญญาก่อน</p>
 </div>
 
+{% if menu_days %}
+<div class="card rq-card" id="rq">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+    <h2 style="margin:0">🧮 คำนวณวัตถุดิบจากสูตร</h2>
+    <span style="display:flex;gap:8px;flex-wrap:wrap">
+      <a class="btn sm gray" href="/lunch/{{ p.id }}/recipes{{ ('?back=' ~ back) if back else '' }}">สูตรอาหาร</a>
+      <a class="btn sm gray" id="rqShop" href="/lunch/{{ p.id }}/shopping{{ ('?back=' ~ back) if back else '' }}">ใบซื้อของรายสัปดาห์</a>
+    </span>
+  </div>
+  {% if request.query_params.get('added') %}<p class="rq-ok">เติมวัตถุดิบแล้ว {{ request.query_params.get('added') }} รายการ</p>{% endif %}
+  <div class="row" style="align-items:flex-end;margin-top:10px">
+    <div style="flex:0 0 250px;min-width:250px"><label>วันที่</label>
+      <select id="rqDay" style="width:100%">{% set seld = request.query_params.get('d') %}{% for m in menu_days %}<option value="{{ m.be }}" {{ 'selected' if m.be == seld }}>{{ m.be }}{{ ' ' ~ m.main if m.main }}</option>{% endfor %}</select></div>
+    <div style="flex:1;min-width:200px"><label>สูตร</label><select id="rqRecipe" style="width:100%"></select></div>
+    <div><button type="button" class="btn" id="rqGo">คำนวณ</button></div>
+  </div>
+  <div id="rqOut" hidden>
+    <p class="muted" id="rqTiers" style="font-size:13px;margin:10px 0 6px"></p>
+    <div style="overflow-x:auto"><table class="rq-tbl"><thead><tr><th>วัตถุดิบ</th><th>คำนวณได้</th><th>ซื้อจริง</th><th>หน่วย</th><th>ราคา/หน่วย</th><th>รวม</th></tr></thead><tbody id="rqRows"></tbody></table></div>
+    <div class="rq-bud" id="rqBud"></div>
+    <form method="post" action="/lunch/{{ p.id }}/recipes/fill" id="rqForm" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+      {% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}
+      <input type="hidden" name="date" id="rqDate"><input type="hidden" name="rows" id="rqData">
+      <button type="button" class="btn gray" id="rqFit" hidden>ปรับให้พอดีงบ</button>
+      <button class="btn" type="submit">เติมลงวัตถุดิบวันนี้</button>
+    </form>
+    <p class="muted" style="font-size:13px;margin:6px 0 0">รายการที่กรอกไว้แล้วในวันนั้นจะไม่ถูกเติมซ้ำ แก้ตัวเลขในตารางได้ก่อนกดเติม ระบบไม่ได้ตรวจคุณค่าทางโภชนาการ</p>
+  </div>
+  <p class="muted" id="rqNone" hidden style="margin:10px 0 0"></p>
+</div>
+<script src="/static/lunch-recipe-calc.js?v=1" defer data-pid="{{ p.id }}" data-back="{{ back or '' }}" id="rqJs"></script>
+<link rel="stylesheet" href="/static/lunch-recipe-calc.css?v=1">
+{% endif %}
+
 {% if groups %}
 <p class="muted" style="margin:0 0 10px;">คลิกวันที่เพื่อกาง/พับ แก้ในตารางแล้วกดบันทึกทีละแถว (แถวอื่นไม่รีเซ็ต)</p>
 {% for g in groups %}

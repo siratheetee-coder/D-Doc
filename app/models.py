@@ -2875,3 +2875,27 @@ class BudgetRequestLine(Base):
 
 
 from app.school_event_models import SchoolEvent  # noqa: E402,F401
+
+
+class LunchRecipe(Base):
+    """สูตรอาหารของโรงเรียน ปริมาณวัตถุดิบต่อนักเรียน 10 คน แยกระดับชั้น (ใช้คำนวณวัตถุดิบรายวัน)"""
+    __tablename__ = 'lunch_recipe'
+    id = Column(Integer, primary_key=True)
+    name = Column(String(200), nullable=False)
+    created_at = Column(DateTime, default=datetime.now)
+    items = relationship('LunchRecipeItem', back_populates='recipe', cascade='all, delete-orphan',
+                         order_by='LunchRecipeItem.seq')
+
+
+class LunchRecipeItem(Base):
+    __tablename__ = 'lunch_recipe_item'
+    id = Column(Integer, primary_key=True)
+    recipe_id = Column(Integer, ForeignKey('lunch_recipe.id'), nullable=False, index=True)
+    seq = Column(Integer, default=0)
+    name = Column(String(200), nullable=False)
+    unit = Column(String(40), default='')
+    q_k = Column(Float, default=0.0)        # อนุบาล ต่อ 10 คน
+    q_p = Column(Float, default=0.0)        # ประถม ต่อ 10 คน
+    q_m = Column(Float, default=0.0)        # มัธยม ต่อ 10 คน
+    locked = Column(Integer, default=0)     # 1 = ไม่ลดตอนปรับให้พอดีงบ
+    recipe = relationship('LunchRecipe', back_populates='items')

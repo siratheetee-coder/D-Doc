@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}ใบซื้อของรายสัปดาห์{% endblock %}
+{% block content %}
+{% set bq = ('&back=' ~ back) if back else '' %}
+<div class="card no-print">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+    <h1 style="margin:0">ใบซื้อของรายสัปดาห์</h1>
+    <span style="display:flex;gap:8px;flex-wrap:wrap">
+      <a class="btn sm gray" href="/lunch/{{ p.id }}/shopping?w={{ prev }}{{ bq }}">สัปดาห์ก่อน</a>
+      <a class="btn sm gray" href="/lunch/{{ p.id }}/shopping?w={{ next }}{{ bq }}">สัปดาห์ถัดไป</a>
+      <button class="btn sm" type="button" onclick="window.print()">พิมพ์</button>
+      <a class="btn sm gray" href="/lunch/{{ p.id }}/ingredients{{ ('?back=' ~ back) if back else '' }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a>
+    </span>
+  </div>
+  <p class="muted" style="margin:6px 0 0">รวมวัตถุดิบจากสูตรของเมนูวันจันทร์ถึงศุกร์ ปัดขึ้นให้ซื้อได้จริง ราคาใช้ราคาล่าสุดที่เคยกรอก</p>
+</div>
+
+<div class="card sh-sheet">
+  <h2 style="margin:0 0 2px">ใบซื้อของ {{ school.name if school else '' }}</h2>
+  <p class="muted" style="margin:0 0 12px">{{ thai_date(monday) }} ถึง {{ thai_date(friday) }}</p>
+  {% if d.rows %}
+  <div class="sh-bud">
+    <div><span>งบวัตถุดิบ {{ d.days|length }} วัน</span><b>{{ "{:,.2f}".format(budget) }}</b></div>
+    <div><span>ประมาณค่าซื้อของ</span><b>{{ "{:,.2f}".format(d.total) }}</b></div>
+    {% set left = budget - d.total %}
+    <div class="{{ 'over' if left < 0 }}"><span>{{ 'เกินงบ' if left < 0 else 'เหลือ' }}</span><b>{{ "{:,.2f}".format(left|abs) }}</b></div>
+  </div>
+  <table class="sh-tbl">
+    <thead><tr><th>✓</th><th>วัตถุดิบ</th><th>จำนวน</th><th>ใช้วัน</th><th style="text-align:right">ประมาณเงิน</th></tr></thead>
+    <tbody>
+    {% for a in d.rows %}
+    <tr><td class="ck"></td><td>{{ a.name }}</td><td>{{ a.qty|round(2) }} {{ a.unit }}</td><td>{{ a.days|join(' ') }}</td>
+      <td style="text-align:right">{{ "{:,.2f}".format(a.amount) if a.price else '-' }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">สัปดาห์นี้ยังไม่มีเมนูที่มีสูตร</p>
+  {% endif %}
+  {% if d.missing %}
+  <p class="sh-miss no-print">เมนูที่ยังไม่มีสูตร จึงไม่ได้รวมในใบนี้:
+    {% for m in d.missing %}{{ thai_date(m.date) }} {{ m.main }}{{ ', ' if not loop.last }}{% endfor %}
+    <a href="/lunch/{{ p.id }}/recipes{{ ('?back=' ~ back) if back else '' }}">ตั้งสูตร</a></p>
+  {% endif %}
+</div>
+
+<style>
+  .sh-bud{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .sh-bud div{flex:1;min-width:140px;padding:10px 14px;border-radius:12px;background:linear-gradient(135deg,#f0fdf4,#dcfce7)}
+  .sh-bud div.over{background:linear-gradient(135deg,#fef2f2,#fee2e2);color:#b91c1c}
+  .sh-bud span{display:block;font-size:13px;color:#64748b}.sh-bud b{font-size:18px}
+  .sh-tbl{width:100%;border-collapse:collapse}
+  .sh-tbl th{text-align:left;font-size:13px;color:#64748b;padding:6px 8px}
+  .sh-tbl td{padding:8px;border-top:1px solid #eef2f7}
+  .sh-tbl td.ck{width:28px}.sh-tbl td.ck::before{content:"";display:inline-block;width:16px;height:16px;border-radius:4px;background:#e2e8f0}
+  .sh-miss{margin:12px 0 0;padding:10px 14px;border-radius:12px;background:linear-gradient(135deg,#fff7ed,#fef3c7);font-size:14px}
+  @media print{.no-print,nav,header,aside,.sidebar{display:none!important}.sh-sheet{box-shadow:none}}
+</style>
+{% endblock %}
