@@ -118,6 +118,38 @@
 </section>
 {% endif %}
 
+<div id="dsv" class="dsv" hidden><div class="dsv-bar"><b id="dsv-t"></b><button type="button" id="dsv-x" aria-label="ปิด">✕</button></div><div class="dsv-pages" id="dsv-p"></div></div>
+<script>
+(function(){
+  var v=document.getElementById('dsv'),p=document.getElementById('dsv-p'),t=document.getElementById('dsv-t');
+  function close(){v.hidden=true;p.innerHTML='';document.body.style.overflow='';}
+  document.getElementById('dsv-x').onclick=close;
+  v.addEventListener('click',function(e){if(e.target===v)close();});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!v.hidden)close();});
+  document.querySelectorAll('.kb-body a[href*="/static/knowledge/docs/"]').forEach(function(a){
+    a.classList.add('ds-link');
+    a.addEventListener('click',function(e){
+      e.preventDefault();
+      var h=a.getAttribute('href'),n=parseInt(h.split('#')[1]||'1',10),base=h.split('#')[0].replace(/-1\.jpg$/,'');
+      p.innerHTML='';
+      for(var i=1;i<=n;i++){var im=document.createElement('img');im.src=base+'-'+i+'.jpg';im.alt=(a.textContent||'')+' หน้า '+i;im.loading='lazy';p.appendChild(im);}
+      t.textContent=a.getAttribute('title')||'เอกสารตัวอย่าง';v.hidden=false;document.body.style.overflow='hidden';
+    });
+  });
+})();
+</script>
+
+<style>
+  .kb-body a.ds-link { display:inline-flex; align-items:center; gap:6px; padding:3px 12px; border-radius:99px; font-size:15px; font-weight:600;
+    color:#1d4ed8; background:linear-gradient(135deg,#eff6ff,#e0e7ff); text-decoration:none; white-space:nowrap; }
+  .kb-body a.ds-link::before { content:"📄"; }
+  .dsv { position:fixed; inset:0; z-index:1000; background:rgba(15,23,42,.72); display:flex; flex-direction:column; align-items:center; }
+  .dsv[hidden] { display:none; }
+  .dsv-bar { width:min(860px,100%); display:flex; justify-content:space-between; align-items:center; padding:12px 16px; color:#fff; font-size:17px; }
+  .dsv-bar button { border:0; border-radius:99px; width:38px; height:38px; font-size:18px; cursor:pointer; background:rgba(255,255,255,.18); color:#fff; }
+  .dsv-pages { width:min(860px,100%); overflow:auto; padding:0 16px 24px; display:flex; flex-direction:column; gap:14px; }
+  .dsv-pages img { width:100%; border-radius:8px; background:#fff; box-shadow:0 8px 30px rgba(0,0,0,.35); }
+</style>
 <style>
   /* หัวข้อในหน้านี้เป็นตัวหนังสือธรรมดา ไม่ใช้แถบหัวการ์ดของหน้าในระบบ */
   .kb-head h1, .kb-body h2, .kb-body h3, .kb-plain { display:block; background:none; border:0; border-radius:0; padding:0; box-shadow:none; }
