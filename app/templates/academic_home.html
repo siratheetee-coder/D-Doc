@@ -208,6 +208,7 @@
 {{ menu_card(art ~ 'subjects.png','รายวิชา','เพิ่มวิชาและโครงสร้างคะแนน','/academic/subjects?year=' ~ year) }}
 {{ menu_card(oldart ~ 'clock.png','ตารางเรียน','จัดคาบเรียนและครูผู้สอน','/academic/timetable') }}
 {% if request.session.get('owner') %}{{ menu_card(oldart ~ 'mod_hr.png','บัญชีครู','จัดการสิทธิ์ครูผู้สอน','/academic/teacher-accounts') }}{% endif %}
+{{ menu_card(oldart ~ 'mod_hr.png','บัญชีนักเรียน','สร้างไอดี พิมพ์บัตร เผยแพร่ผลการเรียน','/academic/student-accounts') }}
 </nav></section>
 <section class="ah-group"><h2><svg class="icon"><use href="#ic-check"/></svg> บันทึกและประเมินผล</h2><nav class="ah-menu-grid" aria-label="บันทึกและประเมินผล">
 {{ menu_card(oldart ~ 'calendar.png','ปฏิทิน/เวลาเรียน','ตั้งวันเรียนและเช็กชื่อ','/academic/calendar') }}

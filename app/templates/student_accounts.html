@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}บัญชีนักเรียน{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+    <h1 style="margin:0">บัญชีนักเรียน</h1>
+    <a class="btn sm gray" href="{{ '/academic/student-accounts' if klass else '/academic' }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a>
+  </div>
+  <p class="muted" style="margin:6px 0 0">นักเรียนล็อกอินดูเวลาเรียน ตารางเรียน และผลการเรียนที่ครูเผยแพร่ของตัวเองได้ ดูอย่างเดียว แก้ไขไม่ได้</p>
+  {% if msg %}<p class="sa-ok">{{ msg }}</p>{% endif %}
+  {% if not allowed %}
+  <p class="sa-warn">บัญชีนักเรียนใช้ได้เฉพาะโรงเรียนที่เป็นสมาชิกและซื้องานวิชาการแล้ว</p>
+  {% else %}
+  <div class="sa-sw">
+    <div><b>สถานะ: {{ 'เปิดให้นักเรียนเข้าดู' if on else 'ปิดอยู่' }}</b><div class="muted" style="font-size:13px">ปิดแล้วนักเรียนล็อกอินได้ แต่จะไม่เห็นข้อมูล</div></div>
+    {% if owner %}
+    <form method="post" action="/academic/student-accounts/toggle" style="margin:0"><input type="hidden" name="on" value="{{ '0' if on else '1' }}">
+      <button class="btn {{ 'gray' if on }}">{{ 'ปิดบัญชีนักเรียน' if on else 'เปิดบัญชีนักเรียน' }}</button></form>
+    {% else %}<span class="muted" style="font-size:13px">ไอดีหลักของโรงเรียนเป็นคนเปิดหรือปิด</span>{% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{% if allowed %}
+{% if not klass %}
+<div class="card">
+  <h2>เลือกห้อง</h2>
+  {% if classes %}
+  <div class="sa-grid">{% for c in classes %}<a class="sa-cls" href="/academic/student-accounts?cid={{ c.id }}"><b>{{ label(c) }}</b><span class="muted">{{ c.students|length }} คน</span></a>{% endfor %}</div>
+  {% else %}<p class="muted">ยังไม่มีห้องเรียนที่คุณดูแลในปีนี้</p>{% endif %}
+</div>
+{% else %}
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+    <h2 style="margin:0">ห้อง {{ label(klass) }}</h2>
+    {% if can_manage %}
+    <form method="post" action="/academic/student-accounts/{{ klass.id }}/create" target="_blank" style="margin:0">
+      <button class="btn">สร้างบัญชีทั้งห้อง + พิมพ์บัตร</button></form>
+    {% endif %}
+  </div>
+  <p class="muted" style="font-size:13px;margin:6px 0 10px">ชื่อผู้ใช้ = เลขประจำตัวนักเรียน + รหัสโรงเรียน รหัสผ่านสุ่ม 6 หลัก ตั้งแต่ ป.4 ขึ้นไปต้องเปลี่ยนรหัสตอนเข้าครั้งแรก รหัสผ่านเห็นได้ครั้งเดียวบนบัตร ถ้าหายให้กดรีเซ็ต</p>
+  <div style="overflow-x:auto"><table class="sa-tbl">
+    <thead><tr><th>เลขที่</th><th>ชื่อ</th><th>ชื่อผู้ใช้</th><th>สถานะ</th><th></th></tr></thead>
+    <tbody>
+    {% for s in students %}{% set a = accs.get(s.student_id) if s.student_id else none %}
+    <tr><td>{{ s.seq or '' }}</td><td>{{ s.name }}</td>
+      <td>{% if a %}<code>{{ a.username }}</code>{% elif not s.student_id %}<span class="muted" style="font-size:13px">ยังไม่ผูกทะเบียนนักเรียน</span>{% else %}<span class="muted">ยังไม่มี</span>{% endif %}</td>
+      <td>{% if a %}{{ 'ใช้งานได้' if a.active else 'ปิดอยู่' }}{% endif %}</td>
+      <td style="white-space:nowrap">{% if a and can_manage %}
+        <form method="post" action="/academic/student-accounts/{{ klass.id }}/reset" target="_blank" style="display:inline;margin:0" onsubmit="return confirm('รีเซ็ตรหัสของ {{ s.name }}? รหัสเดิมจะใช้ไม่ได้')"><input type="hidden" name="student_id" value="{{ s.student_id }}"><button class="btn sm gray">รีเซ็ตรหัส</button></form>
+        <form method="post" action="/academic/student-accounts/{{ klass.id }}/active" style="display:inline;margin:0"><input type="hidden" name="student_id" value="{{ s.student_id }}"><input type="hidden" name="on" value="{{ '0' if a.active else '1' }}"><button class="btn sm gray">{{ 'ปิดบัญชี' if a.active else 'เปิดบัญชี' }}</button></form>
+      {% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+
+<div class="card" id="pub">
+  <h2>เผยแพร่ผลการเรียนให้นักเรียนเห็น</h2>
+  <p class="muted" style="font-size:13px;margin:0 0 10px">เปิดเมื่อกรอกคะแนนเสร็จแล้ว ก่อนเปิด นักเรียนจะไม่เห็นคะแนนวิชานั้น ปิดกลับได้ตลอด</p>
+  {% if subjects %}
+  <div class="sa-pubs">{% for sj in subjects %}{% set t = sj.term or 0 %}{% set on_ = (sj.id, t) in pubs %}
+    <div class="sa-pub {{ 'on' if on_ }}"><div><b>{{ sj.code }} {{ sj.name }}</b><div class="muted" style="font-size:13px">{{ 'ภาค ' ~ t if t else 'ทั้งปี' }}</div></div>
+      {% if can_pub(sj.id) %}<form method="post" action="/academic/student-accounts/{{ klass.id }}/publish" style="margin:0"><input type="hidden" name="subject_id" value="{{ sj.id }}"><input type="hidden" name="term" value="{{ t }}"><input type="hidden" name="on" value="{{ '0' if on_ else '1' }}"><button class="btn sm {{ 'gray' if on_ }}">{{ 'ยกเลิกเผยแพร่' if on_ else 'เผยแพร่' }}</button></form>
+      {% else %}<span class="muted" style="font-size:13px">{{ 'เผยแพร่แล้ว' if on_ else 'ยังไม่เผยแพร่' }}</span>{% endif %}
+    </div>{% endfor %}</div>
+  {% else %}<p class="muted">ห้องนี้ยังไม่มีวิชาที่จัดครูผู้สอน</p>{% endif %}
+</div>
+{% endif %}
+{% endif %}
+
+<style>
+  .sa-ok{margin:10px 0 0;padding:8px 12px;border-radius:10px;background:linear-gradient(135deg,#dcfce7,#d1fae5);color:#166534}
+  .sa-warn{margin:10px 0 0;padding:10px 14px;border-radius:12px;background:linear-gradient(135deg,#fff7ed,#fef3c7)}
+  .sa-sw{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;padding:12px 16px;border-radius:14px;background:linear-gradient(135deg,#eef2ff,#e0e7ff)}
+  .sa-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+  .sa-cls{display:flex;flex-direction:column;gap:2px;padding:14px;border-radius:14px;text-decoration:none;color:inherit;background:linear-gradient(135deg,#f8fafc,#eef2ff)}
+  .sa-tbl{width:100%;border-collapse:collapse;min-width:560px}
+  .sa-tbl th{text-align:left;font-size:13px;color:#64748b;padding:6px 8px}
+  .sa-tbl td{padding:8px;border-top:1px solid #eef2f7}
+  .sa-pubs{display:grid;gap:8px}
+  .sa-pub{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;background:linear-gradient(135deg,#f8fafc,#f1f5f9)}
+  .sa-pub.on{background:linear-gradient(135deg,#f0fdf4,#dcfce7)}
+</style>
+{% endblock %}

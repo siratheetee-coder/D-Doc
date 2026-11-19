@@ -49,6 +49,7 @@ class School(Base):
     hr_head_email = Column(String, default="")          # อีเมลหัวหน้าฝ่ายบุคคล (รับแจ้งใบลา)
     director_email = Column(String, default="")         # อีเมล ผอ./รองผอ. (รับแจ้งเรื่องที่รอลงนาม)
     approval_on = Column(Boolean, default=False)        # ส่งเรื่องพัสดุ/การเงินให้ ผอ. อนุมัติในระบบ (services/approval.py)
+    student_portal = Column(Boolean, default=False)     # เปิดบัญชีนักเรียน (ดูเวลาเรียน ตารางเรียน เกรดที่เผยแพร่)
 
     # ปีของโครงการ/แผน: "budget" = ปีงบประมาณ (ต.ค.) / "academic" = ปีการศึกษา (พ.ค.)
     project_year_mode = Column(String, default="budget")
@@ -2899,3 +2900,14 @@ class LunchRecipeItem(Base):
     q_m = Column(Float, default=0.0)        # มัธยม ต่อ 10 คน
     locked = Column(Integer, default=0)     # 1 = ไม่ลดตอนปรับให้พอดีงบ
     recipe = relationship('LunchRecipe', back_populates='items')
+
+
+
+class AcadScorePublish(Base):
+    """ครูเผยแพร่คะแนน/เกรดของวิชา x ห้อง x ภาค ให้นักเรียนเห็นในบัญชีนักเรียน"""
+    __tablename__ = 'acad_score_publish'
+    id = Column(Integer, primary_key=True)
+    class_id = Column(Integer, ForeignKey('acad_class.id'), nullable=False, index=True)
+    subject_id = Column(Integer, ForeignKey('acad_subject.id'), nullable=False)
+    term = Column(Integer, default=0)
+    published_at = Column(DateTime, default=datetime.now)

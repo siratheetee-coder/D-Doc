@@ -18,7 +18,7 @@ def test_owner_home_keeps_real_counts_progress_and_ten_menus(env):
  res=env.get('/academic?year=2569&term=2');assert res.status_code==200
  links=re.findall(r'<a class="ah-menu" href="([^"]+)"',res.text)
  assert re.findall(r'<strong>(\d+) <small>(ห้อง|คน|วิชา)</small>',res.text)==[('2','ห้อง'),('40','คน'),('10','วิชา')]
- assert len(links)==10
+ assert len(links)==11 and "/academic/student-accounts" in links
  assert res.text.split('<table class="dash-table">')[1].split('</table>')[0].count('<tr>')==3
  assert 'class="seg-btn on" href="/academic?year=2569&term=2"' in res.text
  assert 'id="ah-year" name="year"' in res.text

@@ -169,6 +169,10 @@ async def tenant_auth(request: Request, call_next):
     if sess.get("must_change") and not path.startswith("/account"):
         return RedirectResponse("/account/password", status_code=303)
 
+    # บัญชีนักเรียน: หน้าบัญชีตัวเองใช้ได้แค่เปลี่ยนรหัสผ่าน
+    if sess.get("student_id") and path.startswith("/account") and path != "/account/password":
+        return RedirectResponse("/student", status_code=303)
+
     # หน้าบัญชีตัวเอง (เปลี่ยนรหัสผ่าน) ใช้ได้ทุกบทบาท ไม่ต้องผูกฐานข้อมูลโรงเรียน
     if path.startswith("/account"):
         return await call_next(request)
@@ -228,6 +232,24 @@ async def tenant_auth(request: Request, call_next):
             "request": request, "reason": reason,
             "school": st["name"] if st else "", "expiry": st["expiry_date"] if st else None,
         }, status_code=403)
+
+    # บัญชีนักเรียน: ปิดทุกหน้าไว้ก่อน เปิดเฉพาะหน้าของนักเรียน (ดูข้อมูลตัวเองอย่างเดียว)
+    # ข้อมูลที่แสดงดึงจาก student_id ในบัญชีเท่านั้น ไม่รับรหัสนักเรียนจาก URL
+    if acc.get("student_id") or sess.get("student_id"):
+        from app.services.student_portal import path_ok as _stu_ok
+        from app.accounts import student_portal_allowed as _stu_allowed
+        if sess.get("student_id") != acc.get("student_id"):
+            sess["student_id"] = acc.get("student_id")
+        if not acc.get("student_id") or not _stu_allowed(tid):
+            request.session.clear()
+            return RedirectResponse("/login?ok=student_off", status_code=303)
+        if not _stu_ok(path, request.method):
+            return RedirectResponse("/student", status_code=303)
+        token = current_school_id.set(tid)
+        try:
+            return await call_next(request)
+        finally:
+            current_school_id.reset(token)
 
     # สิทธิ์รายงาน: เข้าได้ถ้า "ซื้อแล้ว" หรือ "โควตาทดลองยังเหลือ"
     # กั้นที่นี่จุดเดียวจึงครอบทุกเส้นทางของงานนั้นอัตโนมัติ (รวมเส้นทางที่เพิ่มในอนาคต)
@@ -485,6 +507,8 @@ from app.routers import lunch_menu_library
 app.include_router(lunch_menu_library.router)
 from app.routers import lunch_recipe as _lunch_recipe
 app.include_router(_lunch_recipe.router)
+from app.routers import student_portal as _student_portal
+app.include_router(_student_portal.router)
 from app.routers import lunch_tsl
 app.include_router(lunch_tsl.router)
 app.include_router(hr.router)

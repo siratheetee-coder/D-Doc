@@ -106,6 +106,7 @@ MIGRATIONS = [
     ("procurement", "purchase_cmd_date", "DATETIME"),
     ("school", "director_email", "VARCHAR DEFAULT ''"),
     ("school", "approval_on", "BOOLEAN DEFAULT 0"),
+    ("school", "student_portal", "BOOLEAN DEFAULT 0"),
     ("approval", "acting", "BOOLEAN DEFAULT 0"),
     ("approval", "sent_uid", "INTEGER"),
     ("approval", "result_read_at", "DATETIME"),

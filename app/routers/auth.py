@@ -21,23 +21,36 @@ _MAX_FAILS = 8
 _WINDOW = 300   # 5 นาที
 
 
-def _too_many(ip: str) -> bool:
+# โรงเรียนหนึ่งมักออกเน็ตด้วย IP เดียว (นักเรียนทั้งโรงเรียน) จึงนับผิดแยกต่อชื่อผู้ใช้
+# และมีเพดานรวมต่อ IP ที่สูงกว่า กันนักเรียนพิมพ์ผิดแล้วล็อกทั้งโรงเรียน
+_MAX_FAILS_IP = 60
+
+
+def _ukey(ip: str, username: str) -> str:
+    return f"u:{ip}|{(username or '').strip().lower()[:80]}"
+
+
+def _too_many(ip: str, username: str = "") -> bool:
     try:
-        return login_fail_count(ip, _WINDOW) >= _MAX_FAILS
+        return (login_fail_count(_ukey(ip, username), _WINDOW) >= _MAX_FAILS
+                or login_fail_count(ip, _WINDOW) >= _MAX_FAILS_IP)
     except Exception:
         return False          # ระบบนับพังต้องไม่ทำให้ล็อกอินไม่ได้
 
 
-def _record_fail(ip: str):
+def _record_fail(ip: str, username: str = ""):
     try:
         login_fail_record(ip, _WINDOW)
+        login_fail_record(_ukey(ip, username), _WINDOW)
     except Exception:
         pass
 
 
-def _clear_fails(ip: str):
+def _clear_fails(ip: str, username: str = ""):
     try:
         login_fail_clear(ip)
+        if username:
+            login_fail_clear(_ukey(ip, username))
     except Exception:
         pass
 
@@ -124,7 +137,7 @@ def privacy_page(request: Request):
 
 
 @router.get("/login", response_class=HTMLResponse)
-def login_page(request: Request, error: str | None = None, ok: str | None = None, next: str = ""):
+def login_page(request: Request, error: str | None = None, ok: str | None = None, next: str = "", u: str = ""):
     nxt = _safe_next(next)
     # ถ้าล็อกอินอยู่แล้ว ส่งไปหน้าที่เหมาะสม (หรือปลายทาง next ถ้ามี เช่นลิงก์อนุมัติในอีเมล)
     if request.session.get("uid") and not _expired(request.session):
@@ -136,15 +149,17 @@ def login_page(request: Request, error: str | None = None, ok: str | None = None
            else "ไม่ได้ใช้งานนาน ระบบออกให้อัตโนมัติเพื่อความปลอดภัย เข้าสู่ระบบอีกครั้งได้เลย"
            if ok == "expired"
            else "ใส่รหัสยืนยัน 2 ชั้นไม่ทันเวลา กรุณาเข้าสู่ระบบใหม่อีกครั้ง"
-           if ok == "expired2fa" else None)
-    return templates.TemplateResponse("login.html", {"request": request, "error": error, "ok_msg": msg, "next": nxt})
+           if ok == "expired2fa"
+           else "โรงเรียนปิดบัญชีนักเรียนอยู่ ติดต่อครูประจำชั้น" if ok == "student_off" else None)
+    return templates.TemplateResponse("login.html", {"request": request, "error": error, "ok_msg": msg, "next": nxt,
+                                                     "prefill": (u or "").strip()[:80]})
 
 
 @router.post("/login")
 def login_submit(request: Request, username: str = Form(""), password: str = Form(""),
                  next: str = Form(""), remember: str = Form("")):
     ip = request.client.host if request.client else "?"
-    if _too_many(ip):
+    if _too_many(ip, username):
         audit("login.blocked", request=request, tenant_id=None, uid=None,
               username=username.strip()[:120], ip=ip)
         return templates.TemplateResponse("login.html", {
@@ -153,13 +168,20 @@ def login_submit(request: Request, username: str = Form(""), password: str = For
         }, status_code=429)
     user = authenticate(username, password)
     if not user:
-        _record_fail(ip)
+        _record_fail(ip, username)
         audit("login.fail", request=request, tenant_id=None, uid=None,
               username=username.strip()[:120], ip=ip)
         return templates.TemplateResponse("login.html", {
             "request": request, "error": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง",
             "next": _safe_next(next),
         }, status_code=401)
+    if user.get("student_id"):
+        from app.accounts import student_portal_allowed
+        if not student_portal_allowed(user.get("tenant_id")):
+            return templates.TemplateResponse("login.html", {
+                "request": request, "error": "โรงเรียนยังไม่ได้เปิดบัญชีนักเรียน ติดต่อครูประจำชั้น",
+                "next": "",
+            }, status_code=403)
     if not user.get("verified", True):
         from app.routers.sales import _registration_flow
         return templates.TemplateResponse("login.html", {
@@ -187,7 +209,7 @@ def login_submit(request: Request, username: str = Form(""), password: str = For
 def _finish_login(request: Request, user: dict, remember, next: str, ip: str):
     """สร้าง session + พาไปหน้าที่เหมาะสม (ใช้ร่วมกันทั้งล็อกอินปกติและหลังผ่าน 2FA)"""
     # ล็อกอินสำเร็จ - ล้างตัวนับล็อกอินผิดของ IP นี้ แล้วเก็บข้อมูลใน session
-    _clear_fails(ip)
+    _clear_fails(ip, user.get("username", ""))
     request.session.clear()
     request.session["uid"] = user["uid"]
     request.session["username"] = user["username"]
@@ -199,6 +221,7 @@ def _finish_login(request: Request, user: dict, remember, next: str, ip: str):
     request.session["director"] = user.get("is_director", False)  # ผอ./รองผอ. = อนุมัติเอกสารขั้นสุดท้าย
     request.session["mods"] = user.get("modules", "")         # ไอดีย่อย: CSV งานที่เข้าได้
     request.session["person_id"] = user.get("person_id")      # บัญชีครู = ผูก Person (สิทธิ์เฉพาะวิชา/ห้อง)
+    request.session["student_id"] = user.get("student_id")    # บัญชีนักเรียน = เห็นเฉพาะข้อมูลตัวเอง
     request.session["welcomed"] = user.get("welcomed", True)  # เห็นการ์ดต้อนรับแล้วหรือยัง
     from app.accounts import has_avatar
     request.session["pic"] = has_avatar(user["uid"])   # มีรูปโปรไฟล์ไหม (กันเรียก DB ทุกหน้า)

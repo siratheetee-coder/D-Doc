@@ -89,6 +89,7 @@ class Account(AccBase):
     is_director = Column(Boolean, default=False)    # ผอ./รองผอ.: อนุมัติแผนการสอน/ลา/ไปราชการ (ลงนามขั้นสุดท้าย)
     modules = Column(String, default="")            # งานที่ไอดีย่อยเข้าได้ (CSV) · owner ไม่ใช้ (เห็นทุกงาน)
     person_id = Column(Integer, nullable=True)      # บัญชีครู: ผูกกับ Person.id ใน DB โรงเรียน -> สิทธิ์เฉพาะวิชา/ห้องตัวเอง
+    student_id = Column(Integer, nullable=True)     # บัญชีนักเรียน: ผูก Student.id (ทะเบียนกลาง) -> เห็นเฉพาะข้อมูลตัวเอง
     welcomed = Column(Boolean, default=False)       # เห็นการ์ดต้อนรับ/แนะนำจัดการผู้ใช้ตอนล็อกอินครั้งแรกแล้ว
     seen_modules = Column(String, default="")       # งานที่ไอดีหลักรับรู้แล้ว (เทียบกับที่ซื้อ -> แจ้งเตือนงานที่ซื้อเพิ่ม)
     must_change_password = Column(Boolean, default=False)   # บังคับเปลี่ยนรหัสครั้งแรก
@@ -384,6 +385,7 @@ def _ensure_engine():
                     "ALTER TABLE account ADD COLUMN welcomed BOOLEAN DEFAULT 0",
                     "ALTER TABLE account ADD COLUMN seen_modules VARCHAR DEFAULT ''",
                     "ALTER TABLE account ADD COLUMN person_id INTEGER",   # บัญชีครู -> ผูก Person.id
+                    "ALTER TABLE account ADD COLUMN student_id INTEGER",  # บัญชีนักเรียน -> ผูก Student.id
                     "ALTER TABLE account ADD COLUMN is_director BOOLEAN DEFAULT 0",   # ผอ./รองผอ. อนุมัติเอกสาร
                     "ALTER TABLE tenant ADD COLUMN teacher_code VARCHAR",  # รหัสต่อท้ายไอดีครู (owner ตั้ง)
                     "ALTER TABLE account ADD COLUMN avatar BLOB",          # รูปโปรไฟล์
@@ -571,6 +573,7 @@ def authenticate(username: str, password: str) -> dict | None:
                     "is_director": bool(getattr(u, "is_director", False)),
                     "modules": getattr(u, "modules", "") or "",
                     "person_id": getattr(u, "person_id", None),
+                    "student_id": getattr(u, "student_id", None),
                     "welcomed": bool(getattr(u, "welcomed", False))}
         return None
     finally:
@@ -1173,7 +1176,8 @@ def get_account_access(uid) -> dict | None:
                 "display_name": u.display_name or "",
                 "is_owner": bool(u.is_owner), "modules": u.modules or "", "active": bool(u.active),
                 "is_director": bool(getattr(u, "is_director", False)),
-                "welcomed": bool(u.welcomed), "person_id": u.person_id}
+                "welcomed": bool(u.welcomed), "person_id": u.person_id,
+                "student_id": getattr(u, "student_id", None)}
     finally:
         db.close()
 
@@ -2372,5 +2376,110 @@ def owner_emails(with_skipped: bool = False):
             seen.add(addr.lower())
             out.append({"email": addr, "school": school or ""})
         return (out, skipped) if with_skipped else out
+    finally:
+        db.close()
+
+
+
+# ---------------- บัญชีนักเรียน (ดูข้อมูลตัวเองอย่างเดียว) ----------------
+import re
+def student_portal_allowed(tenant_id) -> bool:
+    """เปิดบัญชีนักเรียนได้เฉพาะโรงเรียนที่จ่ายเงินแล้ว (สมาชิก) และซื้องานวิชาการ"""
+    if not tenant_id:
+        return False
+    db = acc_session()
+    try:
+        t = db.get(Tenant, tenant_id)
+        return bool(t and t.active and (t.plan or "member") == "member"
+                    and "academic" in parse_modules(t.modules))
+    finally:
+        db.close()
+
+
+def _student_pw() -> str:
+    import secrets
+    return "".join(secrets.choice("23456789") for _ in range(6))
+
+
+def student_must_change(level) -> bool:
+    """บังคับเปลี่ยนรหัสครั้งแรกตั้งแต่ ป.4 ขึ้นไป และมัธยมทุกชั้น"""
+    lv = (level or "").replace(" ", "")
+    if lv.startswith("ม"):
+        return True
+    m = re.match(r"ป\.?(\d+)", lv)
+    return bool(m and int(m.group(1)) >= 4)
+
+
+def student_accounts(tenant_id) -> dict:
+    """{student_id: {id, username, active}} ของโรงเรียนนี้"""
+    db = acc_session()
+    try:
+        us = db.query(Account).filter(Account.tenant_id == tenant_id, Account.student_id.isnot(None)).all()
+        return {u.student_id: {"id": u.id, "username": u.username, "active": bool(u.active)} for u in us}
+    finally:
+        db.close()
+
+
+def create_student_accounts(tenant_id, students) -> list:
+    """สร้างบัญชีให้นักเรียนที่ยังไม่มี · students = [{student_id, student_no, name, level}]
+    คืน [{student_id, name, username, password}] (รหัสผ่านเห็นครั้งเดียวตอนนี้ ไว้พิมพ์บัตร)
+    ไม่นับรวมโควตาผู้ใช้ของโรงเรียน"""
+    out = []
+    db = acc_session()
+    try:
+        t = db.get(Tenant, tenant_id)
+        if not t:
+            return out
+        have = {u.student_id for u in db.query(Account).filter(
+            Account.tenant_id == tenant_id, Account.student_id.isnot(None)).all()}
+        for st in students:
+            sid = int(st["student_id"])
+            if sid in have:
+                continue
+            base = re.sub(r"[^0-9A-Za-z-]", "", str(st.get("student_no") or "")) or f"s{sid}"
+            final = teacher_username(base, t)
+            uname, n = final, 1
+            while db.query(Account).filter_by(username=uname).first():
+                n += 1
+                uname = f"{final}-{n}"
+            pw = _student_pw()
+            db.add(Account(tenant_id=tenant_id, username=uname, password_hash=hash_password(pw),
+                           role="student", display_name=(st.get("name") or "").strip(), is_owner=False,
+                           modules="", student_id=sid, verified=True,
+                           must_change_password=student_must_change(st.get("level"))))
+            have.add(sid)
+            out.append({"student_id": sid, "name": st.get("name") or "", "username": uname, "password": pw})
+        db.commit()
+        return out
+    finally:
+        db.close()
+
+
+def reset_student_password(tenant_id, student_id, level="") -> dict | None:
+    """ครูรีเซ็ตรหัสนักเรียน -> รหัสสุ่มใหม่ (คืนไว้พิมพ์บัตร) · กันข้ามโรงเรียน"""
+    db = acc_session()
+    try:
+        u = db.query(Account).filter_by(tenant_id=tenant_id, student_id=int(student_id)).first()
+        if not u:
+            return None
+        pw = _student_pw()
+        u.password_hash = hash_password(pw)
+        u.must_change_password = student_must_change(level)
+        u.active = True
+        db.commit()
+        return {"student_id": u.student_id, "name": u.display_name, "username": u.username, "password": pw}
+    finally:
+        db.close()
+
+
+def set_student_active(tenant_id, student_id, active: bool) -> bool:
+    db = acc_session()
+    try:
+        u = db.query(Account).filter_by(tenant_id=tenant_id, student_id=int(student_id)).first()
+        if not u:
+            return False
+        u.active = bool(active)
+        db.commit()
+        return True
     finally:
         db.close()
