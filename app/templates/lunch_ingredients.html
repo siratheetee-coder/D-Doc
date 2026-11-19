@@ -73,6 +73,8 @@
 </div>
 <script src="/static/lunch-recipe-calc.js?v=1" defer data-pid="{{ p.id }}" data-back="{{ back or '' }}" id="rqJs"></script>
 <link rel="stylesheet" href="/static/lunch-recipe-calc.css?v=1">
+{% else %}
+<div class="card"><p class="muted" style="margin:0">🧮 ตัวช่วยคำนวณวัตถุดิบจากสูตรจะขึ้นเมื่อมีเมนูรายวันแล้ว สร้างเมนูในช่วงสัญญาก่อน หรือ <a href="/lunch/{{ p.id }}/recipes{{ ('?back=' ~ back) if back else '' }}">ตั้งสูตรอาหารไว้ก่อน</a></p></div>
 {% endif %}
 
 {% if groups %}

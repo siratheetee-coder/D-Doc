@@ -130,6 +130,7 @@
         <b style="color:{{ '#dc2626' if left < 0 else '#047857' }};">{{ "{:,.2f}".format(left) }}</b></div>
     </div>
     <a class="btn" href="/lunch/{{ p.id }}/ingredients?back=/lunch/round/{{ r.id }}/plan" style="background:linear-gradient(135deg,#ea580c,#f59e0b); border:none;"><svg class="icon"><use href="#ic-clipboard"/></svg> กรอกวัตถุดิบรายวัน</a>
+    <a class="btn gray" href="/lunch/{{ p.id }}/recipes?back=/lunch/round/{{ r.id }}/plan">🧮 สูตรอาหารและตัวช่วยคำนวณ</a>
     <a class="muted" href="#menus" style="font-size:13px;align-self:center">นำเข้าจาก Thai School Lunch ที่กล่องเมนูด้านบน วัตถุดิบจะมาพร้อมกัน</a>
   </div>
   <div class="bf-rows">
