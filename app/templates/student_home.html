@@ -17,6 +17,10 @@
   h2{margin:0 0 12px;font-size:18px}
   .tabs{display:flex;gap:8px;overflow-x:auto;margin-bottom:14px}
   .tabs a{flex:none;padding:8px 16px;border-radius:99px;background:#fff;color:#4338ca;text-decoration:none;font-size:15px;box-shadow:0 2px 8px rgba(15,23,42,.05)}
+  .tabs a{display:inline-flex;align-items:center;gap:6px}
+  .tabs a img{width:24px;height:24px}
+  .h3d{display:flex;align-items:center;gap:10px}
+  .h3d img{width:44px;height:44px;filter:drop-shadow(0 4px 8px rgba(79,70,229,.18))}
   .tabs a.on{background:linear-gradient(135deg,#312e81,#4c1d95);color:#fff}
   .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
   .stat{padding:12px 14px;border-radius:14px;background:linear-gradient(135deg,#eef2ff,#e0e7ff)}
@@ -28,8 +32,15 @@
   th{text-align:left;color:#64748b;font-weight:500;padding:6px 8px;font-size:13px}
   td{padding:8px;border-top:1px solid #eef2f7;vertical-align:top}
   .scroll{overflow-x:auto}
-  .tt td,.tt th{text-align:center;min-width:86px}
-  .tt td.brk{background:#f8fafc;color:#94a3b8}
+  .ttchips{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px}
+  .ttchips button{flex:none;font:inherit;font-size:14px;border:0;padding:7px 14px;border-radius:99px;background:linear-gradient(135deg,#eef2ff,#e0e7ff);color:#4338ca;cursor:pointer}
+  .ttchips button.on{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff}
+  .ttdn{font-weight:600;margin:12px 0 4px}
+  .ttrow{display:flex;gap:12px;align-items:center;padding:10px 12px;border-radius:12px;margin-bottom:6px;background:linear-gradient(135deg,#f8fafc,#f1f5f9)}
+  .ttrow.brk{background:none;color:#94a3b8;padding:4px 12px}
+  .ttp{flex:none;width:104px;display:flex;flex-direction:column;font-size:14px}
+  .ttp span{font-size:12px;color:#64748b}
+  .tts{font-size:16px}
   .g{display:inline-block;min-width:40px;text-align:center;padding:2px 10px;border-radius:99px;background:linear-gradient(135deg,#eef2ff,#e0e7ff);font-weight:600}
   .alert{padding:12px 14px;border-radius:14px;background:linear-gradient(135deg,#fff7ed,#fef3c7)}
 </style>
@@ -46,15 +57,15 @@
   <div class="card"><p class="alert" style="margin:0">ยังไม่พบรายชื่อในห้องเรียนของปีการศึกษานี้ ติดต่อครูประจำชั้น</p></div>
 {% else %}
   <div class="tabs">
-    <a href="/student" class="{{ 'on' if tab=='home' }}">ภาพรวม</a>
-    <a href="/student/attendance" class="{{ 'on' if tab=='attendance' }}">เวลาเรียน</a>
-    <a href="/student/timetable" class="{{ 'on' if tab=='timetable' }}">ตารางเรียน</a>
-    <a href="/student/grades" class="{{ 'on' if tab=='grades' }}">ผลการเรียน</a>
+    <a href="/student" class="{{ 'on' if tab=='home' }}"><img src="/static/images/home3d/academic.png" alt="" aria-hidden="true">ภาพรวม</a>
+    <a href="/student/attendance" class="{{ 'on' if tab=='attendance' }}"><img src="/static/images/home3d/t_check.png" alt="" aria-hidden="true">เวลาเรียน</a>
+    <a href="/student/timetable" class="{{ 'on' if tab=='timetable' }}"><img src="/static/images/home3d/calendar.png" alt="" aria-hidden="true">ตารางเรียน</a>
+    <a href="/student/grades" class="{{ 'on' if tab=='grades' }}"><img src="/static/images/home3d/t_doc.png" alt="" aria-hidden="true">ผลการเรียน</a>
   </div>
 
   {% if att %}{% set o = att.overall %}
   <div class="card">
-    <h2>เวลาเรียน</h2>
+    <h2 class="h3d"><img src="/static/images/home3d/t_check.png" alt="" aria-hidden="true">เวลาเรียน</h2>
     {% if o.days %}
     <div class="stats">
       <div class="stat {{ 'warn' if o.pct is not none and o.pct < 80 else 'ok' }}"><span>มาเรียน</span><b>{{ o.pct }}%</b></div>
@@ -71,7 +82,7 @@
     {% endif %}
     {% else %}<p class="muted" style="margin:0">ครูยังไม่ได้เช็คชื่อ</p>{% endif %}
     {% if tab == 'attendance' and att.subjects %}
-    <h2 style="margin-top:18px">รายวิชา</h2>
+    <h2 class="h3d" style="margin-top:18px"><img src="/static/images/home3d/academic.png" alt="" aria-hidden="true">รายวิชา</h2>
     <div class="scroll"><table>
       <thead><tr><th>วิชา</th><th>มา</th><th>ขาด</th><th>ทั้งหมด</th><th>%</th></tr></thead>
       <tbody>{% for s in att.subjects %}<tr><td>{{ s.subject.code }} {{ s.subject.name }}</td><td>{{ s.tot['/'] }}</td><td>{{ s.tot['ข'] }}</td><td>{{ s.days }}</td><td style="{{ 'color:#b91c1c;font-weight:600' if s.pct is not none and s.pct < 80 }}">{{ s.pct if s.pct is not none else '-' }}</td></tr>{% endfor %}</tbody>
@@ -83,21 +94,39 @@
 
   {% if tt %}
   <div class="card">
-    <h2>ตารางเรียน</h2>
+    <h2 class="h3d"><img src="/static/images/home3d/calendar.png" alt="" aria-hidden="true">ตารางเรียน</h2>
     {% if tt.periods %}
-    <div class="scroll"><table class="tt">
-      <thead><tr><th>วัน</th>{% for p in tt.periods %}<th>{{ p.name }}{% if p.time_label %}<br><span class="muted" style="font-size:12px">{{ p.time_label }}</span>{% endif %}</th>{% endfor %}</tr></thead>
-      <tbody>{% for d in tt.days %}<tr><th>{{ ['','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์','อาทิตย์'][d] }}</th>
-        {% for p in tt.periods %}{% set c = tt.cells.get((d, p.id)) %}
-        <td class="{{ 'brk' if p.is_break }}">{% if p.is_break %}พัก{% elif c and c.subject %}{{ c.subject.name }}{% elif c %}{{ c.note }}{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody>
-    </table></div>
+    {% set DN = ['','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์','อาทิตย์'] %}
+    <div class="ttchips">{% for d in tt.days %}<button type="button" data-d="{{ d }}">{{ DN[d] }}</button>{% endfor %}</div>
+    {% for d in tt.days %}
+    <div class="ttday" data-d="{{ d }}">
+      <div class="ttdn">{{ DN[d] }}</div>
+      {% for p in tt.periods %}{% set c = tt.cells.get((d, p.id)) %}
+      <div class="ttrow {{ 'brk' if p.is_break }}">
+        <div class="ttp"><b>{{ p.name }}</b>{% if p.time_label %}<span>{{ p.time_label }}</span>{% endif %}</div>
+        <div class="tts">{% if p.is_break %}พัก{% elif c and c.subject %}{{ c.subject.name }}{% elif c and c.note %}{{ c.note }}{% else %}<span class="muted">ว่าง</span>{% endif %}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+    <script>
+    (function(){
+      var bs=document.querySelectorAll('.ttchips button'), ds=document.querySelectorAll('.ttday');
+      if(!bs.length) return;
+      function show(d){ bs.forEach(function(b){b.classList.toggle('on',b.dataset.d==d);}); ds.forEach(function(x){x.hidden=x.dataset.d!=d;}); }
+      var t=String(((new Date()).getDay()+6)%7+1), ok=[].some.call(bs,function(b){return b.dataset.d==t;});
+      bs.forEach(function(b){b.onclick=function(){show(b.dataset.d);};});
+      document.querySelectorAll('.ttdn').forEach(function(x){x.hidden=true;});
+      show(ok?t:bs[0].dataset.d);
+    })();
+    </script>
     {% else %}<p class="muted" style="margin:0">โรงเรียนยังไม่ได้จัดตารางเรียน</p>{% endif %}
   </div>
   {% endif %}
 
   {% if grades is defined %}
   <div class="card">
-    <h2>ผลการเรียน</h2>
+    <h2 class="h3d"><img src="/static/images/home3d/t_doc.png" alt="" aria-hidden="true">ผลการเรียน</h2>
     {% if grades %}
     <div class="scroll"><table>
       <thead><tr><th>วิชา</th><th>ภาค</th><th>คะแนน</th><th>เกรด</th></tr></thead>
