@@ -87,7 +87,7 @@
     <p class="muted" style="margin:0;">รอบนี้ปิดไปก่อนมีการ์ดยืมเงิน ระบบลงบัญชีไว้แบบเดิมแล้ว เอกสารด้านล่างยังออกได้ตามปกติ</p>
     {% else %}
     <form method="post" action="/lunch/round/{{ r.id }}/loan" class="bf-loan-form bf-loan-5" id="bfLoanForm{{ r.id }}">
-      <div><label>เลขที่สัญญายืม {% if loan_fy %}<button type="button" class="bf-reg-btn" onclick="showDocNos({{ loan_fy.fy }})">ดูเลขล่าสุด</button>{% endif %}</label><input name="contract_no" id="bfLoanNo{{ r.id }}" value="{{ ln.contract_no if ln else (loan_fy.next if loan_fy else '') }}" placeholder="เช่น 1/{{ p.year }}">
+      <div><label>เลขที่สัญญายืม</label><span style="display:flex;gap:6px;align-items:center"><input name="contract_no" id="bfLoanNo{{ r.id }}" value="{{ ln.contract_no if ln else (loan_fy.next if loan_fy else '') }}" placeholder="เช่น 1/{{ p.year }}" style="flex:1;min-width:0">{% if loan_fy %}<button type="button" class="bf-reg-btn" style="flex:none;white-space:nowrap" onclick="showDocNos({{ loan_fy.fy }})">ดูเลขล่าสุด</button>{% endif %}</span>
         {% if loan_fy and not ln %}<small class="muted">เลขถัดไปในปีงบ {{ loan_fy.fy }} แก้ได้</small>{% endif %}</div>
       <div><label>วันที่ยืม</label><input name="date" value="{{ be_date(ln.date) if ln and ln.date else '' }}" placeholder="วว/ดด/ปปปป" data-date="1"></div>
       <div><label>ผู้ยืม</label><input name="borrower" value="{{ (ln.borrower if ln else '') or p.lunch_officer or '' }}" placeholder="ชื่อ-นามสกุล" list="persons_dl"></div>
@@ -290,7 +290,7 @@
   .bf-loan-form label{ font-size:13px; }
   .bf-loan-form small{ display:block; font-size:12px; margin-top:2px; }
   .bf-loan-act{ grid-column:1/-1; display:flex; justify-content:flex-end; }
-  .bf-loan-5{ grid-template-columns:repeat(5,minmax(0,1fr)); }
+  .bf-loan-5{ grid-template-columns:minmax(0,1.5fr) repeat(4,minmax(0,1fr)); }
   @media(max-width:900px){ .bf-loan-5{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
   .bf-loan-status{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:10px; font-size:13.5px; }
   .bf-reg-btn{ border:none; background:linear-gradient(135deg,#e0e7ff,#ede9fe); color:#4338ca; font-size:11.5px; font-weight:700; padding:2px 9px; border-radius:99px; cursor:pointer; margin-left:4px; }
