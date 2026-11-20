@@ -10,6 +10,16 @@
   </div>
 </div>
 
+<style>
+.tt-fold{margin:0 0 14px}
+.tt-fold>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 18px;border-radius:16px;background:linear-gradient(135deg,#eef2ff,#e0e7ff);font-weight:700;color:#3730a3}
+.tt-fold>summary::-webkit-details-marker{display:none}
+.tt-fold>summary::after{content:"⌄";font-size:18px;transition:transform .2s}
+.tt-fold[open]>summary{margin-bottom:12px}
+.tt-fold[open]>summary::after{transform:rotate(180deg)}
+.tt-fold>summary small{font-weight:500;color:#64748b;margin-left:auto}
+.tt-gapflag{color:#b45309}
+</style>
 {% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกตารางเรียนแล้ว</div>{% endif %}
 {% if request.query_params.get('err') %}<div class="alert warn">{{ request.query_params.get('err') }}</div>{% endif %}
 {% if request.query_params.get('psaved') %}<div class="alert">✔ บันทึกโครงคาบแล้ว</div>{% endif %}
@@ -31,6 +41,7 @@
   </form>
 </div>
 
+<details class="tt-fold" id="ttSetup" {{ 'open' if (not periods or period_error or not c or request.query_params.get('psaved')) }}><summary><span>⚙️ ตั้งค่าโครงคาบเรียน</span><small>{{ periods|length }} คาบ{% if separated %} แยกประถม มัธยม{% endif %}{% if period_gaps %} <b class="tt-gapflag">เวลาคาบเว้นห่าง {{ period_gaps|length }} จุด</b>{% endif %}</small></summary>
 <div class="card">
 {% if separated %}<h2>แยกตารางประถม–มัธยม</h2><div class="row"><a class="btn {{ 'soft' if section!='primary' }}" href="/academic/timetable?year={{ year }}&section=primary">ประถม</a><a class="btn {{ 'soft' if section!='secondary' }}" href="/academic/timetable?year={{ year }}&section=secondary">มัธยม</a></div><p class="muted">กำหนดคาบและเวลาพักแยกตามระดับ ห้องอนุบาลใช้เวลาเดียวกับฝั่งประถม ครูที่สอนข้ามระดับตรวจเวลาซ้อนร่วมกัน</p>
 {% else %}<h2>แยกตารางประถม–มัธยม</h2><p>สำหรับโรงเรียนที่เวลาเรียนหรือเวลาพักของประถมและมัธยมไม่ตรงกัน</p>{% if can_edit %}<form method="post" action="/academic/timetable/separate"><input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="section" value="{{ section }}"><button class="btn" type="submit">แยกตารางประถม–มัธยม</button><p class="muted">ระบบจะคัดลอกเวลาเดิมให้มัธยมและเก็บวิชาที่จัดไว้ จากนั้นแก้เวลาของแต่ละระดับได้</p></form>{% endif %}{% endif %}
@@ -76,8 +87,11 @@
     </div>
     <button class="btn" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกโครงคาบ</button>
   </form>
+{% if period_gaps %}<div class="alert warn tt-gaps" style="margin-top:10px">เวลาระหว่างคาบเว้นห่างผิดปกติ อาจลืมใส่คาบหรือพัก:
+  {% for a_, b_, m in period_gaps %}<br>{{ a_.name }} ({{ a_.time_label }}) ถึง {{ b_.name }} ({{ b_.time_label }}) ว่าง {{ m }} นาที{% endfor %}</div>{% endif %}
 </div>
 {% endif %}
+</details>
 
 {# ---------- ตารางของห้องที่เลือก ---------- #}
 {% if c %}
@@ -119,6 +133,7 @@
 <div class="ts-problems" id="tsProblems" hidden></div>
 
 {% if subjects %}
+<details class="tt-fold" id="ttAuto" {{ 'open' if (request.query_params.get('auto') is not none or request.query_params.get('undone')) }}><summary><span>✨ จำนวนคาบต่อสัปดาห์ และจัดตารางอัตโนมัติ</span><small>{{ subjects|length }} วิชา</small></summary>
 <div class="ts-cols">
   {# ---------- จำนวนคาบต่อสัปดาห์ + ความคืบหน้า ---------- #}
   <section class="card ts-plan">
@@ -171,6 +186,7 @@
     <p class="muted ts-note">กดแล้วย้อนกลับได้ ถ้าไม่ชอบผลที่ได้</p>
   </section>
 </div>
+</details>
 {% endif %}
 {% endif %}
 
@@ -565,6 +581,7 @@
   document.getElementById('btnGoAuto').addEventListener('click', function(){
     var o = document.getElementById('tsOpts');
     if (!o) return;
+    var f = document.getElementById('ttAuto'); if (f) f.open = true;
     o.scrollIntoView({ block: 'center', behavior: 'smooth' });
     o.classList.remove('flash'); void o.offsetWidth; o.classList.add('flash');
   });

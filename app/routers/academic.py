@@ -3510,6 +3510,19 @@ def _tt_apply_form(db, c, form):
     db.flush()
 
 
+def _period_gaps(periods, minutes=20):
+    """ช่วงเวลาที่คาบติดกันเว้นห่างผิดปกติ (เช่น คาบ 2 จบ 10:10 แต่คาบถัดไปเริ่ม 11:50)
+    คืน [(คาบก่อน, คาบถัดไป, นาทีที่ว่าง)] ไว้เตือนว่าอาจลืมใส่คาบ"""
+    from app.services import timetable_sections as _ts
+    out, prev = [], None
+    for p in sorted(periods, key=lambda x: (x.seq or 0, x.id)):
+        cur = _ts.interval(p.time_label)
+        if cur and prev and prev[1] and cur[0] - prev[1][1] >= minutes:
+            out.append((prev[0], p, cur[0] - prev[1][1]))
+        prev = (p, cur) if cur else (p, None)
+    return out
+
+
 @router.get("/academic/timetable", response_class=HTMLResponse)
 def timetable_page(request: Request, db: Session = Depends(get_db),
                    cid: int | None = None, year: int | None = None):
@@ -3572,6 +3585,7 @@ def timetable_page(request: Request, db: Session = Depends(get_db),
         "period_error":getattr(request.state,'period_error',''),
         "period_entered":getattr(request.state,'period_entered',{}),
         "term_label": term_label,
+        "period_gaps": _period_gaps(periods),
     })
 
 
