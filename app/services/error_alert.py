@@ -39,8 +39,55 @@ def signature(path: str, exc: BaseException) -> str:
     return f"{type(exc).__name__}|{page}|{where}"
 
 
+def _shared() -> bool:
+    """รันหลาย worker = ตัวนับต้องใช้ร่วมกัน ไม่งั้น error เดียวกันส่งซ้ำตามจำนวน worker"""
+    try:
+        return int(os.environ.get("DDOC_WORKERS", "1") or 1) > 1
+    except ValueError:
+        return False
+
+
 def should_send(sig: str, now: float | None = None) -> tuple[bool, int]:
     """(ส่งไหม, จำนวนครั้งที่เกิดซ้ำก่อนหน้านี้ที่ยังไม่ได้แจ้ง)"""
+    if _shared():
+        try:
+            return _should_send_shared(sig, time.time() if now is None else now)
+        except Exception:
+            pass        # ไฟล์ตัวนับใช้ไม่ได้ -> ใช้ตัวนับในโปรเซสแทน (อาจส่งซ้ำ แต่ไม่พลาดแจ้ง)
+    return _should_send_local(sig, now)
+
+
+def _should_send_shared(sig: str, now: float) -> tuple[bool, int]:
+    """ตัวนับร่วมทุก worker เก็บในไฟล์ data/.error-alert.json ล็อกไฟล์ระหว่างอ่าน-เขียน"""
+    import fcntl
+    from app.database import get_data_dir
+    path = get_data_dir() / ".error-alert.json"
+    fd = os.open(str(path), os.O_CREAT | os.O_RDWR, 0o644)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        with os.fdopen(os.dup(fd), "r+", encoding="utf-8") as f:
+            try:
+                st = json.loads(f.read() or "{}")
+            except ValueError:
+                st = {}
+            last, supp = st.get("last", {}), st.get("supp", {})
+            sent = [t for t in st.get("sent", []) if now - t < 3600]
+            last = {k: v for k, v in last.items() if now - v < PER_SIGNATURE_SEC}
+            if sig in last or len(sent) >= MAX_PER_HOUR:
+                supp[sig] = supp.get(sig, 0) + 1
+                ok, rep = False, 0
+            else:
+                last[sig] = now
+                sent.append(now)
+                ok, rep = True, supp.pop(sig, 0)
+            f.seek(0); f.truncate()
+            f.write(json.dumps({"last": last, "supp": supp, "sent": sent}))
+        return ok, rep
+    finally:
+        os.close(fd)        # ปิดแล้วล็อกหลุดเอง
+
+
+def _should_send_local(sig: str, now: float | None = None) -> tuple[bool, int]:
     now = time.time() if now is None else now
     with _lock:
         _sent_times[:] = [t for t in _sent_times if now - t < 3600]

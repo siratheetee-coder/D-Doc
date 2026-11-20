@@ -102,3 +102,18 @@ def test_disabled_and_failures_never_break_the_page(env, alert, boom, monkeypatc
     monkeypatch.setenv("DDOC_ERROR_ALERT", "1")
     monkeypatch.setattr("app.services.mailer.send_email", lambda *a, **k: (_ for _ in ()).throw(OSError("smtp down")))
     assert c.get("/__boom/6").status_code == 500, "ส่งอีเมลไม่ได้ หน้าเว็บยังตอบปกติ"
+
+
+def test_multi_worker_counter_is_shared_via_file(monkeypatch, tmp_path):
+    """หลาย worker ต้องนับร่วมกัน (จำลอง 2 โปรเซสด้วยการล้างตัวนับในหน่วยความจำ)"""
+    import sys, types
+    import app.services.error_alert as ea
+    import app.database as dbm
+    monkeypatch.setitem(sys.modules, "fcntl", types.SimpleNamespace(LOCK_EX=2, flock=lambda fd, op: None))
+    monkeypatch.setattr(dbm, "get_data_dir", lambda: tmp_path)
+    monkeypatch.setenv("DDOC_WORKERS", "2")
+    t0 = 2_000_000.0
+    assert ea.should_send("X", t0) == (True, 0)
+    monkeypatch.setattr(ea, "_last_sent", {})          # worker อีกตัว: หน่วยความจำว่าง
+    assert ea.should_send("X", t0 + 5) == (False, 0), "worker ที่สองต้องไม่ส่งซ้ำ"
+    assert ea.should_send("X", t0 + 3601) == (True, 1)
