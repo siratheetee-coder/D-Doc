@@ -9,7 +9,7 @@
   dock.innerHTML = '<label for="floating-save-target">บันทึกส่วน</label><select id="floating-save-target" aria-label="เลือกส่วนที่ต้องการบันทึก"></select><button type="button" class="btn" id="floating-save-action">💾 บันทึก</button>';
   document.body.appendChild(dock);
   const select = dock.querySelector('select'), action = dock.querySelector('button');
-  let targets = [], chosen = null, scheduled = false;
+  let targets = [], chosen = null, scheduled = false, picked = false;
   const visible = el => !!(el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden' && !el.closest('[hidden], [aria-hidden="true"], details:not([open])'));
   function candidates() {
     return [...main.querySelectorAll('button,input[type=submit]')].filter(el => {
@@ -31,7 +31,9 @@
   function refresh() {
     scheduled = false;
     targets = candidates();
-    if (!targets.includes(chosen)) chosen = targets[0] || null;
+    if (!targets.includes(chosen)) chosen = null;
+    // ยังไม่ได้เลือกเอง: ใช้ปุ่มของส่วนที่อยู่กลางจอมากที่สุด (เดิมติดปุ่มแรกของหน้าเสมอ)
+    if (!picked || !chosen) chosen = nearest() || targets[0] || null;
     const blocked = [...document.querySelectorAll('[aria-modal=true],.cf-ov,.dn-ov,.trial-modal,.sb-overlay,.sig-overlay,.wm-ov,#vendorOverlay')].some(visible) || document.querySelector('.cal-panel.open');
     const keyboard = window.visualViewport && window.innerHeight - visualViewport.height > 160;
     dock.hidden = !chosen || !!blocked || !!keyboard;
@@ -49,13 +51,28 @@
     action.textContent = chosen ? (chosen.textContent || chosen.value).trim() : 'บันทึก';
     action.title = chosen ? label(chosen,targets.indexOf(chosen)) : '';
   }
+  function nearest() {
+    const mid = window.innerHeight / 2;
+    let best = null, gap = Infinity;
+    targets.forEach(el => {
+      const box = (el.form || el.closest('.card,section') || el).getBoundingClientRect();
+      if (box.bottom < 0 || box.top > window.innerHeight) return;
+      const d = mid < box.top ? box.top - mid : mid > box.bottom ? mid - box.bottom : 0;
+      if (d < gap) { gap = d; best = el; }
+    });
+    return best;
+  }
   function schedule(){if(!scheduled){scheduled=true;requestAnimationFrame(refresh);}}
-  select.addEventListener('change',()=>{chosen=targets[+select.value];refresh();});
+  select.addEventListener('change',()=>{chosen=targets[+select.value];picked=true;refresh();});
+  window.addEventListener('scroll',()=>{
+    if(picked && chosen){const b=(chosen.form||chosen).getBoundingClientRect();if(b.bottom<0||b.top>window.innerHeight)picked=false;}
+    if(!picked)schedule();
+  },{passive:true,capture:true});
   main.addEventListener('focusin',e=>{
     const form=e.target.form || e.target.closest('form');
     const row=e.target.closest('tr');
     const found=targets.find(b=>row && b.closest('tr')===row) || targets.find(b=>form && b.form===form);
-    if(found) chosen=found;schedule();
+    if(found){chosen=found;picked=true;}schedule();
   });
   action.addEventListener('click',()=>{
     if (!chosen || !visible(chosen) || chosen.disabled || chosen.matches(':disabled')) return;
