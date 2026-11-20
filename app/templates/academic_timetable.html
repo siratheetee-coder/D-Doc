@@ -2,55 +2,53 @@
 {% block title %}ตารางเรียน{% endblock %}
 {% block content %}
 {% from "_empty.html" import empty_state %}
-<div class="hero">
-  <div>
-    <div class="hero-sub">งานวิชาการ</div>
-    <span class="hero-title">ตารางเรียน</span>
-    <div class="hero-meta">{{ school.name or "" }} ปีการศึกษา {{ year }}</div>
-  </div>
-</div>
-
-<style>
-.tt-fold{margin:0 0 14px}
-.tt-fold>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 18px;border-radius:16px;background:linear-gradient(135deg,#eef2ff,#e0e7ff);font-weight:700;color:#3730a3}
-.tt-fold>summary::-webkit-details-marker{display:none}
-.tt-fold>summary::after{content:"⌄";font-size:18px;transition:transform .2s}
-.tt-fold[open]>summary{margin-bottom:12px}
-.tt-fold[open]>summary::after{transform:rotate(180deg)}
-.tt-fold>summary small{font-weight:500;color:#64748b;margin-left:auto}
-.tt-gapflag{color:#b45309}
-</style>
-{% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกตารางเรียนแล้ว</div>{% endif %}
-{% if request.query_params.get('err') %}<div class="alert warn">{{ request.query_params.get('err') }}</div>{% endif %}
-{% if request.query_params.get('psaved') %}<div class="alert">✔ บันทึกโครงคาบแล้ว</div>{% endif %}
-
-<div class="card">
-  <form method="get" action="/academic/timetable" class="row" style="align-items:flex-end; margin:0; gap:12px;">
-    <div><label>ปีการศึกษา</label>
-      <input type="hidden" name="section" value="{{ section }}"><select name="year" onchange="this.form.cid.value='';submitReplace(this.form)">
-        {% for yy in years %}<option value="{{ yy }}" {{ 'selected' if yy==year }}>{{ yy }}</option>{% endfor %}
-      </select>
-    </div>
-    <div style="flex:1;"><label>เลือกห้องเรียน</label>
-      <select name="cid" onchange="submitReplace(this.form)">
-        <option value=""> เลือกห้อง </option>
-        {% for cc in classes %}<option value="{{ cc.id }}" {{ 'selected' if c and cc.id==c.id }}>{{ class_label(cc) }}</option>{% endfor %}
-      </select>
-    </div>
-    <div><a class="btn soft" href="/academic/timetable/teacher"><svg class="icon"><use href="#ic-users"/></svg> ดูตารางรายครู</a></div>
+<div class="tv-head">
+  <img class="tv-art" src="/static/images/home3d/calendar.png" width="72" height="72" alt="" aria-hidden="true">
+  <div class="tv-title"><h1>ตารางเรียน</h1><p>{{ school.name or "" }}</p></div>
+  <form method="get" action="/academic/timetable" class="tv-year">
+    <input type="hidden" name="section" value="{{ section }}">{% if c %}<input type="hidden" name="cid" value="">{% endif %}
+    <label class="tv-yearpick"><svg class="icon"><use href="#ic-calendar"/></svg><span>ปีการศึกษา</span>
+      <select name="year" onchange="submitReplace(this.form)" aria-label="ปีการศึกษา">{% for yy in years %}<option value="{{ yy }}" {{ 'selected' if yy==year }}>{{ yy }}</option>{% endfor %}</select></label>
   </form>
 </div>
 
-<details class="tt-fold" id="ttSetup" {{ 'open' if (not periods or period_error or not c or request.query_params.get('psaved')) }}><summary><span>⚙️ ตั้งค่าโครงคาบเรียน</span><small>{{ periods|length }} คาบ{% if separated %} แยกประถม มัธยม{% endif %}{% if period_gaps %} <b class="tt-gapflag">เวลาคาบเว้นห่าง {{ period_gaps|length }} จุด</b>{% endif %}</small></summary>
-<div class="card">
-{% if separated %}<h2>แยกตารางประถม–มัธยม</h2><div class="row"><a class="btn {{ 'soft' if section!='primary' }}" href="/academic/timetable?year={{ year }}&section=primary">ประถม</a><a class="btn {{ 'soft' if section!='secondary' }}" href="/academic/timetable?year={{ year }}&section=secondary">มัธยม</a></div><p class="muted">กำหนดคาบและเวลาพักแยกตามระดับ ห้องอนุบาลใช้เวลาเดียวกับฝั่งประถม ครูที่สอนข้ามระดับตรวจเวลาซ้อนร่วมกัน</p>
-{% else %}<h2>แยกตารางประถม–มัธยม</h2><p>สำหรับโรงเรียนที่เวลาเรียนหรือเวลาพักของประถมและมัธยมไม่ตรงกัน</p>{% if can_edit %}<form method="post" action="/academic/timetable/separate"><input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="section" value="{{ section }}"><button class="btn" type="submit">แยกตารางประถม–มัธยม</button><p class="muted">ระบบจะคัดลอกเวลาเดิมให้มัธยมและเก็บวิชาที่จัดไว้ จากนั้นแก้เวลาของแต่ละระดับได้</p></form>{% endif %}{% endif %}
+{% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกตารางเรียนแล้ว</div>{% endif %}
+{% if request.query_params.get('err') %}<div class="alert warn">{{ request.query_params.get('err') }}</div>{% endif %}
+
+<div class="tv-bar">
+  <form method="get" action="/academic/timetable" class="tv-class">
+    <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="section" value="{{ section }}">
+    <select name="cid" onchange="submitReplace(this.form)" aria-label="เลือกห้องเรียน">
+      <option value="">เลือกห้อง</option>
+      {% for cc in classes %}<option value="{{ cc.id }}" {{ 'selected' if c and cc.id==c.id }}>{{ class_label(cc) }}</option>{% endfor %}
+    </select>
+  </form>
+  {% if c and periods and can_edit %}
+  <div class="tv-seg" role="tablist" aria-label="โหมด">
+    <button type="button" role="tab" data-mode="view" aria-selected="true">ดูตาราง</button>
+    <button type="button" role="tab" data-mode="edit" aria-selected="false">จัดตาราง</button>
+  </div>
+  {% endif %}
+  <span class="tv-gap"></span>
+  {% if can_edit %}<button type="button" class="tv-btn" id="btnSettings"><svg class="icon"><use href="#ic-settings"/></svg> ตั้งค่าตาราง{% if period_gaps %} <b class="tv-dot" title="เวลาคาบเว้นห่าง">!</b>{% endif %}</button>{% endif %}
+  <a class="tv-btn" href="/academic/timetable/teacher"><svg class="icon"><use href="#ic-users"/></svg> ตารางรายครู</a>
+  {% if c %}<a class="tv-btn" href="/academic/timetable/class.docx?cid={{ c.id }}"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์ตาราง</a>{% endif %}
 </div>
+
+{# ---------- ตั้งค่าตาราง (หน้าต่าง) ---------- #}
+{% set settings_open = can_edit and (not periods or period_error or request.query_params.get('psaved')) %}
+<dialog class="tv-dlg" id="ttSettings" role="dialog" aria-labelledby="ttSetTitle" {{ 'data-open=1' if settings_open }}>
+  <div class="tv-dlg-head"><h2 id="ttSetTitle"><svg class="icon"><use href="#ic-settings"/></svg> ตั้งค่าตาราง</h2>
+    <button type="button" class="tv-x" data-close aria-label="ปิด">✕</button></div>
+  <div class="tv-dlg-body">
+  <section class="tv-sec">
+  {% if separated %}<h3>แยกตารางประถม–มัธยม</h3><div class="row"><a class="btn {{ 'soft' if section!='primary' }}" href="/academic/timetable?year={{ year }}&section=primary">ประถม</a><a class="btn {{ 'soft' if section!='secondary' }}" href="/academic/timetable?year={{ year }}&section=secondary">มัธยม</a></div><p class="muted">กำหนดคาบและเวลาพักแยกตามระดับ ห้องอนุบาลใช้เวลาเดียวกับฝั่งประถม ครูที่สอนข้ามระดับตรวจเวลาซ้อนร่วมกัน</p>
+  {% else %}<h3>แยกตารางประถม–มัธยม</h3><p class="muted">สำหรับโรงเรียนที่เวลาเรียนหรือเวลาพักของประถมและมัธยมไม่ตรงกัน</p>{% if can_edit %}<form method="post" action="/academic/timetable/separate"><input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="section" value="{{ section }}"><button class="btn soft" type="submit">แยกตารางประถม–มัธยม</button><p class="muted" style="font-size:13px">ระบบจะคัดลอกเวลาเดิมให้มัธยมและเก็บวิชาที่จัดไว้ จากนั้นแก้เวลาของแต่ละระดับได้</p></form>{% endif %}{% endif %}
+  </section>
 {% if can_edit %}
-{# ---------- ตั้งโครงคาบเรียน (เจ้าหน้าที่) ---------- #}
-<div class="card" id="period-editor">
+  <section class="tv-sec" id="period-editor">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-    <h2 style="margin:0;"><svg class="icon"><use href="#ic-clock"/></svg> โครงคาบเรียน <span class="muted" style="font-size:14px;">(ตั้งเองตามโรงเรียน)</span></h2>
+    <h3 style="margin:0;">โครงคาบเรียน <span class="muted" style="font-size:13px;font-weight:400">(ตั้งเองตามโรงเรียน)</span></h3>
     {% if not periods %}
     <form method="post" action="/academic/timetable/periods/preset" style="margin:0;">
       <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="section" value="{{ section }}">
@@ -58,7 +56,7 @@
     </form>
     {% endif %}
   </div>
-  <p class="muted" style="font-size:13px; margin:6px 0 8px;">ติ๊ก "พัก" สำหรับคาบพักเที่ยง/พักเบรก (จะไม่ให้ใส่วิชา) ลำดับ = การเรียงคาบในวัน</p>
+  <p class="muted" style="font-size:13px; margin:6px 0 8px;">ติ๊ก "พัก" สำหรับคาบพักเที่ยง/พักเบรก (จะไม่ให้ใส่วิชา) ลำดับ = การเรียงคาบในวัน</p>
   <style>.period-table th:nth-child(4),.period-table th:nth-child(5),.period-table td:nth-child(4),.period-table td:nth-child(5){text-align:center;width:100px}.period-pick{display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;margin:0;cursor:pointer}.period-pick input[type=checkbox]{width:24px!important;height:24px;margin:0;accent-color:#4f46e5;cursor:pointer}#period-editor{scroll-margin-top:95px}.period-feedback{padding:14px 16px;border-radius:10px;margin:12px 0;background:#fff7e6;color:#92400e;border-left:4px solid #f59e0b}.period-feedback.success{background:#ecfdf5;color:#166534;border-color:#22c55e}</style>{% if period_error %}<div class="period-feedback" id="periodError" role="alert"><strong>ยังไม่ได้บันทึกโครงคาบ</strong><br>{{ period_error }}<br>ข้อมูลที่แก้ยังอยู่ในแบบฟอร์ม กรุณาตรวจและกดบันทึกอีกครั้ง</div>{% elif request.query_params.get("psaved") %}<div class="period-feedback success" role="status">บันทึกโครงคาบแล้ว ตารางเรียนใช้ค่าล่าสุดแล้ว</div>{% endif %}<form method="post" action="/academic/timetable/periods/save" id="periodForm"><input type="hidden" name="period_cid" value="{{ c.id if c else '' }}">
     <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="section" value="{{ section }}">
     <button type="submit" aria-hidden="true" tabindex="-1" style="position:absolute; width:0; height:0; padding:0; border:0; overflow:hidden;"></button>
@@ -85,21 +83,74 @@
       </tbody>
     </table>
     </div>
-    <button class="btn" type="submit" style="margin-top:10px;"><svg class="icon"><use href="#ic-save"/></svg> บันทึกโครงคาบ</button>
-  </form>
 {% if period_gaps %}<div class="alert warn tt-gaps" style="margin-top:10px">เวลาระหว่างคาบเว้นห่างผิดปกติ อาจลืมใส่คาบหรือพัก:
   {% for a_, b_, m in period_gaps %}<br>{{ a_.name }} ({{ a_.time_label }}) ถึง {{ b_.name }} ({{ b_.time_label }}) ว่าง {{ m }} นาที{% endfor %}</div>{% endif %}
-</div>
+    <button class="btn" type="submit" style="margin-top:10px;" data-no-floating-save><svg class="icon"><use href="#ic-save"/></svg> บันทึกโครงคาบ</button>
+  </form>
+  </section>
 {% endif %}
-</details>
+  </div>
+</dialog>
 
 {# ---------- ตารางของห้องที่เลือก ---------- #}
 {% if c %}
 {% if not periods %}
-<div class="card"><p class="muted" style="margin:0;">ยังไม่ได้ตั้งโครงคาบเรียน ตั้งด้านบนก่อน แล้วค่อยกรอกตาราง</p></div>
+<div class="card"><p class="muted" style="margin:0;">ยังไม่ได้ตั้งโครงคาบเรียน {% if can_edit %}กด "ตั้งค่าตาราง" ด้านบนเพื่อสร้างคาบก่อน{% endif %}</p></div>
 {% else %}
+{% set DN = {1:'จ',2:'อ',3:'พ',4:'พฤ',5:'ศ',6:'ส',7:'อา'} %}
+<div class="tv-wrap" id="ttWrap" data-mode="view">
+
 {% if can_edit %}
-<form method="post" action="/academic/timetable/save" id="ttForm">
+<div class="tv-prog">
+  <b>จัดแล้ว <span id="stDone">0</span>/<span id="stNeed">0</span> คาบ</b>
+  <span class="tv-track"><i id="stBar"></i></span>
+  <em class="tv-chip" id="stChip">ยังไม่ครบ <span id="stLeft">0</span> คาบ</em>
+  <em class="tv-chip bad" id="stProbChip" hidden>ปัญหา <span id="stProb">0</span> จุด</em>
+</div>
+{% endif %}
+
+{# ---------- โหมดดูตาราง ---------- #}
+<section class="tv-card tv-view">
+  <div class="tv-cardhead"><svg class="icon tv-hic"><use href="#ic-calendar"/></svg>
+    <div><h2>ตารางเรียน {{ class_label(c) }}</h2><small>ปีการศึกษา {{ year }}</small></div></div>
+  <div class="tv-gridwrap">
+  <table class="tv-grid">
+    <thead><tr><th class="tv-dayh">วัน</th>
+      {% for p in periods %}<th class="{{ 'brk' if p.is_break }}">{{ p.name }}{% if p.time_label %}<small>{{ p.time_label }}</small>{% endif %}</th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for dnum, dname in days %}
+      <tr><th class="tv-dayh">{{ dname }}</th>
+      {% for p in periods %}{% set cell = cells.get(dnum, {}).get(p.id) %}
+        {% if p.is_break %}<td class="brk"><span>🍴 พัก</span></td>
+        {% elif cell and cell.sel == 'x' %}<td><span class="tv-pill off">เว้นว่าง</span></td>
+        {% elif cell and cell.sel %}<td><span class="tv-pill" data-sel="{{ cell.sel }}" data-key="{{ dnum }}_{{ p.id }}"><b>{{ cell.label }}</b>{% if cell.teacher %}<small>{{ cell.teacher }}</small>{% endif %}</span></td>
+        {% else %}<td><span class="tv-pill empty">ยังไม่จัด</span></td>{% endif %}
+      {% endfor %}</tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  {# มือถือ: ดูทีละวัน #}
+  <div class="tv-days">
+    <div class="tv-chips">{% for dnum, dname in days %}<button type="button" data-d="{{ dnum }}">{{ DN.get(dnum, dname) }}</button>{% endfor %}</div>
+    {% for dnum, dname in days %}
+    <div class="tv-day" data-d="{{ dnum }}">
+      <h3><svg class="icon"><use href="#ic-calendar"/></svg> วัน{{ dname }}</h3>
+      {% for p in periods %}{% set cell = cells.get(dnum, {}).get(p.id) %}
+      {% if p.is_break %}<div class="tv-row brk">🍴 {{ p.name }} <small>{{ p.time_label }}</small></div>
+      {% else %}<div class="tv-row"><div class="tv-when"><b>{{ p.name }}</b><small>{{ p.time_label }}</small></div>
+        {% if cell and cell.sel and cell.sel != 'x' %}<span class="tv-pill" data-sel="{{ cell.sel }}" data-key="{{ dnum }}_{{ p.id }}"><b>{{ cell.label }}</b>{% if cell.teacher %}<small>{{ cell.teacher }}</small>{% endif %}</span>
+        {% else %}<span class="tv-pill empty">{{ 'เว้นว่าง' if cell and cell.sel == 'x' else 'ยังไม่จัด' }}</span>{% endif %}</div>{% endif %}
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+  <div class="tv-legend" id="tvLegend"></div>
+</section>
+
+{% if can_edit %}
+<form method="post" action="/academic/timetable/save" id="ttForm" class="tv-edit">
 <input type="hidden" name="cid" value="{{ c.id }}">
 
 {% if request.query_params.get('auto') is not none %}
@@ -112,30 +163,62 @@
 </div>
 {% endif %}
 {% if request.query_params.get('undone') %}<div class="alert">✔ ย้อนตารางกลับเป็นก่อนจัดอัตโนมัติแล้ว</div>{% endif %}
-
-{# ---------- แถบสรุปสถานะตาราง ---------- #}
-<div class="ts-bar">
-  <div class="ts-stats">
-    <div class="ts-stat"><span class="ts-ic st-blue"><svg class="icon"><use href="#ic-clipboard"/></svg></span>
-      <div><small>จำนวนคาบที่ต้องการ</small><b id="stNeed">0</b> คาบ/สัปดาห์</div></div>
-    <div class="ts-stat"><span class="ts-ic st-green"><svg class="icon"><use href="#ic-check"/></svg></span>
-      <div><small>จัดแล้ว</small><b id="stDone">0</b> คาบ</div></div>
-    <div class="ts-stat"><span class="ts-ic st-amber"><svg class="icon"><use href="#ic-clock"/></svg></span>
-      <div><small>เหลือ</small><b id="stLeft">0</b> คาบ</div></div>
-    <div class="ts-stat"><span class="ts-ic st-red"><svg class="icon"><use href="#ic-alert"/></svg></span>
-      <div><small>ยังมีปัญหา</small><b id="stProb">0</b> จุด</div></div>
-  </div>
-  <div class="ts-acts">
-    <button type="button" class="btn soft" id="btnCheck"><svg class="icon"><use href="#ic-eye"/></svg> ตรวจสอบปัญหา</button>
-    <button type="button" class="btn" id="btnGoAuto"><svg class="icon"><use href="#ic-sparkle"/></svg> จัดตารางอัตโนมัติ</button>
-  </div>
-</div>
 <div class="ts-problems" id="tsProblems" hidden></div>
 
+<section class="tv-card">
+  <div class="tv-cardhead"><svg class="icon tv-hic"><use href="#ic-edit"/></svg>
+    <div><h2>จัดตาราง {{ class_label(c) }}</h2><small>เลือกวิชาในแต่ละช่อง กดรูปกุญแจเพื่อล็อกคาบ ช่องที่ไม่ลงวิชาเลือก "เว้นว่าง"</small></div>
+    <div class="ts-gacts">
+      <button type="button" class="btn soft sm" id="btnCheck"><svg class="icon"><use href="#ic-eye"/></svg> ตรวจสอบปัญหา</button>
+      <button type="button" class="btn soft sm" id="btnGoAuto"><svg class="icon"><use href="#ic-sparkle"/></svg> จัดอัตโนมัติ</button>
+      <button type="button" class="btn soft sm" id="btnLockAll"><svg class="icon"><use href="#ic-lock"/></svg> ล็อกที่จัดแล้ว</button>
+      <button type="button" class="btn soft sm" id="btnUnlockAll"><svg class="icon"><use href="#ic-unlock"/></svg> ปลดล็อก</button>
+      {% if has_undo %}<button class="btn soft sm" type="submit" formaction="/academic/timetable/undo" formnovalidate><svg class="icon"><use href="#ic-undo"/></svg> ย้อนกลับ</button>{% endif %}
+    </div>
+  </div>
+  <div class="tt-scroll">
+  <table class="tt">
+    <thead><tr>
+      <th class="tt-day">วัน \ คาบ</th>
+      {% for p in periods %}
+      <th class="{{ 'tt-brk' if p.is_break }}">{{ p.name }}{% if p.time_label %}<div class="tt-time">{{ p.time_label }}</div>{% endif %}</th>
+      {% endfor %}
+    </tr></thead>
+    <tbody>
+    {% for dnum, dname in days %}
+      <tr>
+        <th class="tt-day">{{ dname }}</th>
+        {% for p in periods %}
+          {% set cell = cells.get(dnum, {}).get(p.id) %}
+          {% if p.is_break %}
+          <td class="tt-brk"><span>พัก</span></td>
+          {% else %}
+          <td class="tt-cell{{ ' locked' if cell and cell.locked }}{{ ' blocked' if cell and cell.sel=='x' }}" data-day="{{ dnum }}" data-dname="{{ dname }}" data-pname="{{ p.name }}">
+            <div class="tt-in">
+              <select name="cell_{{ dnum }}_{{ p.id }}" data-combo data-combo-placeholder="+ เลือกวิชา" onchange="ttCheck()">
+                <option value=""></option>
+                <option value="x" data-cp-label="เว้นว่าง (ไม่ลงวิชา)" data-cp-sub="จัดอัตโนมัติจะข้ามช่องนี้" {{ 'selected' if cell and cell.sel=='x' }}>เว้นว่าง (ไม่ลงวิชา)</option>
+                {% for val, label in options %}<option value="{{ val }}" data-cp-label="{{ label }}" {{ 'selected' if cell and cell.sel==val }}>{{ label }}</option>{% endfor %}
+              </select>
+              <button type="button" class="tt-lock" title="ล็อกคาบนี้ (จัดอัตโนมัติจะไม่เปลี่ยน)" aria-pressed="{{ 'true' if cell and cell.locked else 'false' }}">
+                <svg class="icon"><use href="#{{ 'ic-lock' if cell and cell.locked else 'ic-unlock' }}"/></svg></button>
+              <input type="hidden" name="lock_{{ dnum }}_{{ p.id }}" value="{{ '1' if cell and cell.locked else '' }}">
+            </div>
+            <div class="cell-teacher"></div>
+            <div class="cell-clash"></div>
+          </td>
+          {% endif %}
+        {% endfor %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
 {% if subjects %}
-<details class="tt-fold" id="ttAuto" {{ 'open' if (request.query_params.get('auto') is not none or request.query_params.get('undone')) }}><summary><span>✨ จำนวนคาบต่อสัปดาห์ และจัดตารางอัตโนมัติ</span><small>{{ subjects|length }} วิชา</small></summary>
+<details class="tt-fold" id="ttAuto" {{ 'open' if (request.query_params.get('auto') is not none or request.query_params.get('undone')) }}><summary><span><svg class="icon"><use href="#ic-users"/></svg> จำนวนคาบและครูผู้สอน</span><small>{{ subjects|length }} วิชา และตัวเลือกจัดตารางอัตโนมัติ</small></summary>
 <div class="ts-cols">
-  {# ---------- จำนวนคาบต่อสัปดาห์ + ความคืบหน้า ---------- #}
   <section class="card ts-plan">
     <h2 class="ts-h"><span class="ts-hic"><svg class="icon"><use href="#ic-book"/></svg></span>
       <span>ตั้งค่าจำนวนคาบต่อสัปดาห์<small>ระบุจำนวนคาบ/สัปดาห์ และคาบคู่ (ถ้ามี) ระบบนับว่าจัดไปแล้วกี่คาบให้</small></span></h2>
@@ -169,7 +252,6 @@
     </div>
   </section>
 
-  {# ---------- ตัวเลือกการจัดตารางอัตโนมัติ ---------- #}
   <section class="card ts-opts" id="tsOpts">
     <h2 class="ts-h"><span class="ts-hic"><svg class="icon"><use href="#ic-settings"/></svg></span>
       <span>ตัวเลือกการจัดตารางอัตโนมัติ<small>เลือกเงื่อนไขก่อนกดจัด</small></span></h2>
@@ -182,79 +264,116 @@
     <label class="ts-danger"><input type="checkbox" name="clear" id="optClear">
       <span><b>จัดใหม่ทั้งตาราง (ล้างตารางเดิม)</b><em>ล้างวิชาเดิมแล้วจัดใหม่ ช่องกิจกรรม โฮมรูม และเว้นว่างยังอยู่ ถ้าไม่เลือก ระบบเติมเฉพาะช่องว่าง</em></span></label>
     <div class="ts-cap" id="tsCap" hidden></div>
-    <button class="btn ts-big" type="submit" formaction="/academic/timetable/auto" id="btnAuto"><svg class="icon"><use href="#ic-sparkle"/></svg> จัดตารางให้อัตโนมัติ</button>
+    <button class="btn ts-big" type="submit" formaction="/academic/timetable/auto" id="btnAuto" data-no-floating-save><svg class="icon"><use href="#ic-sparkle"/></svg> จัดตารางให้อัตโนมัติ</button>
     <p class="muted ts-note">กดแล้วย้อนกลับได้ ถ้าไม่ชอบผลที่ได้</p>
   </section>
 </div>
 </details>
 {% endif %}
-{% endif %}
 
-<div class="card">
-  <div class="ts-gridhead">
-    <h2 class="ts-h" style="margin:0;"><span class="ts-hic"><svg class="icon"><use href="#ic-calendar"/></svg></span>
-      <span>ตารางเรียน ห้อง {{ class_label(c) }}<small>ปีการศึกษา {{ year }}</small></span></h2>
-    <div class="ts-gacts">
-      {% if can_edit %}
-      <button type="button" class="btn soft sm" id="btnLockAll"><svg class="icon"><use href="#ic-lock"/></svg> ล็อกทุกคาบที่จัดแล้ว</button>
-      <button type="button" class="btn soft sm" id="btnUnlockAll"><svg class="icon"><use href="#ic-unlock"/></svg> ปลดล็อกทั้งหมด</button>
-      {% if has_undo %}<button class="btn soft sm" type="submit" formaction="/academic/timetable/undo" formnovalidate><svg class="icon"><use href="#ic-undo"/></svg> ย้อนกลับ</button>{% endif %}
-      {% endif %}
-      <a class="btn soft sm" href="/academic/timetable/class.docx?cid={{ c.id }}"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์</a>
-      {% if can_edit %}<button class="btn sm" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกตาราง</button>{% endif %}
-    </div>
-  </div>
-  {% if can_edit %}<p class="muted" style="font-size:13px; margin:8px 0;">พิมพ์ชื่อวิชาเพื่อค้นหาได้ ช่องที่ครูไม่ว่างหรือวิชาครบคาบแล้วจะบอกเหตุผลในรายการ กดรูปกุญแจเพื่อล็อกคาบไม่ให้จัดอัตโนมัติเปลี่ยน ช่องที่ไม่ต้องการให้ลงวิชา (เช่น ชุมนุม ประชุม) เลือก "เว้นว่าง (ไม่ลงวิชา)"</p>{% endif %}
-  <div class="tt-scroll">
-  <table class="tt">
-    <thead><tr>
-      <th class="tt-day">วัน \ คาบ</th>
-      {% for p in periods %}
-      <th class="{{ 'tt-brk' if p.is_break }}">{{ p.name }}{% if p.time_label %}<div class="tt-time">{{ p.time_label }}</div>{% endif %}</th>
-      {% endfor %}
-    </tr></thead>
-    <tbody>
-    {% for dnum, dname in days %}
-      <tr>
-        <th class="tt-day">{{ dname }}</th>
-        {% for p in periods %}
-          {% set cell = cells.get(dnum, {}).get(p.id) %}
-          {% if p.is_break %}
-          <td class="tt-brk"><span>พัก</span></td>
-          {% elif can_edit %}
-          <td class="tt-cell{{ ' locked' if cell and cell.locked }}{{ ' blocked' if cell and cell.sel=='x' }}" data-day="{{ dnum }}" data-dname="{{ dname }}" data-pname="{{ p.name }}">
-            <div class="tt-in">
-              <select name="cell_{{ dnum }}_{{ p.id }}" data-combo data-combo-placeholder="+ เลือกวิชา" onchange="ttCheck()">
-                <option value=""></option>
-                <option value="x" data-cp-label="เว้นว่าง (ไม่ลงวิชา)" data-cp-sub="จัดอัตโนมัติจะข้ามช่องนี้" {{ 'selected' if cell and cell.sel=='x' }}>เว้นว่าง (ไม่ลงวิชา)</option>
-                {% for val, label in options %}<option value="{{ val }}" data-cp-label="{{ label }}" {{ 'selected' if cell and cell.sel==val }}>{{ label }}</option>{% endfor %}
-              </select>
-              <button type="button" class="tt-lock" title="ล็อกคาบนี้ (จัดอัตโนมัติจะไม่เปลี่ยน)" aria-pressed="{{ 'true' if cell and cell.locked else 'false' }}">
-                <svg class="icon"><use href="#{{ 'ic-lock' if cell and cell.locked else 'ic-unlock' }}"/></svg></button>
-              <input type="hidden" name="lock_{{ dnum }}_{{ p.id }}" value="{{ '1' if cell and cell.locked else '' }}">
-            </div>
-            <div class="cell-teacher"></div>
-            <div class="cell-clash"></div>
-          </td>
-          {% else %}
-          <td class="tt-ro" data-sel="{{ cell.sel if cell and cell.sel != 'x' else '' }}">
-            {% if cell %}<b>{{ cell.label }}</b>{% if cell.teacher %}<div class="muted" style="font-size:11px;">{{ cell.teacher }}</div>{% endif %}{% endif %}
-          </td>
-          {% endif %}
-        {% endfor %}
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-  </div>
+<div class="tv-savebar"><span>แก้แล้วอย่าลืมบันทึก</span><button class="btn" type="submit" data-no-floating-save><svg class="icon"><use href="#ic-save"/></svg> บันทึกตาราง</button></div>
+</form>
+{% endif %}
 </div>
-{% if can_edit %}</form>{% endif %}
 {% endif %}
 {% elif classes %}
-<div class="card"><p class="muted" style="margin:0;">เลือกห้องด้านบนเพื่อกรอก/ดูตารางเรียน</p></div>
+<div class="card"><p class="muted" style="margin:0;">เลือกห้องด้านบนเพื่อดูหรือจัดตารางเรียน</p></div>
 {% else %}
 <div class="card">{{ empty_state('ยังไม่มีห้องเรียนปีนี้', 'สร้างห้องเรียนก่อน แล้วกลับมาจัดตารางเรียนรายห้อง', '/academic/classes', 'สร้างห้องเรียน', 'ic-calendar') }}</div>
 {% endif %}
+
+<style>
+.tv-head{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:18px 22px;margin-bottom:14px;border-radius:22px;background:linear-gradient(135deg,#ffffff,#f5f3ff);box-shadow:0 4px 18px rgba(79,70,229,.08)}
+.tv-art{flex:none;width:72px;height:72px;clip-path:inset(4% round 22%)}
+.tv-title{flex:1;min-width:160px;padding-left:16px;border-left:2px solid #e0e7ff}
+.tv-title h1,.tv-cardhead h2,.tv-dlg-head h2,.tv-sec h3,.tv-day h3{background:none!important;padding:0!important;box-shadow:none!important;border:0!important;border-radius:0!important}
+.tv-title h1::before,.tv-title h1::after,.tv-cardhead h2::before,.tv-cardhead h2::after,.tv-dlg-head h2::before,.tv-dlg-head h2::after{display:none!important}
+.tv-title h1{margin:0;font-size:28px;color:#1e1b4b}
+.tv-title p{margin:2px 0 0;color:#64748b}
+.tv-year{margin:0}
+.tv-yearpick{display:inline-flex;align-items:center;gap:8px;margin:0;padding:6px 12px;border-radius:14px;background:linear-gradient(135deg,#eef2ff,#e0e7ff);color:#3730a3;font-weight:700}
+.tv-yearpick select{width:auto;border:0;background:transparent;font-weight:700;color:#3730a3;padding:4px 2px;box-shadow:none}
+.tv-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px;margin-bottom:12px;border-radius:18px;background:#fff;box-shadow:0 4px 18px rgba(15,23,42,.05)}
+.tv-class{margin:0}
+.tv-class select{min-width:150px;font-weight:700}
+.tv-seg{display:inline-flex;padding:4px;border-radius:14px;background:#eef2ff}
+.tv-seg button{border:0;background:transparent;padding:9px 22px;border-radius:11px;font:inherit;font-weight:700;color:#4338ca;cursor:pointer}
+.tv-seg button[aria-selected=true]{background:linear-gradient(135deg,#6366f1,#7c3aed);color:#fff;box-shadow:0 4px 12px rgba(99,102,241,.3)}
+.tv-gap{flex:1}
+.tv-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:12px;border:0;background:linear-gradient(135deg,#f8fafc,#eef2ff);color:#3730a3;font:inherit;font-weight:600;text-decoration:none;cursor:pointer}
+.tv-btn:hover{background:#e0e7ff}
+.tv-dot{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:#f59e0b;color:#fff;font-size:12px}
+.tv-prog{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;margin-bottom:12px;border-radius:16px;background:#fff;box-shadow:0 4px 18px rgba(15,23,42,.05)}
+.tv-track{flex:1;min-width:120px;height:10px;border-radius:99px;background:#e2e8f0;overflow:hidden}
+.tv-track i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#4ade80,#16a34a);transition:width .3s}
+.tv-chip{font-style:normal;font-size:13px;font-weight:700;padding:4px 12px;border-radius:99px;background:linear-gradient(135deg,#fff7ed,#fef3c7);color:#b45309}
+.tv-chip.ok{background:linear-gradient(135deg,#f0fdf4,#dcfce7);color:#15803d}
+.tv-chip.bad{background:linear-gradient(135deg,#fef2f2,#fee2e2);color:#b91c1c}
+.tv-card{padding:16px 18px;margin-bottom:14px;border-radius:20px;background:#fff;box-shadow:0 4px 18px rgba(15,23,42,.05)}
+.tv-cardhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.tv-cardhead h2{margin:0;font-size:20px;color:#1e1b4b;background:none;padding:0;box-shadow:none;border:0}
+.tv-cardhead small{color:#64748b}
+.tv-cardhead .ts-gacts{margin-left:auto}
+.tv-hic{width:34px;height:34px;color:#6366f1}
+.tv-gridwrap{overflow-x:auto;border-radius:16px;background:linear-gradient(135deg,#f5f3ff,#eef2ff);padding:6px}
+table.tv-grid{width:100%;border-collapse:separate;border-spacing:6px}
+.tv-grid thead th{font-size:14px;color:#3730a3;padding:6px 4px;min-width:96px;text-align:center;background:none!important;border:0!important}
+.tv-grid tbody th{background:none!important;border:0!important}
+.tv-grid thead th small{display:block;font-size:11.5px;font-weight:400;color:#64748b}
+.tv-grid th.brk,.tv-grid td.brk{min-width:70px}
+.tv-grid .tv-dayh{min-width:70px;font-size:15px;color:#1e1b4b;text-align:center}
+.tv-grid td{padding:0;text-align:center;vertical-align:middle}
+.tv-grid td.brk span{display:block;padding:12px 4px;border-radius:12px;background:#e2e8f0;color:#64748b;font-size:13px}
+.tv-pill{display:block;padding:9px 8px;border-radius:12px;background:var(--cbg,#fff);box-shadow:inset 0 -3px 0 var(--cbd,transparent);line-height:1.3}
+.tv-pill b{display:block;font-size:14px;color:#0f172a}
+.tv-pill small{display:block;font-size:11.5px;color:#475569}
+.tv-pill.empty{background:transparent;border:1.5px dashed #cbd5e1;color:#94a3b8;font-size:13px;box-shadow:none}
+.tv-pill.off{background:repeating-linear-gradient(135deg,#f8fafc 0 7px,#eef2f6 7px 14px);color:#64748b;font-size:13px}
+.tv-pill.clash{--cbg:#fee2e2;--cbd:#dc2626}
+.tv-pill.clash::after{content:attr(data-clash);display:block;font-size:11px;font-weight:700;color:#b91c1c}
+.tv-legend{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:12px;font-size:12.5px;color:#475569}
+.tv-legend span{display:inline-flex;align-items:center;gap:6px}
+.tv-legend i{width:14px;height:14px;border-radius:4px;background:var(--cbg);box-shadow:inset 0 -2px 0 var(--cbd)}
+.tv-days{display:none}
+.tv-chips{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:6px;margin-bottom:12px}
+.tv-chips button{border:0;padding:10px 0;border-radius:12px;font:inherit;font-weight:700;background:linear-gradient(135deg,#f8fafc,#eef2ff);color:#4338ca;cursor:pointer}
+.tv-chips button.on{background:linear-gradient(135deg,#6366f1,#7c3aed);color:#fff}
+.tv-day h3{display:flex;align-items:center;gap:8px;margin:4px 0 10px;font-size:18px;color:#1e1b4b}
+.tv-row{display:grid;grid-template-columns:96px 1fr;align-items:center;gap:10px;padding:6px;margin-bottom:8px;border-radius:14px;background:#f8fafc}
+.tv-row.brk{display:block;text-align:center;color:#64748b;background:#eef2f7;padding:10px}
+.tv-when b{display:block;font-size:14px}.tv-when small{color:#64748b;font-size:12px}
+.tv-wrap[data-mode=view] .tv-edit{display:none}
+.tv-wrap[data-mode=edit] .tv-view{display:none}
+.tv-savebar{position:sticky;bottom:12px;z-index:20;display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:8px;padding:10px 84px 10px 12px;border-radius:16px;background:rgba(255,255,255,.92);backdrop-filter:blur(6px);box-shadow:0 8px 24px rgba(15,23,42,.12)}
+.tv-savebar span{color:#64748b;font-size:13px}
+.tv-dlg{width:min(860px,94vw);max-height:90vh;padding:0;border:0;border-radius:22px;box-shadow:0 30px 80px rgba(15,23,42,.35)}
+.tv-dlg::backdrop{background:rgba(15,23,42,.45)}
+.tv-dlg-head{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:14px 20px;background:linear-gradient(135deg,#eef2ff,#f5f3ff)}
+.tv-dlg-head h2{margin:0;font-size:19px;color:#1e1b4b;display:flex;gap:8px;align-items:center;background:none;padding:0;box-shadow:none;border:0}
+.tv-x{border:0;background:#fff;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:16px}
+.tv-dlg-body{padding:16px 20px 22px}
+.tv-sec{padding:14px 16px;margin-bottom:12px;border-radius:16px;background:#f8fafc}
+.tv-sec h3{margin:0 0 6px;font-size:16px;color:#1e1b4b}
+.tt-fold{margin:0 0 14px}
+.tt-fold>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 18px;border-radius:16px;background:#fff;box-shadow:0 4px 18px rgba(15,23,42,.05);font-weight:700;color:#1e1b4b}
+.tt-fold>summary span{display:inline-flex;align-items:center;gap:8px}
+.tt-fold>summary::-webkit-details-marker{display:none}
+.tt-fold>summary::after{content:"⌄";font-size:18px;transition:transform .2s}
+.tt-fold[open]>summary{margin-bottom:12px}
+.tt-fold[open]>summary::after{transform:rotate(180deg)}
+.tt-fold>summary small{font-weight:500;color:#64748b;margin-left:auto}
+@media (max-width:760px){
+  .tv-head{padding:14px}.tv-art{width:52px;height:52px}.tv-title h1{font-size:22px}
+  .tv-seg{flex:1 1 100%;display:flex}.tv-seg button{flex:1;padding:10px 0;white-space:nowrap}
+  .tv-class,.tv-class select{width:100%}
+  .tv-gap{display:none}
+  .tv-btn{flex:1 1 0;min-width:0;justify-content:center;padding:9px 4px;font-size:13px;white-space:nowrap}
+  .tv-btn .icon{width:15px;height:15px}
+  .tv-gridwrap{display:none}
+  .tv-days{display:block}
+  .tv-savebar{justify-content:space-between}
+}
+</style>
 
 <style>
   /* ---------- แถบสรุป ---------- */
@@ -427,6 +546,35 @@
       if (td.colSpan > 1) td.insertAdjacentHTML('beforeend', '<div class="tt-pair">คาบคู่</div>');
     });
   });
+  // ---------- โหมดดูตาราง: สี ครูชน คำอธิบายสี มือถือรายวัน ----------
+  (function(){
+    var BUSY = {{ busy|tojson }}, ST = {{ subj_teacher|tojson }}, NAMES = {};
+    document.querySelectorAll('.tv-pill[data-sel]').forEach(function(el){
+      var v = el.dataset.sel; ttPaint(el, v);
+      if (v.charAt(0) === 's'){
+        var b = el.querySelector('b'); NAMES[ttCanon(v)] = NAMES[ttCanon(v)] || (b ? b.textContent : '');
+        var t = ST[v.slice(1)], hit = t && t.tid && BUSY[t.tid] && BUSY[t.tid][el.dataset.key];
+        if (hit){ el.classList.add('clash'); el.dataset.clash = 'ครูชน: ' + hit; el.style.setProperty('--cbg', '#fee2e2'); el.style.setProperty('--cbd', '#dc2626'); }
+      }
+    });
+    var lg = document.getElementById('tvLegend');
+    if (lg){ lg.innerHTML = Object.keys(NAMES).map(function(k){ var c = TT_PAL[(TT_COLOR[k] || 0) % TT_PAL.length];
+      return '<span><i style="--cbg:' + c[0] + ';--cbd:' + c[1] + '"></i>' + NAMES[k].replace(/</g,'&lt;') + '</span>'; }).join(''); }
+    var chips = document.querySelectorAll('.tv-chips button'), days = document.querySelectorAll('.tv-day');
+    function show(d){ chips.forEach(function(b){ b.classList.toggle('on', b.dataset.d == d); }); days.forEach(function(x){ x.hidden = x.dataset.d != d; }); }
+    chips.forEach(function(b){ b.onclick = function(){ show(b.dataset.d); }; });
+    if (chips.length){ var t = String(((new Date()).getDay() + 6) % 7 + 1), ok = [].some.call(chips, function(b){ return b.dataset.d == t; }); show(ok ? t : chips[0].dataset.d); }
+    // สลับ ดูตาราง / จัดตาราง (จำไว้ใน URL ให้กดย้อนหรือรีเฟรชแล้วอยู่โหมดเดิม)
+    var wrap = document.getElementById('ttWrap');
+    function setMode(m){
+      if (!wrap) return; wrap.dataset.mode = m;
+      document.querySelectorAll('.tv-seg button').forEach(function(b){ b.setAttribute('aria-selected', b.dataset.mode === m ? 'true' : 'false'); });
+      var u = new URL(location.href); if (m === 'edit') u.searchParams.set('mode', 'edit'); else u.searchParams.delete('mode'); history.replaceState(null, '', u);
+    }
+    document.querySelectorAll('.tv-seg button').forEach(function(b){ b.onclick = function(){ setMode(b.dataset.mode); }; });
+    var q = new URLSearchParams(location.search);
+    if (q.get('mode') === 'edit' || q.get('auto') !== null || q.get('undone')) setMode('edit');
+  })();
 </script>
 {% endif %}
 {% if can_edit and c %}
@@ -503,8 +651,12 @@
     });
     document.getElementById('stNeed').textContent = need;
     document.getElementById('stDone').textContent = done;
-    document.getElementById('stLeft').textContent = Math.max(0, need - done);
     document.getElementById('stProb').textContent = problems.length;
+    var bar = document.getElementById('stBar'); if (bar) bar.style.width = (need ? Math.min(100, done / need * 100) : 0) + '%';
+    var chip = document.getElementById('stChip');
+    if (chip){ var left = Math.max(0, need - done); chip.classList.toggle('ok', !left && need > 0);
+      chip.innerHTML = !need ? 'ยังไม่ตั้งจำนวนคาบ' : (left ? 'ยังไม่ครบ <span id="stLeft">' + left + '</span> คาบ' : '✓ ครบแล้ว<span id="stLeft" hidden>0</span>'); }
+    var pc = document.getElementById('stProbChip'); if (pc) pc.hidden = !problems.length;
     ttState.problems = problems;
     ttCapacity(P, cnt);
   }
@@ -629,4 +781,15 @@
   document.addEventListener('DOMContentLoaded', ttCheck);
 </script>
 {% endif %}
-{% if period_error %}<script>window.addEventListener('load',()=>{document.getElementById('periodError').scrollIntoView({block:'center'});});</script>{% endif %}{% endblock %}
+<script>
+(function(){
+  var d = document.getElementById('ttSettings'), b = document.getElementById('btnSettings');
+  if (!d) return;
+  if (b) b.onclick = function(){ d.showModal(); };
+  d.querySelectorAll('[data-close]').forEach(function(x){ x.onclick = function(){ d.close(); }; });
+  d.addEventListener('click', function(e){ if (e.target === d) d.close(); });
+  if (d.dataset.open) d.showModal();
+  {% if period_error %}var pe = document.getElementById('periodError'); if (pe) pe.scrollIntoView({block:'center'});{% endif %}
+})();
+</script>
+{% endblock %}
