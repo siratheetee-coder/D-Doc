@@ -3597,6 +3597,7 @@ def timetable_page(request: Request, db: Session = Depends(get_db),
         "period_entered":getattr(request.state,'period_entered',{}),
         "term_label": term_label,
         "period_gaps": _period_gaps(periods),
+        "opt_names": ({f"s{x.id}": x.name for x in db.query(AcadSubject).filter_by(year=c.year, level=c.level).all()} if c else {}),
     })
 
 

@@ -199,7 +199,9 @@
               <select name="cell_{{ dnum }}_{{ p.id }}" data-combo data-combo-placeholder="+ เลือกวิชา" onchange="ttCheck()">
                 <option value=""></option>
                 <option value="x" data-cp-label="เว้นว่าง (ไม่ลงวิชา)" data-cp-sub="จัดอัตโนมัติจะข้ามช่องนี้" {{ 'selected' if cell and cell.sel=='x' }}>เว้นว่าง (ไม่ลงวิชา)</option>
-                {% for val, label in options %}<option value="{{ val }}" data-cp-label="{{ label }}" {{ 'selected' if cell and cell.sel==val }}>{{ label }}</option>{% endfor %}
+                {% for val, label in options %}<option value="{{ val }}" data-cp-label="{{ opt_names.get(val, label) }}" {{ 'selected' if cell and cell.sel==val }}>{{ label }}</option>{% endfor %}
+                {# ค่าที่บันทึกไว้แต่ไม่อยู่ในรายการแล้ว (เช่น กิจกรรมที่ลบชื่อออก) ต้องยังเลือกอยู่ ไม่งั้นบันทึกแล้วหาย #}
+                {% if cell and cell.sel and cell.sel != 'x' and cell.sel not in options|map(attribute=0)|list %}<option value="{{ cell.sel }}" data-cp-label="{{ cell.label }}" selected>{{ cell.label }}</option>{% endif %}
               </select>
               <button type="button" class="tt-lock" title="ล็อกคาบนี้ (จัดอัตโนมัติจะไม่เปลี่ยน)" aria-pressed="{{ 'true' if cell and cell.locked else 'false' }}">
                 <svg class="icon"><use href="#{{ 'ic-lock' if cell and cell.locked else 'ic-unlock' }}"/></svg></button>
@@ -364,6 +366,31 @@ table.tv-grid{width:100%;border-collapse:separate;border-spacing:6px;table-layou
 .tt-fold[open]>summary{margin-bottom:12px}
 .tt-fold[open]>summary::after{transform:rotate(180deg)}
 .tt-fold>summary small{font-weight:500;color:#64748b;margin-left:auto}
+
+/* ---------- โหมดจัดตาราง: หน้าตาเดียวกับดูตาราง ---------- */
+.tv-edit .tt-scroll{max-height:none;overflow-x:auto;border-radius:16px;box-shadow:none;background:linear-gradient(135deg,#f5f3ff,#eef2ff);padding:6px}
+.tv-edit table.tt{border-collapse:separate;border-spacing:6px;table-layout:fixed;min-width:820px}
+.tv-edit table.tt th,.tv-edit table.tt td{border:0!important;padding:0}
+.tv-edit table.tt thead th{position:static;background:none!important;min-width:0;font-size:14px;color:#3730a3;padding:6px 4px}
+.tv-edit table.tt .tt-time{font-size:11.5px}
+.tv-edit table.tt .tt-day{position:static;background:none!important;width:84px;min-width:0;font-size:15px;color:#1e1b4b}
+.tv-edit table.tt th.tt-brk{width:76px;background:none!important;color:#3730a3}
+.tv-edit table.tt td.tt-brk{background:none;padding:0}
+.tv-edit table.tt td.tt-brk span{display:block;padding:12px 4px;border-radius:12px;background:#e2e8f0;color:#64748b;font-size:13px}
+.tv-edit table.tt td.tt-brk span::before{content:"🍴 "}
+.tv-edit td.tt-cell{min-width:0;position:relative;padding:8px 8px 6px;border-radius:12px;background:var(--cbg,#fff);box-shadow:inset 0 -3px 0 var(--cbd,transparent);text-align:center;vertical-align:top}
+.tv-edit td.tt-cell.pair-l,.tv-edit td.tt-cell.pair-r{box-shadow:inset 0 -3px 0 var(--cbd,transparent)}
+.tv-edit .tt-in{position:relative;display:block}
+.tv-edit .tt-in .cp-input{width:100%;padding:4px 22px 4px 6px;border:0;border-radius:8px;background:transparent;font-weight:700;font-size:14px;color:#0f172a;text-align:center;text-overflow:ellipsis;box-shadow:none}
+.tv-edit .tt-in .cp-input:focus{background:rgba(255,255,255,.85);box-shadow:0 0 0 2px #a5b4fc}
+.tv-edit .tt-in .cp-input::placeholder{color:#94a3b8;font-weight:500}
+.tv-edit .tt-lock{position:absolute;top:50%;right:0;transform:translateY(-50%);width:22px;height:22px;color:#cbd5e1}
+.tv-edit .cell-teacher{font-size:11.5px;color:#475569;margin-top:0;min-height:15px}
+.tv-edit td.tt-cell.locked{outline:2px dashed rgba(71,85,105,.4);outline-offset:-3px}
+.tv-edit td.tt-cell.clash{--cbg:#fee2e2!important;--cbd:#dc2626!important}
+.tv-edit td.tt-cell.blocked{background:repeating-linear-gradient(135deg,#f8fafc 0 7px,#eef2f6 7px 14px)!important}
+.tv-edit .cell-clash{font-size:11px}
+.tv-edit .tt-cell:has(select option:checked[value=""]) {background:#fff;outline:1.5px dashed #cbd5e1;outline-offset:-2px}
 @media (max-width:760px){
   .tv-head{padding:14px}.tv-art{width:52px;height:52px}.tv-title h1{font-size:22px}
   .tv-seg{flex:1 1 100%;display:flex}.tv-seg button{flex:1;padding:10px 0;white-space:nowrap}
@@ -373,7 +400,8 @@ table.tv-grid{width:100%;border-collapse:separate;border-spacing:6px;table-layou
   .tv-btn .icon{width:15px;height:15px}
   .tv-gridwrap{display:none}
   .tv-days{display:block}
-  .tv-savebar{justify-content:space-between}
+  .tv-savebar{justify-content:center;padding:10px 76px 10px 12px}.tv-savebar span{display:none}.tv-savebar .btn{flex:1;justify-content:center;white-space:nowrap}
+  .tv-edit table.tt{min-width:640px}.tv-edit table.tt .tt-day{width:64px;font-size:13px}
 }
 </style>
 
