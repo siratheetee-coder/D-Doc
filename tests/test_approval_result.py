@@ -66,7 +66,4 @@ def test_detail_routes_still_open_after_the_item_leaves_the_inbox():
         body = body[:body.index("@router", 10)]
         head = body.split("return templates")[0]
         # ห้ามเด้งออกตามสถานะ (ใช้ r.status แสดงผลได้ เช่น ยอดงบไปราชการ)
-        assert not re.search(r"if[^
-]*r\.status[^
-]*:\s*
-?\s*return Redirect", head), fn
+        assert not re.search(r"if[^\n]*r\.status[^\n]*:\s*\n?\s*return Redirect", head), fn
