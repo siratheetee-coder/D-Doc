@@ -26,9 +26,9 @@
   }
   function draw(){
     $('rqRows').innerHTML=rows.map(function(r,i){
-      return '<tr class="'+(r.have?'have':'')+'"><td>'+esc(r.name)+(r.locked?' 🔒':'')+(r.have?' <span class="muted">(กรอกแล้ว)</span>':'')+'</td><td>'+r.raw+'</td>'+
-        '<td><input type="number" step="0.01" min="0" data-i="'+i+'" data-k="qty" value="'+r.qty+'"></td><td>'+esc(r.unit)+'</td>'+
-        '<td><input type="number" step="0.01" min="0" data-i="'+i+'" data-k="price" value="'+r.price+'"></td><td class="amt">'+f2(r.qty*r.price)+'</td></tr>';
+      return '<tr class="'+(r.have?'have':'')+'"><td class="nm">'+esc(r.name)+(r.locked?' 🔒':'')+(r.have?' <span class="muted">(กรอกแล้ว)</span>':'')+'</td><td data-l="คำนวณได้">'+r.raw+' <span class="u">'+esc(r.unit)+'</span></td>'+
+        '<td data-l="ซื้อจริง"><input type="number" step="0.01" min="0" data-i="'+i+'" data-k="qty" value="'+r.qty+'"></td><td class="un">'+esc(r.unit)+'</td>'+
+        '<td data-l="ราคา/หน่วย"><input type="number" step="0.01" min="0" data-i="'+i+'" data-k="price" value="'+r.price+'"></td><td data-l="รวม" class="amt">'+f2(r.qty*r.price)+'</td></tr>';
     }).join('');
     $('rqRows').querySelectorAll('input').forEach(function(el){
       el.oninput=function(){var r=rows[+el.dataset.i]; r[el.dataset.k]=parseFloat(el.value)||0;

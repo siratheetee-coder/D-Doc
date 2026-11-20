@@ -137,9 +137,10 @@ def shopping(pid: int, request: Request, db: Session = Depends(get_db), w: str =
     monday = datetime(base.year, base.month, base.day) - timedelta(days=base.weekday())
     data = svc.week_list(db, prog, monday)
     rnd = svc.current_round(prog, back)
-    budget = round(svc.daily_budget(prog, rnd) * len(data["days"]), 2)
+    menu_days = len({m.date.date() for m in data["days"] + data["missing"]})
+    budget = round(svc.daily_budget(prog, rnd) * menu_days, 2)
     return templates.TemplateResponse("lunch_shopping.html", {
-        "request": request, "school": get_school(db), "p": prog, "d": data, "budget": budget,
+        "request": request, "school": get_school(db), "p": prog, "d": data, "budget": budget, "menu_days": menu_days,
         "monday": monday, "friday": monday + timedelta(days=4), "thai_date": thai_date,
         "prev": be_date_input(monday - timedelta(days=7)), "next": be_date_input(monday + timedelta(days=7)),
         "back": _back(back)})

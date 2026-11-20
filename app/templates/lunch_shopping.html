@@ -20,7 +20,7 @@
   <p class="muted" style="margin:0 0 12px">{{ thai_date(monday) }} ถึง {{ thai_date(friday) }}</p>
   {% if d.rows %}
   <div class="sh-bud">
-    <div><span>งบวัตถุดิบ {{ d.days|length }} วัน</span><b>{{ "{:,.2f}".format(budget) }}</b></div>
+    <div><span>งบวัตถุดิบ {{ menu_days }} วัน</span><b>{{ "{:,.2f}".format(budget) }}</b></div>
     <div><span>ประมาณค่าซื้อของ</span><b>{{ "{:,.2f}".format(d.total) }}</b></div>
     {% set left = budget - d.total %}
     <div class="{{ 'over' if left < 0 }}"><span>{{ 'เกินงบ' if left < 0 else 'เหลือ' }}</span><b>{{ "{:,.2f}".format(left|abs) }}</b></div>

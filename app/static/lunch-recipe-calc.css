@@ -10,3 +10,18 @@
 .rq-bud.over div:last-child{background:linear-gradient(135deg,#fef2f2,#fee2e2);color:#b91c1c}
 .rq-bud span{display:block;font-size:13px;color:#64748b}
 .rq-bud b{font-size:17px}
+#rq [hidden]{display:none!important}
+.rq-tbl td .u{display:none}
+@media (max-width:640px){
+  .rq-tbl{min-width:0}
+  .rq-tbl thead{display:none}
+  .rq-tbl,.rq-tbl tbody{display:block}
+  .rq-tbl tr{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;padding:12px;margin-bottom:8px;border-radius:14px;background:linear-gradient(135deg,#f8fafc,#f1f5f9)}
+  .rq-tbl td{padding:0;border:0}
+  .rq-tbl td.nm{grid-column:1/-1;font-weight:600}
+  .rq-tbl td.un{display:none}
+  .rq-tbl td .u{display:inline}
+  .rq-tbl td[data-l]::before{content:attr(data-l);display:block;font-size:12px;color:#64748b}
+  .rq-tbl input{width:100%}
+  .rq-tbl td.amt{font-weight:600}
+}
