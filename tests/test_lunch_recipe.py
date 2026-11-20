@@ -40,3 +40,9 @@ def test_recipe_calc_fill_and_shopping(env):
     page = env.get(f'/lunch/{pid}/shopping?w=14/12/2569')
     assert page.status_code == 200 and 'อกไก่' in page.text and '8.5' in page.text
     assert env.get(f'/lunch/{pid}/ingredients').status_code == 200
+
+
+def test_search_shortcuts_open_latest_program(env):
+    x = _prep(env)
+    assert env.get('/lunch/recipes', follow_redirects=False).headers['location'] == f"/lunch/{x['pid']}/recipes"
+    assert env.get('/lunch/shopping', follow_redirects=False).headers['location'] == f"/lunch/{x['pid']}/shopping"

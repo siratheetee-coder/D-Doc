@@ -282,6 +282,24 @@ def nutrition_page(request: Request, db: Session = Depends(get_db), year: str = 
 
 
 # ---------------- รายละเอียดโครงการ + บัญชีรับ-จ่าย ----------------
+def _latest_pid(db):
+    p = db.query(LunchProgram).order_by(LunchProgram.year.desc(), LunchProgram.id.desc()).first()
+    return p.id if p else None
+
+
+@router.get("/lunch/recipes")
+def recipes_latest(db: Session = Depends(get_db)):
+    """ทางลัดจากช่องค้นหา: เปิดสูตรอาหารของโครงการล่าสุด"""
+    pid = _latest_pid(db)
+    return RedirectResponse(f"/lunch/{pid}/recipes" if pid else "/lunch", status_code=303)
+
+
+@router.get("/lunch/shopping")
+def shopping_latest(db: Session = Depends(get_db)):
+    pid = _latest_pid(db)
+    return RedirectResponse(f"/lunch/{pid}/shopping" if pid else "/lunch", status_code=303)
+
+
 @router.get("/lunch/{pid}", response_class=HTMLResponse)
 def lunch_detail(pid: int, request: Request, db: Session = Depends(get_db)):
     prog = db.get(LunchProgram, pid)
