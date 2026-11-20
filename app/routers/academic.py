@@ -3035,6 +3035,16 @@ async def calendar_save(request: Request, db: Session = Depends(get_db), year: s
 
 
 # ---------------- เวลาเรียน (สรุปรายเดือน + เช็กชื่อรายวัน) ----------------
+def _mark_until(year_be, month):
+    """ปุ่ม "ทุกคนมาทุกวัน" ใส่ได้ถึงวันไหน: เดือนนี้ = ถึงวันนี้ · เดือนที่ยังไม่ถึง = 0 · เดือนที่ผ่านแล้ว = ทั้งเดือน"""
+    from app.thai_utils import thai_today
+    ce = year_be - 543 + (1 if month <= 4 else 0)
+    t = thai_today()
+    if (ce, month) == (t.year, t.month):
+        return t.day
+    return 0 if (ce, month) > (t.year, t.month) else 31
+
+
 @router.get("/academic/attendance", response_class=HTMLResponse)
 def attendance_page(request: Request, db: Session = Depends(get_db),
                     cid: int | None = None, year: int | None = None,
@@ -3120,6 +3130,7 @@ def attendance_page(request: Request, db: Session = Depends(get_db),
             "month_name": TH_MONTH_FULL[month], "open_days": open_days,
             "weekdays": wd, "marks": marks, "states": MARK_STATES, "blank": MARK_BLANK,
             "by_subj": by_subj, "subj": subj, "home_pick": home_pick, "mode": mode,
+            "until_day": _mark_until(y, month),
         })
 
     # ---- โหมดสรุปรายเดือน ----

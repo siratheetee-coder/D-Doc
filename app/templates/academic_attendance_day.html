@@ -14,8 +14,8 @@
 {% if not open_days %}
 <div class="card">
   <div class="alert warn"><svg class="icon"><use href="#ic-alert"/></svg>
-    ยังไม่ได้ตั้งวันเปิดเรียนของเดือน {{ month_name }} ในปฏิทินการศึกษา -
-    <a href="/academic/calendar?year={{ year }}">ไปตั้งปฏิทินก่อน</a> แล้วค่อยกลับมาเช็กชื่อ</div>
+    <span>ยังไม่ได้ตั้งวันเปิดเรียนของเดือน {{ month_name }} ในปฏิทินการศึกษา
+    <a class="btn sm" href="/academic/calendar?year={{ year }}" style="margin-left:6px">ไปตั้งปฏิทิน</a></span></div>
   <a class="btn soft" href="/academic/attendance?cid={{ c.id }}&mode={{ mode }}{% if by_subj and subj %}&sid={{ subj.id }}{% endif %}">← กลับหน้าสรุปเวลาเรียน</a>
 </div>
 {% else %}
@@ -23,7 +23,7 @@
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
     <h2 style="margin:0;">{{ month_name }} <span class="muted" style="font-size:15px;">เปิดเรียน {{ open_days|length }} วัน {{ students|length }} คน</span></h2>
     <div class="attn-actions" style="display:flex; gap:8px; flex-wrap:wrap;">
-      <button class="btn green" type="button" onclick="allPresent()"><svg class="icon"><use href="#ic-check"/></svg> ทุกคนมาทุกวัน</button>
+      <button class="btn green" type="button" onclick="allPresent()"><svg class="icon"><use href="#ic-check"/></svg> {{ "ทุกคนมาถึงวันนี้" if until_day and until_day < 31 else "ทุกคนมาทุกวัน" }}</button>
       <button class="btn red" type="button" onclick="clearAll()">ล้างข้อมูล</button>
       <a class="btn" href="/academic/attendance/month.docx?cid={{ c.id }}&month={{ month }}&mode={{ mode }}{% if by_subj and subj %}&sid={{ subj.id }}{% endif %}"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์เวลาเรียนเดือนนี้</a>
       <a class="btn gray" href="/academic/attendance?cid={{ c.id }}&show=months&mode={{ mode }}{% if by_subj and subj %}&sid={{ subj.id }}{% endif %}">← กลับหน้ารายเดือน</a>
@@ -161,9 +161,11 @@
     tr.querySelectorAll('[data-mk]').forEach(function(b){ setCell(b, '/'); });
     recalcRow(tr);
   }
+  var UNTIL = {{ until_day|default(31) }};   // ไม่ใส่ "มา" ให้วันที่ยังไม่ถึง
   function allPresent(){
+    if (!UNTIL) { alert('เดือนนี้ยังไม่ถึง ยังเช็กชื่อล่วงหน้าไม่ได้'); return; }
     document.querySelectorAll('tr[data-row]').forEach(function(tr){
-      tr.querySelectorAll('[data-mk]').forEach(function(b){ setCell(b, '/'); });
+      tr.querySelectorAll('[data-mk]').forEach(function(b){ if (+b.dataset.day <= UNTIL) setCell(b, '/'); });
       recalcRow(tr);
     });
   }

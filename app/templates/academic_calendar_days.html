@@ -1,4 +1,5 @@
 {% if return_to %}<p><a class="btn gray" href="{{ return_to }}"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับไป{{ "หน้างวดอาหารกลางวัน" if "/plan" in return_to else "เพิ่ม / แก้ไขรอบอาหารกลางวัน" }}</a></p>{% endif %}
+<style>.acal-draft{font-style:normal;font-size:11px;padding:1px 7px;border-radius:99px;background:linear-gradient(135deg,#fff7ed,#fef3c7);color:#b45309;margin-left:4px}</style>
 <div class="alert warn" role="note">ปฏิทินนี้ใช้ร่วมกันทั้งโรงเรียน การแก้วันเรียนมีผลกับวิชาการและการคำนวณรอบอาหารกลางวันใหม่ งวดเดิมต้องตรวจผลกระทบก่อนปรับวันที่</div>
 
 {% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกแล้ว</div>{% endif %}
@@ -100,12 +101,14 @@
     <p class="muted" style="font-size:13px; margin:6px 0 0;">
       "กรอกปฏิทินการศึกษา" = วันจันทร์-ศุกร์ <b>ลบวันหยุดที่ตั้งไว้</b> และ <b>ลบวันนอกภาคเรียน</b> ให้ทั้งปี
       กรอกแล้วยังคลิกแก้รายวันได้ แล้วกด "บันทึกปฏิทิน"</p>
+    {% set draft = months|rejectattr('configured')|list %}
+    {% if draft %}<div class="alert warn" style="margin:10px 0 0">{{ draft|length }} เดือนยังไม่ได้บันทึก ({{ draft|map(attribute='short')|join(' ') }}) ตัวเลขของเดือนนั้นเป็นค่าที่ระบบแนะนำ ยังไม่ถูกใช้นับเวลาเรียน กด "บันทึกปฏิทิน" ด้านล่างเพื่อใช้จริง</div>{% endif %}
     <div class="acal-grid">
       {% for m in months %}
       <div class="acal-month" data-month="{{ m.num }}">
         <div class="acal-head">
           <b>{{ m.name }}</b>
-          <span class="muted"><b class="acal-count">0</b> วันที่</span>
+          <span class="muted"><b class="acal-count">0</b> วันที่{% if not m.configured %} <em class="acal-draft">ยังไม่บันทึก</em>{% endif %}</span>
         </div>
         <div class="acal-days">
           <i class="acal-wd">จ</i><i class="acal-wd">อ</i><i class="acal-wd">พ</i><i class="acal-wd">พฤ</i><i class="acal-wd">ศ</i><i class="acal-wd we">ส</i><i class="acal-wd we">อา</i>

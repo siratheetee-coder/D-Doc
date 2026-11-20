@@ -11,3 +11,13 @@ def test_period_gaps_flags_missing_periods():
     assert len(gaps) == 1 and gaps[0][0].name == "คาบ 2" and gaps[0][2] == 100
     assert _period_gaps(ps[:2]) == []        # ต่อกันพอดี ไม่เตือน
     assert _period_gaps([N(id=9, seq=1, name="x", time_label="")]) == []
+
+
+def test_mark_until_today(monkeypatch):
+    from datetime import date
+    import app.thai_utils as tu
+    from app.routers.academic import _mark_until
+    monkeypatch.setattr(tu, "thai_today", lambda: date(2026, 11, 21))
+    assert _mark_until(2569, 11) == 21
+    assert _mark_until(2569, 12) == 0 and _mark_until(2569, 1) == 0
+    assert _mark_until(2569, 10) == 31 and _mark_until(2568, 1) == 31
