@@ -8,19 +8,19 @@
 <style>
   *{box-sizing:border-box}
   body{margin:0;font-family:Prompt,system-ui,sans-serif;background:#f4f6fb;color:#1f2937}
-  .top{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:18px 16px 54px}
+  .top{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:18px 16px 20px}
   .top .in{max-width:860px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:10px}
   .top small{opacity:.85}
   .top a{color:#fff;text-decoration:none;font-size:14px;padding:6px 12px;border-radius:99px;background:rgba(255,255,255,.18)}
-  .wrap{max-width:860px;margin:-38px auto 30px;padding:0 16px}
+  .wrap{max-width:860px;margin:14px auto 30px;padding:0 16px}
   .card{background:#fff;border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:0 4px 18px rgba(15,23,42,.06)}
   h2{margin:0 0 12px;font-size:18px}
-  .tabs{display:flex;gap:8px;overflow-x:auto;margin-bottom:14px}
-  .tabs a{flex:none;padding:8px 16px;border-radius:99px;background:#fff;color:#4338ca;text-decoration:none;font-size:15px;box-shadow:0 2px 8px rgba(15,23,42,.05)}
-  .tabs a{display:inline-flex;align-items:center;gap:6px}
-  .tabs a img{width:24px;height:24px}
+  .tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:14px}
+  .tabs a{padding:10px 4px 8px;border-radius:16px;background:#fff;color:#4338ca;text-decoration:none;font-size:13px;text-align:center;box-shadow:0 2px 8px rgba(15,23,42,.05)}
+  .tabs a{display:flex;flex-direction:column;align-items:center;gap:4px;white-space:nowrap}
+  .tabs a img{width:36px;height:36px}
   .h3d{display:flex;align-items:center;gap:10px}
-  .h3d img{width:44px;height:44px;filter:drop-shadow(0 4px 8px rgba(79,70,229,.18))}
+  .h3d img{width:44px;height:44px}
   .tabs a.on{background:linear-gradient(135deg,#312e81,#4c1d95);color:#fff}
   .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
   .stat{padding:12px 14px;border-radius:14px;background:linear-gradient(135deg,#eef2ff,#e0e7ff)}
@@ -32,8 +32,8 @@
   th{text-align:left;color:#64748b;font-weight:500;padding:6px 8px;font-size:13px}
   td{padding:8px;border-top:1px solid #eef2f7;vertical-align:top}
   .scroll{overflow-x:auto}
-  .ttchips{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px}
-  .ttchips button{flex:none;font:inherit;font-size:14px;border:0;padding:7px 14px;border-radius:99px;background:linear-gradient(135deg,#eef2ff,#e0e7ff);color:#4338ca;cursor:pointer}
+  .ttchips{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:6px;margin-bottom:10px}
+  .ttchips button{font:inherit;font-size:14px;border:0;padding:8px 2px;white-space:nowrap;border-radius:99px;background:linear-gradient(135deg,#eef2ff,#e0e7ff);color:#4338ca;cursor:pointer}
   .ttchips button.on{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff}
   .ttdn{font-weight:600;margin:12px 0 4px}
   .ttrow{display:flex;gap:12px;align-items:center;padding:10px 12px;border-radius:12px;margin-bottom:6px;background:linear-gradient(135deg,#f8fafc,#f1f5f9)}
@@ -60,7 +60,7 @@
     <a href="/student" class="{{ 'on' if tab=='home' }}"><img src="/static/images/home3d/academic.png" alt="" aria-hidden="true">ภาพรวม</a>
     <a href="/student/attendance" class="{{ 'on' if tab=='attendance' }}"><img src="/static/images/home3d/t_check.png" alt="" aria-hidden="true">เวลาเรียน</a>
     <a href="/student/timetable" class="{{ 'on' if tab=='timetable' }}"><img src="/static/images/home3d/calendar.png" alt="" aria-hidden="true">ตารางเรียน</a>
-    <a href="/student/grades" class="{{ 'on' if tab=='grades' }}"><img src="/static/images/home3d/t_doc.png" alt="" aria-hidden="true">ผลการเรียน</a>
+    <a href="/student/grades" class="{{ 'on' if tab=='grades' }}"><img src="/static/images/home3d/myplans.png" alt="" aria-hidden="true">ผลการเรียน</a>
   </div>
 
   {% if att %}{% set o = att.overall %}
@@ -97,7 +97,7 @@
     <h2 class="h3d"><img src="/static/images/home3d/calendar.png" alt="" aria-hidden="true">ตารางเรียน</h2>
     {% if tt.periods %}
     {% set DN = ['','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์','อาทิตย์'] %}
-    <div class="ttchips">{% for d in tt.days %}<button type="button" data-d="{{ d }}">{{ DN[d] }}</button>{% endfor %}</div>
+    <div class="ttchips">{% for d in tt.days %}<button type="button" data-d="{{ d }}">{{ DN[d]|replace("พฤหัสบดี","พฤหัส")|replace("อาทิตย์","อาทิตย์") }}</button>{% endfor %}</div>
     {% for d in tt.days %}
     <div class="ttday" data-d="{{ d }}">
       <div class="ttdn">{{ DN[d] }}</div>
@@ -126,7 +126,7 @@
 
   {% if grades is defined %}
   <div class="card">
-    <h2 class="h3d"><img src="/static/images/home3d/t_doc.png" alt="" aria-hidden="true">ผลการเรียน</h2>
+    <h2 class="h3d"><img src="/static/images/home3d/myplans.png" alt="" aria-hidden="true">ผลการเรียน</h2>
     {% if grades %}
     <div class="scroll"><table>
       <thead><tr><th>วิชา</th><th>ภาค</th><th>คะแนน</th><th>เกรด</th></tr></thead>
