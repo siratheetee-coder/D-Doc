@@ -56,7 +56,14 @@ def attendance(db, row):
             months.append({"month": r.month, "present": c["/"], "days": days, "c": c, "marks": r.marks or ""})
         days = sum(tot.values())
         pct = round(tot["/"] * 100 / days, 1) if days else None
-        return {"tot": tot, "days": days, "pct": pct, "months": months}
+        # ขาดติดกันล่าสุด (นับจากวันเรียนล่าสุดย้อนกลับ ข้ามวันที่ยังไม่ใช่วันเรียน)
+        seq = [ch for m in months for ch in m["marks"] if ch in "/ปลข"]
+        streak = 0
+        for ch in reversed(seq):
+            if ch != "ข":
+                break
+            streak += 1
+        return {"tot": tot, "days": days, "pct": pct, "months": months, "streak": streak}
 
     overall = summarize([r for r in rows if r.subject_id is None])
     subs = {}

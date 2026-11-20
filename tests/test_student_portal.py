@@ -112,3 +112,14 @@ def test_unlinked_roster_students_get_registry_and_accounts(env):
         rows = s.query(AcadStudent).filter_by(class_id=cid).all()
         assert all(x.student_id for x in rows)
         assert s.query(Student).filter(Student.name.like("%ทดสอบ")).count() >= 2
+
+
+def test_absence_streak_alert_for_parents(env):
+    x = _seed(env)
+    from app.models import AcadStudent
+    from app.services import student_portal as sp
+    with _db() as s:
+        rb = s.query(AcadStudent).filter_by(student_id=x["b"]).first()
+        ra = s.query(AcadStudent).filter_by(student_id=x["a"]).first()
+        assert sp.attendance(s, rb)["overall"]["streak"] == 5
+        assert sp.attendance(s, ra)["overall"]["streak"] == 0     # ขาดแล้วมาเรียนต่อ ไม่นับ

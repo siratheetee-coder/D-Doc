@@ -43,12 +43,13 @@
   .ttp span{font-size:12px;color:#64748b}
   .tts{font-size:16px}
   .g{display:inline-block;min-width:40px;text-align:center;padding:2px 10px;border-radius:99px;background:linear-gradient(135deg,#eef2ff,#e0e7ff);font-weight:600}
+  .alert.danger{background:linear-gradient(135deg,#fef2f2,#fee2e2);color:#b91c1c}
   .alert{padding:12px 14px;border-radius:14px;background:linear-gradient(135deg,#fff7ed,#fef3c7)}
 </style>
 </head>
 <body>
 <div class="top"><div class="in">
-  <div><b style="font-size:18px">{{ name }}</b><br><small>{{ school.name if school else '' }}{% if klass %} ชั้น {{ klass.level }}{{ '/' ~ klass.room if klass.room }} ปีการศึกษา {{ klass.year }}{% endif %}</small></div>
+  <div><b style="font-size:18px">{{ name }}</b><br><small>นักเรียนและผู้ปกครองใช้ไอดีนี้ดูได้</small><br><small>{{ school.name if school else '' }}{% if klass %} ชั้น {{ klass.level }}{{ '/' ~ klass.room if klass.room }} ปีการศึกษา {{ klass.year }}{% endif %}</small></div>
   <span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><a href="/account/password">เปลี่ยนรหัส</a><a href="/logout">ออกจากระบบ</a></span>
 </div></div>
 <div class="wrap">
@@ -74,6 +75,7 @@
       <div class="stat"><span>ป่วย / ลา</span><b>{{ o.tot['ป'] }} / {{ o.tot['ล'] }}</b></div>
       <div class="stat {{ 'warn' if o.tot['ข'] else '' }}"><span>ขาด</span><b>{{ o.tot['ข'] }}</b></div>
     </div>
+    {% if o.streak >= 3 %}<p class="alert danger" style="margin:12px 0 0">ขาดเรียนติดกัน {{ o.streak }} วันล่าสุด ติดต่อครูประจำชั้น</p>{% endif %}
     {% if o.pct is not none and o.pct < 80 %}<p class="alert" style="margin:12px 0 0">เวลาเรียนต่ำกว่า 80% ปรึกษาครูประจำชั้น</p>{% endif %}
     {% if tab == 'attendance' %}
     <div class="scroll" style="margin-top:14px"><table>
