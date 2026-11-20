@@ -100,10 +100,11 @@ def test_single_button_on_procurement_page_and_disburse_guard(env):
         db.close()
     html = env.get(f"/finance/disburse/{mid}").text
     assert "ทำเครื่องหมายว่าจ่ายแล้วก่อนเริ่มใช้ระบบ" in html and "ตัดซ้ำ" in html
-    assert f'action="/finance/disburse/{mid}/post"' in html
+    # แผงจ่ายเงินแบบใหม่ซ่อนปุ่มลงจ่าย ให้ไปตรวจสถานะที่เรื่องพัสดุก่อน (กันตัดเงินซ้ำ)
+    assert f'action="/finance/disburse/{mid}/post"' not in html and f'/procurement/{old1}?keep=1' in html
 
     # มีรายการจ่ายในระบบแล้ว = ทำเครื่องหมายไม่ได้ และหน้าเรื่องพัสดุไม่มีปุ่ม
-    env.post(f"/finance/disburse/{mid}/post")
+    env.post(f"/finance/disburse/{mid}/post", data={"paid_date": f"30/09/{fy - 1}", "confirm_new": "1"})
     db = _db()
     try:
         assert db.query(FinanceTxn).filter_by(disburse_id=mid).count() == 1

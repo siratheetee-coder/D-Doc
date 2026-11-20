@@ -58,7 +58,7 @@ def test_teacher_home_shows_plan_status_and_todos():
         assert "แผนการสอนของฉัน" in html and "ใบลาและขอไปราชการ" in html
         assert "ส่งกลับให้แก้" in html and "แก้ตัวชี้วัด" in html
         assert html.index("แผนถูกส่งกลับให้แก้") < html.index("แผนยังไม่กดส่ง"), "เรื่องด่วนต้องขึ้นก่อน"
-        assert "แผนรอดำเนินการ" in html and "บันทึกหลังสอนค้าง" in html
+        assert "แผนรอดำเนินการ" in html and "บันทึกหลังสอนที่ยังไม่กรอก" in html
     finally:
         for p in db.query(LessonPlan).filter(LessonPlan.person_id == t.id).all():
             db.delete(p)

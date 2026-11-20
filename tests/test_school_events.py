@@ -59,11 +59,14 @@ def test_invalid_activity_preserves_form_and_does_not_change_calendar(env,patch)
 def test_teacher_visibility_and_readonly_home(env,monkeypatch):
  pid,cid,other=add_targets()
  public=make_event(env)
- data=form();data.update(title='ทัศนศึกษาห้องเรา',audience='class',classes=[str(cid)],start_date='18/11/2569',end_date='19/11/2569');own=make_event(env,data)
+ from datetime import timedelta
+ from app.thai_utils import thai_today
+ d0=thai_today();d1=d0+timedelta(days=1)  # กิจกรรมต้องยังไม่ผ่าน ถึงจะขึ้น 'กิจกรรมใกล้ถึง' หน้าหลัก
+ data=form();data.update(title='ทัศนศึกษาห้องเรา',audience='class',classes=[str(cid)],start_date=f'{d0.day:02d}/{d0.month:02d}/{d0.year+543}',end_date=f'{d1.day:02d}/{d1.month:02d}/{d1.year+543}');own=make_event(env,data)
  data=form();data.update(title='กิจกรรมห้องอื่นเท่านั้น',audience='class',classes=[str(other)]);hidden=make_event(env,data)
  data=form();data.update(title='ประชุมระดับ ป.6',audience='level',levels=['ป.6']);level=make_event(env,data)
  as_teacher(monkeypatch,pid)
- page=env.get('/academic/calendar?year=2569&month=11');assert page.status_code==200
+ page=env.get(f'/academic/calendar?year=2569&month={d0.month}');assert page.status_code==200
  assert 'ทัศนศึกษาห้องเรา' in page.text and 'ประชุมระดับ ป.6' in page.text and 'กิจกรรมห้องอื่นเท่านั้น' not in page.text
  assert 'id="se-editor"' not in page.text
  assert env.get(f'/academic/calendar?year=2569&event={hidden}').status_code==404

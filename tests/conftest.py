@@ -41,3 +41,18 @@ def _no_login_throttle():
     _clear_login_throttle()
     yield
     _clear_login_throttle()
+
+
+@pytest.fixture(autouse=True)
+def _capture_dirs(monkeypatch, tmp_path_factory):
+    """บางเทสต์เขียนหน้า HTML ไว้แคปภาพที่โฟลเดอร์จาก env *_CAPTURE
+    ถ้าไม่ได้ตั้งไว้ (รันเทสต์ปกติ) ให้ชี้ไปโฟลเดอร์ชั่วคราว ไม่ให้ตกเพราะ KeyError"""
+    import os
+    names = ("ACADEMIC_HOME_CAPTURE", "FINANCE_DASH_CAPTURE", "DM_UI_CAPTURE", "SHARED_REPORT_CAPTURE",
+             "LEDGER_CAPTURE", "LUNCH_FLOW_CAPTURE", "LUNCH_PICKER_CAPTURE", "PAY_DATE_CAPTURE",
+             "CLAIM_CAPTURE", "PROJECT_DATES_CAPTURE", "QUICK_DATE_CAPTURE", "SCHOOL_EVENTS_CAPTURE")
+    missing = [n for n in names if not os.environ.get(n)]
+    if missing:
+        d = tmp_path_factory.mktemp("capture")
+        for n in missing:
+            monkeypatch.setenv(n, str(d))

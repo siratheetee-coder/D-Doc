@@ -209,7 +209,11 @@ def test_every_placeholder_in_the_templates_is_supplied(agency):
         # ตัวแปรที่เกิดจาก {% for x in ... %} ไม่ได้มาจาก build_context
         # docxtpl เขียนลูปเป็น {%tr for m in ... %} / {%p for ... %} ด้วย
         bound = {"loop"} | set(re.findall(r"\{%[a-z]*-?\s*for\s+([a-z_][a-z0-9_]*)", text))
-        gap = names - ctx - bound
+        extra = set()
+        if p.name == "บันทึกขอใช้งบประมาณ.docx":   # render.py เติม budget_memo_context ให้แม่แบบนี้
+            from app.services.render import budget_memo_context
+            extra = set(budget_memo_context(proc)) | {"finance_officer_text"}
+        gap = names - ctx - bound - extra
         if gap:
             missing[p.name] = sorted(gap)
     assert not missing, missing

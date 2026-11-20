@@ -55,7 +55,7 @@ def test_teacher_sees_only_homeroom_classes(env, monkeypatch):
 
 def test_menu_and_home_card_link_to_it(env):
     html = env.get('/academic').text
-    assert 'class="nav-card" href="/academic/pp7"' in html
+    assert 'class="ah-menu" href="/academic/pp7"' in html
     assert '<a href="/academic/pp7"' in html, 'มีในเมนูข้าง'
 
 

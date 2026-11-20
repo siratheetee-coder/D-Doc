@@ -32,7 +32,8 @@ def make(env):
 def test_hire_mode_explains_round_and_installment(env, make):
     pid, rid = make('hire')
     html = env.get(f'/lunch/{pid}/rounds').text
-    assert 'รอบจัดจ้างทั้งหมด' in html and 'งวดจ่ายเงิน' in html and 'ตัวอย่าง: ภาคเรียนที่ 1' in html
+    # หน้ารายการรอบออกแบบใหม่เป็นการ์ด (c390795) คำอธิบายงวดย้ายไปอยู่หน้ารอบแทน
+    assert 'รอบจัดจ้างทั้งหมด' in html
     assert 'name="period_type"' not in html and 'รายสัปดาห์' not in html, "เลิกให้เลือกรายวัน/สัปดาห์/เดือนแล้ว"
     page = env.get(f'/lunch/round/{rid}/plan').text
     assert 'รอบจัดจ้างที่ 1' in page and 'งวดจ่ายเงินทั้งหมด' in page and 'แบ่งงวดจ่ายเงินอัตโนมัติ' in page
@@ -43,7 +44,7 @@ def test_hire_mode_explains_round_and_installment(env, make):
 def test_modes_without_installments_never_mention_them(env, make, mode, word):
     pid, rid = make(mode)
     html = env.get(f'/lunch/{pid}/rounds').text
-    assert f'{word}ทั้งหมด' in html and 'ไม่มีงวด' in html
+    assert f'{word}ทั้งหมด' in html
     assert 'งวดจ่ายเงิน' not in html
     page = env.get(f'/lunch/round/{rid}/plan').text
     assert f'{word}ที่ 1' in page and 'แบ่งงวดจ่ายเงินอัตโนมัติ' not in page

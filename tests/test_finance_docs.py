@@ -137,7 +137,7 @@ def test_dashboard_has_a_card_for_every_menu_item(env):
     c = env
     html = c.get("/finance").text
     # การ์ดบางใบมี ?year= ต่อท้าย (เช่น บันทึกขอเบิกจ่าย) ต้องนับด้วย ไม่งั้นเทสฟ้องผิด
-    cards = set(re.findall(r'class="nav-card" href="(/finance/[a-z-]+)(?:\?[^"]*)?"', html))
+    cards = set(re.findall(r'class="fd-(?:tool|shortcut)" href="(/finance/[a-z-]+)(?:\?[^"]*)?"', html))
     from lxml import html as html_parser
     sidebar = html_parser.fromstring(html).xpath('//aside[@id="sidebar"]')[0]
     menu = {href.split('?')[0] for href in sidebar.xpath('.//a/@href') if href.startswith('/finance/')}
