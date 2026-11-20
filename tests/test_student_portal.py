@@ -96,3 +96,19 @@ def test_one_student_typo_does_not_lock_school_ip(env):
         _login("nobody.x", "wrong")
     _, r = _login("demo", "Demo!2569")
     assert r.status_code == 303
+
+
+def test_unlinked_roster_students_get_registry_and_accounts(env):
+    from app.models import AcadClass, AcadStudent, Student
+    from app.routers.academic import _acad_year
+    with _db() as s:
+        k = AcadClass(year=_acad_year(s), level="ป.2", room="8"); s.add(k); s.flush()
+        s.add_all([AcadStudent(class_id=k.id, seq=1, student_no="", name="เด็กชายไม่มีเลข ทดสอบ"),
+                   AcadStudent(class_id=k.id, seq=2, student_no="77001", name="เด็กหญิงมีเลข ทดสอบ")])
+        s.commit(); cid = k.id
+    r = env.post(f"/academic/student-accounts/{cid}/create")
+    assert r.status_code == 200 and "77001." in r.text and "เด็กชายไม่มีเลข" in r.text
+    with _db() as s:
+        rows = s.query(AcadStudent).filter_by(class_id=cid).all()
+        assert all(x.student_id for x in rows)
+        assert s.query(Student).filter(Student.name.like("%ทดสอบ")).count() >= 2

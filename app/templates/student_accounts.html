@@ -44,7 +44,7 @@
     <tbody>
     {% for s in students %}{% set a = accs.get(s.student_id) if s.student_id else none %}
     <tr><td>{{ s.seq or '' }}</td><td>{{ s.name }}</td>
-      <td>{% if a %}<code>{{ a.username }}</code>{% elif not s.student_id %}<span class="muted" style="font-size:13px">ยังไม่ผูกทะเบียนนักเรียน</span>{% else %}<span class="muted">ยังไม่มี</span>{% endif %}</td>
+      <td>{% if a %}<code>{{ a.username }}</code>{% elif not s.student_id %}<span class="muted" style="font-size:13px">ยังไม่มี (ระบบผูกทะเบียนนักเรียนให้ตอนสร้าง)</span>{% else %}<span class="muted">ยังไม่มี</span>{% endif %}</td>
       <td>{% if a %}{{ 'ใช้งานได้' if a.active else 'ปิดอยู่' }}{% endif %}</td>
       <td style="white-space:nowrap">{% if a and can_manage %}
         <form method="post" action="/academic/student-accounts/{{ klass.id }}/reset" target="_blank" style="display:inline;margin:0" onsubmit="return confirm('รีเซ็ตรหัสของ {{ s.name }}? รหัสเดิมจะใช้ไม่ได้')"><input type="hidden" name="student_id" value="{{ s.student_id }}"><button class="btn sm gray">รีเซ็ตรหัส</button></form>

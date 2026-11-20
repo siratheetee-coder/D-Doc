@@ -73,7 +73,7 @@ def timetable(db, klass):
     from app.services import timetable_sections as ts
     periods = ts.periods(db, klass.year, level=klass.level)
     cells = {(c.day, c.period_id): c for c in db.query(AcadTimetable).filter_by(class_id=klass.id).all()}
-    days = [d for d in range(1, 8) if any((d, p.id) in cells for p in periods)] or [1, 2, 3, 4, 5]
+    days = sorted({1, 2, 3, 4, 5} | {d for (d, _p) in cells})   # จันทร์-ศุกร์เสมอ + เสาร์/อาทิตย์ถ้ามีคาบ
     return {"periods": periods, "cells": cells, "days": days}
 
 

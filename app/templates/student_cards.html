@@ -3,20 +3,21 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>บัตรล็อกอินนักเรียน {{ label(klass) }}</title>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600&display=swap" rel="stylesheet">
 <style>
   @page{size:A4;margin:10mm}
   *{box-sizing:border-box}
-  body{margin:0;font-family:"TH SarabunPSK",Sarabun,Tahoma,sans-serif;color:#111;background:#f1f5f9}
+  body{margin:0;font-family:Prompt,Tahoma,sans-serif;color:#111;background:#f1f5f9}
   .bar{padding:12px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fff}
-  .bar button{font:inherit;font-size:18px;padding:6px 18px;border:0;border-radius:99px;color:#fff;background:linear-gradient(135deg,#4f46e5,#7c3aed);cursor:pointer}
-  .bar p{margin:0;color:#b91c1c;font-size:17px}
+  .bar button{font:inherit;font-size:15px;padding:6px 18px;border:0;border-radius:99px;color:#fff;background:linear-gradient(135deg,#4f46e5,#7c3aed);cursor:pointer}
+  .bar p{margin:0;color:#b91c1c;font-size:14px}
   .sheet{display:grid;grid-template-columns:1fr 1fr;gap:4mm;padding:4mm;max-width:210mm;margin:0 auto;background:#fff}
   .c{border:1px dashed #94a3b8;border-radius:3mm;padding:3mm 4mm;display:flex;gap:3mm;align-items:center;height:52mm;break-inside:avoid}
   .c img{width:30mm;height:30mm;flex:none}
-  .c .s{font-size:15px;color:#475569;line-height:1.25}
-  .c .n{font-size:19px;font-weight:700;line-height:1.2;margin:1mm 0}
-  .c .k{font-size:15px;color:#475569}
-  .c .v{font-family:Consolas,monospace;font-size:17px;font-weight:700;letter-spacing:.5px}
+  .c .s{font-size:11px;color:#475569;line-height:1.25}
+  .c .n{font-size:15px;font-weight:700;line-height:1.2;margin:1mm 0}
+  .c .k{font-size:11px;color:#475569}
+  .c .v{font-family:Consolas,monospace;font-size:16px;font-weight:700;letter-spacing:.5px}
   @media print{body{background:#fff}.bar{display:none}.sheet{padding:0}}
 </style>
 </head>

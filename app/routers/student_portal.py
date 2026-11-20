@@ -104,6 +104,34 @@ def toggle(request: Request, db: Session = Depends(get_db), on: str = Form("")):
                                                                   else "ปิดบัญชีนักเรียนแล้ว"), status_code=303)
 
 
+def _link_registry(db, k):
+    """นักเรียนที่ครูเพิ่มตรงในห้อง (ยังไม่ผูกทะเบียนกลาง) -> ผูกกับทะเบียน
+    จับคู่ด้วยเลขประจำตัวก่อน ถ้าไม่มีเลข จับด้วยชื่อ+ชั้น ไม่เจอค่อยเพิ่มเข้าทะเบียนให้
+    (บัญชีนักเรียนอ้าง Student.id ซึ่งคงที่ข้ามปีการศึกษา)"""
+    from app.models import Student
+    taken = {s.student_id for s in db.query(AcadStudent).filter(AcadStudent.student_id.isnot(None)).all()}
+    changed = False
+    for s in _class_students(db, k.id):
+        if s.student_id:
+            continue
+        no, name = (s.student_no or "").strip(), (s.name or "").strip()
+        st = None
+        if no:
+            st = db.query(Student).filter(Student.student_no == no).first()
+        if not st and name:
+            st = db.query(Student).filter(Student.name == name, Student.level == k.level).first()
+        if st and st.id in taken:
+            st = None if (no and st.student_no != no) or not no else st
+        if not st:
+            st = Student(name=name or "-", student_no=no, sex=s.sex or "", level=k.level, room=k.room or "")
+            db.add(st); db.flush()
+        s.student_id = st.id
+        taken.add(st.id)
+        changed = True
+    if changed:
+        db.commit()
+
+
 def _cards(request, db, k, cards):
     import base64
     from urllib.parse import quote
@@ -125,6 +153,7 @@ def create(cid: int, request: Request, db: Session = Depends(get_db)):
     k = db.get(AcadClass, cid)
     if not k or not sc.can_homeroom(cid) or not acc.student_portal_allowed(tid):
         return RedirectResponse("/academic/student-accounts", status_code=303)
+    _link_registry(db, k)
     studs = [{"student_id": s.student_id, "student_no": s.student_no, "name": s.name, "level": k.level}
              for s in _class_students(db, cid) if s.student_id]
     cards = acc.create_student_accounts(tid, studs)
