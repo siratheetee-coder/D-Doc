@@ -115,6 +115,7 @@
     <div><h2>ตารางเรียน {{ class_label(c) }}</h2><small>ปีการศึกษา {{ year }}</small></div></div>
   <div class="tv-gridwrap">
   <table class="tv-grid">
+    <colgroup><col class="c-day">{% for p in periods %}<col class="{{ 'c-brk' if p.is_break }}">{% endfor %}</colgroup>
     <thead><tr><th class="tv-dayh">วัน</th>
       {% for p in periods %}<th class="{{ 'brk' if p.is_break }}">{{ p.name }}{% if p.time_label %}<small>{{ p.time_label }}</small>{% endif %}</th>{% endfor %}</tr></thead>
     <tbody>
@@ -316,7 +317,8 @@
 .tv-cardhead .ts-gacts{margin-left:auto}
 .tv-hic{width:34px;height:34px;color:#6366f1}
 .tv-gridwrap{overflow-x:auto;border-radius:16px;background:linear-gradient(135deg,#f5f3ff,#eef2ff);padding:6px}
-table.tv-grid{width:100%;border-collapse:separate;border-spacing:6px}
+table.tv-grid{width:100%;border-collapse:separate;border-spacing:6px;table-layout:fixed;min-width:760px}
+.tv-grid col.c-day{width:84px}.tv-grid col.c-brk{width:76px}
 .tv-grid thead th{font-size:14px;color:#3730a3;padding:6px 4px;min-width:96px;text-align:center;background:none!important;border:0!important}
 .tv-grid tbody th{background:none!important;border:0!important}
 .tv-grid thead th small{display:block;font-size:11.5px;font-weight:400;color:#64748b}
