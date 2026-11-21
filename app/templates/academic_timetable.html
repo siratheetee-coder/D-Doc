@@ -168,7 +168,7 @@
 
 <section class="tv-card">
   <div class="tv-cardhead"><svg class="icon tv-hic"><use href="#ic-edit"/></svg>
-    <div><h2>จัดตาราง {{ class_label(c) }}</h2><small>เลือกวิชาในแต่ละช่อง กดรูปกุญแจเพื่อล็อกคาบ ช่องที่ไม่ลงวิชาเลือก "เว้นว่าง"</small></div>
+    <div><h2>จัดตาราง {{ class_label(c) }}</h2><small>กดช่องเพื่อเลือกวิชา หรือลากวิชาไปวางช่องอื่นเพื่อย้าย/สลับ (มือถือกดค้างแล้วลาก) กดรูปกุญแจเพื่อล็อกคาบ ช่องที่ไม่ลงวิชาเลือก "เว้นว่าง"</small></div>
     <div class="ts-gacts">
       <button type="button" class="tb-btn tb-auto" id="btnGoAuto"><svg class="icon"><use href="#ic-sparkle"/></svg> จัดตารางอัตโนมัติ</button>
       <button type="button" class="tb-btn tb-check" id="btnCheck"><svg class="icon"><use href="#ic-eye"/></svg> ตรวจสอบปัญหา</button>
@@ -396,6 +396,11 @@ table.tv-grid{width:100%;border-collapse:separate;border-spacing:6px;table-layou
 .tv-edit .cell-teacher{font-size:11.5px;color:#475569;margin-top:0;min-height:15px}
 .tv-edit td.tt-cell.locked{outline:2px dashed rgba(71,85,105,.4);outline-offset:-3px}
 .tv-edit td.tt-cell.clash{--cbg:#fee2e2!important;--cbd:#dc2626!important}
+.tv-edit td.tt-cell.dd-src{opacity:.35}
+.tv-edit td.tt-cell.dd-ok{outline:3px solid #10b981;outline-offset:-3px}
+.tv-edit td.tt-cell.dd-warn{outline:3px solid #ef4444;outline-offset:-3px}
+.dd-ghost{position:fixed;z-index:9999;pointer-events:none;padding:8px 14px;border-radius:12px;font-weight:700;font-size:.92rem;color:#1e293b;box-shadow:0 10px 24px rgba(30,40,90,.28);transform:translate(-50%,-60%) rotate(-3deg);white-space:nowrap}
+body.dd-on,body.dd-on *{cursor:grabbing!important;user-select:none!important}
 .tv-edit td.tt-cell.blocked{background:repeating-linear-gradient(135deg,#f8fafc 0 7px,#eef2f6 7px 14px)!important}
 .tv-edit .cell-clash{font-size:11px}
 .tv-edit .tt-cell:has(select option:checked[value=""]) {background:#fff;outline:1.5px dashed #cbd5e1;outline-offset:-2px}
@@ -775,6 +780,80 @@ table.tv-grid{width:100%;border-collapse:separate;border-spacing:6px;table-layou
     o.scrollIntoView({ block: 'center', behavior: 'smooth' });
     o.classList.remove('flash'); void o.offsetWidth; o.classList.add('flash');
   });
+
+  // ลากวางสลับคาบ: เมาส์ลากได้เลย มือถือกดค้างครึ่งวิแล้วลาก
+  // วางบนช่องว่าง = ย้าย วางบนช่องที่มีวิชา = สลับกัน คาบที่ล็อกไว้ลากหรือวางทับไม่ได้
+  (function(){
+    var dd = null;
+    function cellAt(x, y){ var el = document.elementFromPoint(x, y); return el && el.closest('.tv-edit td.tt-cell'); }
+    function keyOf(td){ var m = td.querySelector('select').name.match(/cell_(\d+)_(\d+)/); return m[1] + '_' + m[2]; }
+    function busyAt(v, td){
+      if (!v || v.charAt(0) !== 's') return false;
+      var t = TT_SUBJ_TEACHER[v.slice(1)];
+      return !!(t && t.tid && TT_BUSY[t.tid] && TT_BUSY[t.tid][keyOf(td)]);
+    }
+    function locked(td){ return ttLockInput(td).value === '1'; }
+    function clear(){ ttCells().forEach(function(c){ c.classList.remove('dd-ok', 'dd-warn', 'dd-src'); }); }
+    function begin(){
+      dd.on = true; document.body.classList.add('dd-on'); dd.src.classList.add('dd-src');
+      var sel = dd.src.querySelector('select');
+      dd.ghost = document.createElement('div'); dd.ghost.className = 'dd-ghost';
+      dd.ghost.textContent = (sel.selectedOptions[0] && (sel.selectedOptions[0].dataset.cpLabel || sel.selectedOptions[0].textContent)) || '';
+      dd.ghost.style.background = getComputedStyle(dd.src).getPropertyValue('--cbg') || '#fff';
+      document.body.appendChild(dd.ghost); move(dd.x, dd.y);
+      if (navigator.vibrate && dd.touch) navigator.vibrate(15);
+    }
+    function move(x, y){
+      dd.ghost.style.left = x + 'px'; dd.ghost.style.top = y + 'px';
+      var t = cellAt(x, y);
+      ttCells().forEach(function(c){ c.classList.remove('dd-ok', 'dd-warn'); });
+      dd.tgt = null;
+      if (!t || t === dd.src || locked(t)) return;
+      dd.tgt = t;
+      var a = dd.src.querySelector('select').value, b = t.querySelector('select').value;
+      t.classList.add(busyAt(a, t) || busyAt(b, dd.src) ? 'dd-warn' : 'dd-ok');
+    }
+    function end(drop){
+      if (!dd) return;
+      if (dd.timer) clearTimeout(dd.timer);
+      if (dd.on){
+        if (drop && dd.tgt){
+          var s1 = dd.src.querySelector('select'), s2 = dd.tgt.querySelector('select'), v1 = s1.value, v2 = s2.value;
+          s1.value = v2; s2.value = v1;
+          s1.dispatchEvent(new Event('change', { bubbles: true })); s2.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        dd.ghost.remove(); document.body.classList.remove('dd-on'); clear();
+        // กันคลิกหลังปล่อยไปเปิดรายการเลือกวิชา
+        window.addEventListener('click', function k(e){ e.stopPropagation(); e.preventDefault(); window.removeEventListener('click', k, true); }, true);
+        setTimeout(function(){ document.activeElement && document.activeElement.blur && document.activeElement.blur(); }, 0);
+      }
+      else if (drop && !dd.touch){ var inp = dd.src.querySelector('.tt-in input:not([type=hidden])'); if (inp) inp.focus(); }
+      dd = null;
+    }
+    document.querySelector('.tv-edit').addEventListener('pointerdown', function(e){
+      var td = e.target.closest('td.tt-cell');
+      if (!td || e.button > 0 || e.target.closest('.tt-lock') || locked(td) || !td.querySelector('select').value) return;
+      dd = { src: td, x: e.clientX, y: e.clientY, touch: e.pointerType !== 'mouse', on: false };
+      // ไม่ให้ช่องค้นหาโฟกัส/เลือกข้อความตอนกด (ไม่งั้นเบราว์เซอร์ลากข้อความแทน) กดแล้วปล่อยเฉยๆ ค่อยเปิดรายการเลือกวิชา
+      if (!dd.touch) e.preventDefault();
+      if (dd.touch) dd.timer = setTimeout(function(){ if (dd) begin(); }, 450);
+    });
+    window.addEventListener('pointermove', function(e){
+      if (!dd) return;
+      var far = Math.abs(e.clientX - dd.x) + Math.abs(e.clientY - dd.y) > 8;
+      if (!dd.on){
+        if (dd.touch){ if (far) end(false); return; }   // มือถือขยับก่อนครบเวลา = เลื่อนจอ ไม่ใช่ลาก
+        if (!far) return;
+        begin();
+      }
+      e.preventDefault(); move(e.clientX, e.clientY);
+    });
+    // มือถือ: ระหว่างลาก ห้ามจอเลื่อน
+    window.addEventListener('touchmove', function(e){ if (dd && dd.on) e.preventDefault(); }, { passive: false });
+    window.addEventListener('pointerup', function(){ end(true); });
+    window.addEventListener('pointercancel', function(){ if (dd && !dd.on) end(false); });
+    document.querySelector('.tv-edit').addEventListener('contextmenu', function(e){ if (dd && dd.on) e.preventDefault(); });
+  })();
 
   // ล็อกคาบ
   function ttSetLock(td, on){
