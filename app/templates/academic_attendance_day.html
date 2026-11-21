@@ -63,7 +63,7 @@
           <td>{{ s.name | notitle }}</td>
           {% for d in open_days %}
           <td class="{{ 'd-today' if d == until_day and until_day < 31 }}{{ ' d-future' if d > until_day }}" style="padding:3px 2px;">
-            <button type="button" class="mk" data-mk data-day="{{ d }}">{{ mk.get(d, '') }}</button>
+            <button type="button" class="mk" data-mk data-day="{{ d }}" aria-label="{{ s.name }} วันที่ {{ d }}">{{ mk.get(d, '') }}</button>
             <input type="hidden" name="d_{{ s.id }}_{{ d }}" value="{{ mk.get(d, '') }}">
           </td>
           {% endfor %}

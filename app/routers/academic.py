@@ -3112,6 +3112,12 @@ async def calendar_save_all(request: Request, db: Session = Depends(get_db), yea
 
 
 # ---------------- เวลาเรียน (สรุปรายเดือน + เช็กชื่อรายวัน) ----------------
+def _today_wd():
+    """วันในสัปดาห์ของวันนี้ตามเวลาไทย (จันทร์=1) ใช้เลือกวันที่แสดงบนมือถือในหน้าตารางเรียน"""
+    from app.thai_utils import thai_today
+    return thai_today().isoweekday()
+
+
 def _today_month():
     from app.thai_utils import thai_today
     return thai_today().month
@@ -3707,6 +3713,7 @@ def timetable_page(request: Request, db: Session = Depends(get_db),
         "period_entered":getattr(request.state,'period_entered',{}),
         "term_label": term_label,
         "period_gaps": _period_gaps(periods),
+        "today_wd": _today_wd(),
         "opt_names": ({f"s{x.id}": x.name for x in db.query(AcadSubject).filter_by(year=c.year, level=c.level).all()} if c else {}),
     })
 

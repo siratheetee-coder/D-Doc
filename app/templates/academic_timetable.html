@@ -134,9 +134,9 @@
 
   {# มือถือ: ดูทีละวัน #}
   <div class="tv-days">
-    <div class="tv-chips">{% for dnum, dname in days %}<button type="button" data-d="{{ dnum }}">{{ DN.get(dnum, dname) }}</button>{% endfor %}</div>
+    {% set dnums = days|map(attribute=0)|list %}{% set show_d = today_wd if today_wd in dnums else (dnums[0] if dnums else 1) %}<div class="tv-chips">{% for dnum, dname in days %}<button type="button" data-d="{{ dnum }}"{% if dnum == show_d %} class="on"{% endif %}>{{ DN.get(dnum, dname) }}</button>{% endfor %}</div>
     {% for dnum, dname in days %}
-    <div class="tv-day" data-d="{{ dnum }}">
+    <div class="tv-day" data-d="{{ dnum }}"{% if dnum != show_d %} hidden{% endif %}>
       <h3><svg class="icon"><use href="#ic-calendar"/></svg> วัน{{ dname }}</h3>
       {% for p in periods %}{% set cell = cells.get(dnum, {}).get(p.id) %}
       {% if p.is_break %}<div class="tv-row brk">🍴 {{ p.name }} <small>{{ p.time_label }}</small></div>
@@ -147,7 +147,7 @@
     </div>
     {% endfor %}
   </div>
-  <div class="tv-legend" id="tvLegend"></div>
+  <div class="tv-legend" id="tvLegend" style="min-height:28px"></div>
 </section>
 
 {% if can_edit %}

@@ -16,13 +16,13 @@
 <div class="card bh-tools">
   <form method="get" action="/general/behavior" class="bh-pick">
     <label>ห้อง</label>
-    <select name="cid" onchange="this.form.submit()">
+    <select name="cid" onchange="this.form.submit()" aria-label="เลือกห้อง">
       {% for k in classes %}<option value="{{ k.id }}" {{ 'selected' if c and k.id == c.id }}>{{ class_label(k) }}{{ ' (ห้องของฉัน)' if k.id in mine_ids }}</option>{% endfor %}
     </select>
   </form>
   <div class="bh-find">
     <label>ค้นหานักเรียนทั้งโรงเรียน</label>
-    <select id="bhFind" data-combo data-combo-placeholder="พิมพ์ชื่อหรือเลขประจำตัว">
+    <select id="bhFind" aria-label="ค้นหานักเรียน" data-combo data-combo-placeholder="พิมพ์ชื่อหรือเลขประจำตัว">
       <option value=""></option>
       {% for s in students %}<option value="{{ s.id }}" data-cp-sub="{{ s.cls }}">{{ s.name }}{% if s.no %} ({{ s.no }}){% endif %}</option>{% endfor %}
     </select>
@@ -40,7 +40,7 @@
   <div class="bh-grid">
     {% for r in rows %}
     <div class="bh-card lv-{{ r.level }}">
-      <label class="bh-chk"><input type="checkbox" value="{{ r.sid }}" data-name="{{ r.name }}"></label>
+      <label class="bh-chk"><input type="checkbox" value="{{ r.sid }}" data-name="{{ r.name }}" aria-label="เลือก {{ r.name }}"></label>
       <a class="bh-name" href="/general/behavior/s/{{ r.sid }}"><small>{{ r.seq }}</small>{{ r.name }}</a>
       <b class="bh-score">{{ r.score }}</b>
       <i class="bh-bar"><i style="width:{{ [[r.score / bst.full * 100, 0]|max, 100]|min }}%"></i></i>

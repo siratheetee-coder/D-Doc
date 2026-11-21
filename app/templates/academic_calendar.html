@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}ปฏิทินโรงเรียน{% endblock %}
 {% block content %}
+<link rel="stylesheet" href="/static/school_calendar_events.css?v=3">
 {% if request.url.path.startswith('/settings/') and not request.session.get('person_id') %}{% if calendar_view=='days' %}{% include '_settings_tabs.html' %}{% else %}<a class="se-settings-back" href="/settings">← ตั้งค่าโรงเรียน</a>{% endif %}{% endif %}
 <div class="se-page">
 <header class="se-heading"><div><h1><img src="/static/images/home3d/calendar.png" width="44" height="44" alt=""> ปฏิทินโรงเรียน</h1><p>วันเรียน วันหยุด และกิจกรรม ใช้ร่วมกันทั้งโรงเรียน</p></div><div class="se-heading-actions"><form method="get" action="{{ activity_calendar.base }}"><label class="se-sr" for="se-year">ปีการศึกษา</label><select name="year" id="se-year" onchange="submitReplace(this.form)">{% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>ปีการศึกษา {{ y }}</option>{% endfor %}</select><input type="hidden" name="view" value="{{ calendar_view }}"><noscript><button class="btn">เลือกปี</button></noscript></form>{% if activity_calendar.can_edit and calendar_view=='events' %}<button type="button" class="btn" data-event-new><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มกิจกรรม</button>{% endif %}</div></header>
@@ -13,6 +14,5 @@
 <div {% if calendar_view!='events' %}hidden{% endif %}>
 {% include 'school_calendar_events.html' %}
 </div></div>
-<link rel="stylesheet" href="/static/school_calendar_events.css?v=3">
 <script src="/static/school_calendar_events.js?v=1" defer></script>
 {% endblock %}
