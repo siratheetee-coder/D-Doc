@@ -42,8 +42,8 @@ def _included_files(data: Path):
             continue
         if str(rel) == "school.db":          # ไฟล์ DB เดิมก่อน multi-tenant (ย้ายไป schools/ แล้ว) ไม่ต้องสำรอง
             continue
-        if p.suffix == ".shm" or p.name == "_restore.zip":
-            continue
+        if p.name.endswith(("-shm", "-wal", "-journal")) or p.suffix == ".shm" or p.name == "_restore.zip":
+            continue            # ข้อมูลใน -wal ติดไปกับ snapshot ของ .db แล้ว
         yield p, rel
 
 
@@ -54,6 +54,11 @@ def _fingerprint(data: Path) -> str:
         try:
             st = p.stat()
             h.update(f"{rel}|{st.st_size}|{int(st.st_mtime)}".encode())
+            if p.suffix == ".db":       # ข้อมูลใหม่อาจอยู่แค่ใน -wal (stat ไม่เปิดไฟล์ ปลอดภัย)
+                w = p.with_name(p.name + "-wal")
+                if w.exists():
+                    sw = w.stat()
+                    h.update(f"{rel}-wal|{sw.st_size}|{int(sw.st_mtime)}".encode())
         except OSError:
             pass
     return h.hexdigest()
@@ -111,9 +116,19 @@ def _make_zip() -> Path:
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
     out = _backups_dir() / f"ddoc-backup-{ts}.zip"
     n = 0
-    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+    import tempfile
+    from app.services.db_snapshot import snapshot
+    with tempfile.TemporaryDirectory(prefix="ddoc-zip-") as tmpd,             zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         for p, rel in _included_files(data):
-            z.write(p, rel)
+            if p.suffix == ".db":
+                # ห้าม z.write ฐานที่แอปเปิดอยู่ตรง ๆ: เปิด/ปิดไฟล์เองในโปรเซสแอป = ล็อก SQLite หลุด
+                # โปรเซสอื่นลบ -wal ได้ (ต้นเหตุ 26 ต.ค./14 พ.ย.) และได้ข้อมูลไม่ครบ ดู db_snapshot.py
+                tmp = Path(tmpd) / f"{n}.db"
+                snapshot(p, tmp)
+                z.write(tmp, rel)
+                tmp.unlink()
+            else:
+                z.write(p, rel)
             n += 1
     print(f"[backup {ts}] {n} ไฟล์ -> {out.name} ({out.stat().st_size // 1024} KB)")
     return out

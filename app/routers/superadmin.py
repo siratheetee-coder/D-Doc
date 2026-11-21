@@ -679,6 +679,33 @@ def finance_health_all_run():
     return RedirectResponse("/admin-console/finance-health", status_code=303)
 
 
+@router.get("/admin-console/jobs", response_class=HTMLResponse)
+def jobs_page(request: Request, show: str = ""):
+    """งานอัตโนมัติรายวัน: เปิด/ปิดทีละงาน + ดูผลก่อน (ไม่ทำจริง) + รันเลย"""
+    from app.services import jobs
+    return templates.TemplateResponse("superadmin_jobs.html", {
+        "request": request, "jobs": jobs.JOBS, "st": jobs.load_state(), "show": show,
+        "wal_missing": jobs.missing_wal(),
+        "admin_name": request.session.get("name", "ผู้ดูแลระบบ"),
+    })
+
+
+@router.post("/admin-console/jobs/{key}")
+def jobs_action(key: str, act: str = Form("")):
+    from app.services import jobs
+    if key not in jobs.JOBS:
+        raise HTTPException(404)
+    if act == "dry":
+        jobs.run_job(key, dry_run=True)
+        return RedirectResponse(f"/admin-console/jobs?show={key}-dry#{key}", status_code=303)
+    if act == "run":
+        jobs.run_job(key, dry_run=False)
+        return RedirectResponse(f"/admin-console/jobs?show={key}-run#{key}", status_code=303)
+    if act in ("on", "off"):
+        jobs.set_enabled(key, act == "on")
+    return RedirectResponse(f"/admin-console/jobs#{key}", status_code=303)
+
+
 @router.get("/admin-console/usage", response_class=HTMLResponse)
 def usage_page(request: Request, day: str | None = None, days: int = 7):
     """ใครใช้ระบบบ้าง ในช่วงที่เลือก (วันนี้ / 7 / 30 / 90 วัน หรือเจาะวันเดียว)

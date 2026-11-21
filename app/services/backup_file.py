@@ -44,7 +44,8 @@ def _sign(meta: dict) -> str:
 
 def build(tenant_id, school_name: str, db_path, users: list) -> bytes:
     """สร้างไฟล์สำรอง .zip (ข้อมูลทุกงาน + บัญชีผู้ใช้) พร้อม meta ที่เซ็นแล้ว"""
-    db_bytes = open(db_path, "rb").read()
+    from app.services.db_snapshot import snapshot_bytes
+    db_bytes = snapshot_bytes(db_path)     # ห้าม open() ฐานที่แอปเปิดอยู่ ดู db_snapshot.py
     meta = {"format": FORMAT, "version": VERSION, "created_at": datetime.now().isoformat(timespec="seconds"),
             "school_name": school_name or "", "tenant_id": tenant_id, "accounts": len(users),
             "db_sha256": hashlib.sha256(db_bytes).hexdigest()}

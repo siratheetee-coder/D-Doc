@@ -165,10 +165,12 @@ class MemberNoticeTests(unittest.TestCase):
 
 
 class WiringTests(unittest.TestCase):
-    def test_cron_runs_it_every_morning_at_eight(self):
+    def test_runs_in_app_every_morning_at_eight(self):
+        # ย้ายจาก cron (โปรเซสแยก) เข้าแอปแล้ว ดู app/services/jobs.py
+        from app.services import jobs
+        self.assertEqual(jobs.JOBS['member_notice'][1], '08:00')
         sh = (ROOT / 'deploy/setup-cron.sh').read_text(encoding='utf-8')
-        self.assertIn('0 8 * * *', sh)
-        self.assertIn('app.services.member_notice', sh)
+        self.assertNotIn('-m app.services.member_notice', sh)
 
     def test_column_is_migrated_for_existing_installs(self):
         src = (ROOT / 'app/accounts.py').read_text(encoding='utf-8')

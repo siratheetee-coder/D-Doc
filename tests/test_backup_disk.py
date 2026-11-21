@@ -17,7 +17,8 @@ import pytest
 @pytest.fixture()
 def bk(monkeypatch):
     tmp = pathlib.Path(tempfile.mkdtemp())
-    (tmp / "accounts.db").write_bytes(b"x" * 1024)
+    import sqlite3
+    c = sqlite3.connect(tmp / "accounts.db"); c.execute("CREATE TABLE t(x)"); c.commit(); c.close()
     import app.services.backup as backup
     monkeypatch.setattr(backup, "get_data_dir", lambda: tmp)
     monkeypatch.setattr(backup, "_s3", lambda: (None, None, "ไม่ได้ตั้งค่า S3"))

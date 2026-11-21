@@ -450,6 +450,21 @@ def _start_auto_backup():
 _start_auto_backup()
 
 
+def _start_jobs():
+    """งานอัตโนมัติรายวัน (แทน cron แยกโปรเซส) + ตัวเฝ้า -wal ดู app/services/jobs.py"""
+    try:
+        from app.services import jobs
+        jobs.start()
+    except Exception as e:  # noqa: BLE001
+        try:
+            print("[jobs] start failed:", repr(e))
+        except Exception:  # noqa: BLE001
+            pass
+
+
+_start_jobs()
+
+
 def _prune_audit_log():
     """ตัดบันทึกการใช้งานที่เก่าเกินกำหนดทิ้ง (ทำตอนสตาร์ท - ไม่ต้องตั้ง cron เพิ่ม)
     PDPA: log เป็นข้อมูลส่วนบุคคลด้วย จึงไม่ควรเก็บไว้นานเกินจำเป็น"""

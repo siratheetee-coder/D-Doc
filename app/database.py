@@ -724,7 +724,8 @@ def make_backup_copy(label: str = "auto") -> Path:
     _, db_path = _current_engine_path()
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
     dest = backups_dir() / f"school-{label}-{ts}.db"
-    shutil.copy2(db_path, dest)
+    from app.services.db_snapshot import snapshot   # ห้าม shutil.copy ฐานที่เปิดอยู่ (ล็อกหลุด -wal หาย)
+    snapshot(db_path, dest)
     return dest
 
 
@@ -735,8 +736,10 @@ def restore_db(data: bytes) -> None:
     sid = current_school_id.get()
     db_path = school_db_path(sid)
     dispose_engine(sid)          # ปิด+ลบ engine ที่แคชไว้ ก่อนเขียนทับ
-    with open(db_path, "wb") as f:
-        f.write(data)
+    # เขียนทับผ่าน backup API ของ SQLite (เดิม open("wb") ทับไฟล์ตรง ๆ: worker อื่นที่เปิดฐานอยู่
+    # ยังมี -wal เก่า ข้อมูลเก่าใหม่ปนกันได้ และล็อกของโปรเซสนี้หลุด)
+    from app.services.db_snapshot import restore_into
+    restore_into(db_path, data)
 
 
 def current_db_path() -> Path:

@@ -49,17 +49,15 @@ if [ "${1:-}" = "--remove" ]; then
   exit 0
 fi
 
+# งานรายวันที่เปิดฐานข้อมูล (retention/trial_notice/member_notice/finance_health) ย้ายไปรันในแอปแล้ว
+# (app/services/jobs.py) รันซ้ำสคริปต์นี้ = ลบบรรทัดเก่า รวมถึงบรรทัด #PAUSED ที่มีป้าย ddoc-auto ออกให้
 # งานที่เปิดฐานข้อมูลต้องรันด้วยผู้ใช้ ddoc เสมอ: ถ้า root เปิดฐานโหมด WAL ตอนที่แอปไม่ได้เปิดค้างไว้
 # จะได้ไฟล์ -wal/-shm ของ root แอปเปิดฐานไม่ได้ ขึ้น disk I/O error ตลอดช่วงนั้น (เจอจริง ต.ค.-พ.ย. 2569)
 NEW="$(cat <<EOF
 $CURRENT
 0 2 * * * $BACKUP_SH >> /var/log/ddoc-backup.log 2>&1 $MARK
 */15 * * * * $HEALTH_SH >> /var/log/ddoc-health.log 2>&1 $MARK
-30 3 * * * runuser -u ddoc -- bash -c "cd $APP_DIR && $APP_DIR/.venv/bin/python -m app.services.retention" >> /var/log/ddoc-retention.log 2>&1 $MARK
-0 9 * * * runuser -u ddoc -- bash -c "cd $APP_DIR && $APP_DIR/.venv/bin/python -m app.services.trial_notice" >> /var/log/ddoc-trial-notice.log 2>&1 $MARK
-0 8 * * * runuser -u ddoc -- bash -c "cd $APP_DIR && $APP_DIR/.venv/bin/python -m app.services.member_notice" >> /var/log/ddoc-member-notice.log 2>&1 $MARK
 0 4 1 * * $APP_DIR/deploy/restore-drill.sh >> /var/log/ddoc-restore-drill.log 2>&1 $MARK
-0 5 * * * runuser -u ddoc -- bash -c "cd $APP_DIR && nice -n 19 $APP_DIR/.venv/bin/python -m app.services.finance_health" >> /var/log/ddoc-finance-health.log 2>&1 $MARK
 EOF
 )"
 
@@ -68,11 +66,10 @@ printf '%s\n' "$NEW" | sed '/^$/d' | crontab -
 echo "ติดตั้ง cron เรียบร้อย:"
 echo "  - สำรองข้อมูล      ทุกวันตี 2      -> /var/log/ddoc-backup.log"
 echo "  - ตรวจสุขภาพระบบ  ทุก 15 นาที    -> /var/log/ddoc-health.log"
-echo "  - ลบข้อมูลที่ไม่ใช้งาน ทุกวัน ตี 3:30 -> /var/log/ddoc-retention.log"
-echo "  - อีเมลเตือนต่ออายุ   ทุกวัน 8 โมง -> /var/log/ddoc-member-notice.log"
-echo "  - อีเมลเตือนทดลองใช้  ทุกวัน 9 โมง -> /var/log/ddoc-trial-notice.log"
 echo "  - ซ้อมกู้ข้อมูล (ไม่แตะข้อมูลจริง) วันที่ 1 ทุกเดือน ตี 4 -> /var/log/ddoc-restore-drill.log"
-echo "  - ตรวจข้อมูลการเงินทุกโรงเรียน (ไม่แก้ข้อมูล) ทุกวัน ตี 5 -> /var/log/ddoc-finance-health.log"
+echo ""
+echo "งานรายวัน (เตือนทดลองใช้/ต่ออายุ ล้างข้อมูลหมดอายุ ตรวจการเงิน) ย้ายไปรันในแอปแล้ว"
+echo "  เปิด/ปิดและดูผลก่อนที่ /admin-console/jobs (ห้ามรันเป็นโปรเซสแยกจาก cron อีก)"
 echo ""
 crontab -l | grep "$MARK"
 echo ""
@@ -82,4 +79,4 @@ echo "  sudo $BACKUP_SH"
 echo ""
 echo "ดูไฟล์สำรองที่กู้ได้:  sudo $APP_DIR/deploy/restore.sh --list"
 echo "ดูว่าจะลบโรงเรียนไหนบ้าง (ไม่แตะข้อมูลจริง):"
-echo "  cd $APP_DIR && sudo -u ddoc $APP_DIR/.venv/bin/python -m app.services.retention --dry-run"
+echo "  เปิด /admin-console/jobs แล้วกด ดูก่อน (ไม่ทำจริง) ที่งานล้างข้อมูล"
