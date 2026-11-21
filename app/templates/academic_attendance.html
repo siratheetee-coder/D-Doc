@@ -168,8 +168,8 @@
     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:12px;">
       <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกเวลาเรียน</button>
       <button class="btn green" type="submit" formaction="/academic/attendance/fill-year" formnovalidate
-              onclick="return confirm('ทำเครื่องหมายว่านักเรียนทุกคนมาเรียนครบทุกวันเปิดเรียนทั้งปี?\n(เดือนที่ตั้งปฏิทินไว้จะเช็กชื่อรายวันให้ครบ ข้อมูลเช็กชื่อรายวันเดิมจะถูกแทนที่)');">
-        ✔ ทุกคนมาเรียนทุกวัน</button>
+              onclick="return confirm('ใส่ มา ให้ทุกคน ทุกวันเปิดเรียนจนถึงวันนี้? \n(วันที่เช็กไว้แล้ว เช่น ขาด หรือ ลา จะไม่ถูกเปลี่ยน วันที่ยังไม่ถึงจะไม่ถูกใส่)');">
+        ✔ ทุกคนมาเรียนถึงวันนี้</button>
     </div>
   </form>
   {% else %}

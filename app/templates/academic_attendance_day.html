@@ -1,5 +1,14 @@
 {% extends "base.html" %}
-{% block title %}เช็กชื่อ {{ month_name }}{% endblock %}
+{% block title %}เช็กชื่อ {{ month_name }}<style>
+.mnav{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#eef2ff,#e0e7ff);color:#4338ca;text-decoration:none;font-size:18px;font-weight:700}
+#dayTable .d-today{background:linear-gradient(180deg,#ede9fe,#f5f3ff)}
+#dayTable .d-future{opacity:.45}
+.today-tag{display:block;font-size:9px;color:#fff;background:linear-gradient(135deg,#7c3aed,#ec4899);border-radius:6px;padding:1px 4px;margin-bottom:2px}
+</style>
+<script>
+document.addEventListener('DOMContentLoaded',function(){var t=document.querySelector('#dayTable th.d-today');if(!t)return;var w=t.closest('.table-wrap');if(w)w.scrollLeft=Math.max(0,t.offsetLeft-w.clientWidth/2);});
+</script>
+{% endblock %}
 {% block content %}
 <div class="hero">
   <div>
@@ -21,7 +30,7 @@
 {% else %}
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-    <h2 style="margin:0;">{{ month_name }} <span class="muted" style="font-size:15px;">เปิดเรียน {{ open_days|length }} วัน {{ students|length }} คน</span></h2>
+    <h2 style="margin:0; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">{% set pv, nx = mnav %}{% if pv %}<a class="mnav" href="/academic/attendance?cid={{ c.id }}&month={{ pv[0] }}&mode={{ mode }}{% if by_subj and subj %}&sid={{ subj.id }}{% endif %}" title="{{ pv[1] }}">‹</a>{% endif %}{{ month_name }}{% if nx %}<a class="mnav" href="/academic/attendance?cid={{ c.id }}&month={{ nx[0] }}&mode={{ mode }}{% if by_subj and subj %}&sid={{ subj.id }}{% endif %}" title="{{ nx[1] }}">›</a>{% endif %} <span class="muted" style="font-size:15px;">เปิดเรียน {{ open_days|length }} วัน {{ students|length }} คน</span></h2>
     <div class="attn-actions" style="display:flex; gap:8px; flex-wrap:wrap;">
       <button class="btn green" type="button" onclick="allPresent()"><svg class="icon"><use href="#ic-check"/></svg> {{ "ทุกคนมาถึงวันนี้" if until_day and until_day < 31 else "ทุกคนมาทุกวัน" }}</button>
       <button class="btn red" type="button" onclick="clearAll()">ล้างข้อมูล</button>
@@ -43,7 +52,7 @@
     <table id="dayTable">
       <thead><tr>
         <th>เลขที่</th><th>ชื่อ-นามสกุล</th>
-        {% for d in open_days %}<th class="center" style="font-size:11px; padding:5px 2px;">
+        {% for d in open_days %}<th class="center{{ ' d-today' if d == until_day and until_day < 31 }}{{ ' d-future' if d > until_day }}" style="font-size:11px; padding:5px 2px;">{% if d == until_day and until_day < 31 %}<b class="today-tag">วันนี้</b>{% endif %}
           <i style="display:block; font-style:normal; font-size:9.5px; color:var(--muted);">{{ weekdays[d] }}</i>{{ d }}
           <button type="button" class="colmk" onclick="colPresent({{ d }})" title="ทุกคนมา วัน{{ weekdays[d] }}ที่ {{ d }}">มา</button></th>{% endfor %}
         <th class="center">มา</th><th class="center">ป่วย</th><th class="center">ลา</th>
@@ -56,7 +65,7 @@
           <td>{{ s.seq or '' }}</td>
           <td>{{ s.name | notitle }}</td>
           {% for d in open_days %}
-          <td style="padding:3px 2px;">
+          <td class="{{ 'd-today' if d == until_day and until_day < 31 }}{{ ' d-future' if d > until_day }}" style="padding:3px 2px;">
             <button type="button" class="mk" data-mk data-day="{{ d }}">{{ mk.get(d, '') }}</button>
             <input type="hidden" name="d_{{ s.id }}_{{ d }}" value="{{ mk.get(d, '') }}">
           </td>

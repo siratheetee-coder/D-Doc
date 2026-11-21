@@ -3097,6 +3097,15 @@ async def calendar_save_all(request: Request, db: Session = Depends(get_db), yea
 
 
 # ---------------- เวลาเรียน (สรุปรายเดือน + เช็กชื่อรายวัน) ----------------
+def _month_nav(month):
+    """(เดือนก่อน, เดือนถัดไป) ตามลำดับปีการศึกษา ไม่มี = None"""
+    order = [m for m, _ in TH_MONTHS]
+    i = order.index(month)
+    prev = order[i - 1] if i > 0 else None
+    nxt = order[i + 1] if i + 1 < len(order) else None
+    return ((prev, TH_MONTH_FULL[prev]) if prev else None, (nxt, TH_MONTH_FULL[nxt]) if nxt else None)
+
+
 def _mark_until(year_be, month):
     """ปุ่ม "ทุกคนมาทุกวัน" ใส่ได้ถึงวันไหน: เดือนนี้ = ถึงวันนี้ · เดือนที่ยังไม่ถึง = 0 · เดือนที่ผ่านแล้ว = ทั้งเดือน"""
     from app.thai_utils import thai_today
@@ -3193,6 +3202,8 @@ def attendance_page(request: Request, db: Session = Depends(get_db),
             "weekdays": wd, "marks": marks, "states": MARK_STATES, "blank": MARK_BLANK,
             "by_subj": by_subj, "subj": subj, "home_pick": home_pick, "mode": mode,
             "until_day": _mark_until(y, month),
+            # ปุ่มเดือนก่อน/ถัดไป ตามลำดับปีการศึกษา (พ.ค. -> เม.ย.)
+            "mnav": _month_nav(month),
         })
 
     # ---- โหมดสรุปรายเดือน ----
@@ -3389,12 +3400,16 @@ async def attendance_fill_year(request: Request, db: Session = Depends(get_db),
     cal = {r.month: parse_days_csv(r.days_csv)
            for r in db.query(AcadCalendar).filter_by(year=c.year).all()}
     # จำนวนวันเปิดเรียนต่อเดือน: ใช้ปฏิทินก่อน ไม่มีก็ใช้ค่าที่ครูพิมพ์ในฟอร์ม
-    nday, marks_by_month = {}, {}
+    # เติมได้ถึงวันนี้เท่านั้น (เดือนที่ยังไม่ถึงไม่แตะ) และไม่ทับวันที่เช็กไว้แล้ว เช่น ขาด/ลา
+    nday, fill_days = {}, {}
     for mnum, _ in TH_MONTHS:
         days = cal.get(mnum) or []
+        until = _mark_until(c.year, mnum)
         if days:
             nday[mnum] = len(days)
-            marks_by_month[mnum] = build_marks({d: "/" for d in days})
+            fill_days[mnum] = [d for d in days if d <= until]
+        elif not until:
+            continue
         else:
             typed = _to_int(form.get(f"open_{mnum}", ""), None)
             if typed:
@@ -3418,21 +3433,30 @@ async def attendance_fill_year(request: Request, db: Session = Depends(get_db),
             .filter(AcadStudent.class_id == c.id).all()}
     total = sum(nday.values())
     for s in c.students:
+        tally = {"/": 0, "ป": 0, "ล": 0, "ข": 0}
         for mnum, n in nday.items():
             row = cura.get((s.id, mnum))
             if not row:
                 row = AcadAttendance(acad_student_id=s.id, month=mnum, subject_id=att_sid)
                 db.add(row)
-            if mnum in marks_by_month:               # เดือนมีปฏิทิน -> เขียนมาร์ครายวันครบ
-                row.marks = marks_by_month[mnum]
-            row.present = n
+            if mnum in fill_days:                    # เดือนมีปฏิทิน -> เติม "มา" เฉพาะวันที่ยังว่าง
+                mk = parse_marks(row.marks)
+                for d in fill_days[mnum]:
+                    mk.setdefault(d, "/")
+                row.marks = build_marks(mk)
+                cnt = count_marks(row.marks)
+                row.present = cnt["/"]
+            else:
+                cnt = {"/": n, "ป": 0, "ล": 0, "ข": 0}
+                row.present = n
+            for k in tally: tally[k] += cnt.get(k, 0)
         e = cure.get(s.id)
         if not e:
             e = AcadEval(acad_student_id=s.id)
             db.add(e)
         e.days_open = total or None
-        e.days_present = total or None
-        e.days_sick = e.days_leave = e.days_absent = 0
+        e.days_present = tally["/"] or None
+        e.days_sick, e.days_leave, e.days_absent = tally["ป"], tally["ล"], tally["ข"]
     db.commit()
     sq = f"&mode={mode}" + (f"&sid={_to_int(sid, 0)}" if by_subj else "")
     return RedirectResponse(f"/academic/attendance?cid={c.id}{sq}&saved=1", status_code=303)
