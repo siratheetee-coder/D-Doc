@@ -53,6 +53,23 @@ def table_cols(db, t):
     return [r[1] for r in db.execute(f'PRAGMA table_info("{t}")')]
 
 
+NAME_TABLES = ("vendor", "project")     # จับคู่ด้วยชื่อ + เลข id เดียวกับต้นแบบ (ชื่อเหมือนอย่างเดียวไม่พอ)
+
+
+def demo_name_ids(paths):
+    out = {}
+    for p in paths:
+        db = sqlite3.connect(p)
+        for t in NAME_TABLES:
+            try:
+                for i, n in db.execute(f'SELECT id, name FROM "{t}"'):
+                    out.setdefault(t, set()).add((i, n))
+            except sqlite3.Error:
+                pass
+        db.close()
+    return out
+
+
 def demo_keys(paths):
     """{table: set(tuple ของค่าทุกช่องที่ไม่ใช่เวลา)} จากต้นแบบหลายวัน"""
     out = {}
@@ -84,7 +101,7 @@ def references(db, tables):
     return refs
 
 
-def plan(school_db, keys):
+def plan(school_db, keys, signup, name_ids):
     """{table: set(id ที่ลบได้)} + จำนวนที่ต้องเก็บไว้เพราะถูกอ้างถึง"""
     db = sqlite3.connect(f"file:{school_db}?mode=ro", uri=True)
     tables = [t for (t,) in db.execute("SELECT name FROM sqlite_master WHERE type='table'") if t not in SKIP]
@@ -102,6 +119,40 @@ def plan(school_db, keys):
         idx = cols.index("id")
         cand[t] = {row[idx] for row in db.execute(f'SELECT {sel} FROM "{t}"') if row in known}
     refs = references(db, tables)
+    # ---- รอบ 2: แถวตัวอย่างที่จับคู่ทุกช่องไม่ได้ (ข้อมูลตัวอย่างรุ่นเก่า) ----
+    sig = str(signup)[:19]
+    sday = sig[:10]
+    parents = {}
+    for child, col, parent in refs:
+        parents.setdefault(child, []).append((col, parent))
+    more = True
+    while more:
+        more = False
+        for t in tables:
+            cols = table_cols(db, t)
+            if "id" not in cols:
+                continue
+            have = cand.setdefault(t, set())
+            pcols = [(c, pt) for c, pt in parents.get(t, []) if cand.get(pt)]
+            if "created_at" in cols:
+                q = f'SELECT id FROM "{t}" WHERE created_at IS NOT NULL AND created_at < ?'
+                new = {r[0] for r in db.execute(q, (sig,))} - have
+            elif t in NAME_TABLES and "name" in cols:
+                new = {i for i, n in db.execute(f'SELECT id, name FROM "{t}"') if (i, n) in name_ids.get(t, ())} - have
+            elif pcols:
+                new = set()
+                datecol = "date" if "date" in cols else None
+                for c, pt in pcols:
+                    sel = f'SELECT id, "{c}"' + (f', "{datecol}"' if datecol else "") + f' FROM "{t}"'
+                    for row in db.execute(sel):
+                        if row[1] in cand[pt] and (not datecol or (row[2] and str(row[2])[:10] < sday)):
+                            new.add(row[0])
+                new -= have
+            else:
+                new = set()
+            if new:
+                have |= new
+                more = True
     protected = 0
     changed = True
     while changed:                      # แถวที่ยังเก็บไว้ อ้างถึงแถวตัวอย่าง -> เก็บแถวตัวอย่างนั้นด้วย
@@ -127,6 +178,7 @@ def plan(school_db, keys):
 
 def main(argv):
     apply = "--apply" in argv
+    short = "--short" in argv
     tids = [int(a) for a in argv[1:] if a.isdigit()]
     if not argv or not tids:
         print(__doc__)
@@ -157,7 +209,7 @@ def main(argv):
                 if not p.exists():
                     build_template(day, p)
                 paths.append(p)
-            cand, total, protected = plan(f, demo_keys(paths))
+            cand, total, protected = plan(f, demo_keys(paths), created or "9999", demo_name_ids(paths))
             # บุคลากรที่ผูกกับบัญชีผู้ใช้ ห้ามลบ
             if "person" in cand:
                 keep = cand["person"] & linked.get(tid, set())
@@ -166,11 +218,10 @@ def main(argv):
             n_del = sum(len(v) for v in cand.values())
             print(f"\n== {tid} {name} (สมัคร {str(created)[:10]})  ลบได้ {n_del} แถว  เก็บไว้เพราะถูกอ้างถึง {protected}")
             for t in sorted(cand, key=lambda x: -len(cand[x])):
-                if cand[t]:
+                if cand[t] and not short:
                     print(f"   {t}: ลบ {len(cand[t])} จาก {total[t]} เหลือ {total[t] - len(cand[t])}")
             left = {t: total[t] - len(cand.get(t, ())) for t in total if total[t] - len(cand.get(t, ())) > 0}
-            print("   เหลือหลังลบ (ข้อมูลของโรงเรียน + ตัวอย่างที่จับคู่ไม่ได้):",
-                  ", ".join(f"{t} {n}" for t, n in sorted(left.items(), key=lambda x: -x[1])[:15]) or "-")
+            print("   เหลือหลังลบ:", ", ".join(f"{t} {n}" for t, n in sorted(left.items(), key=lambda x: -x[1])[:20]) or "-")
             if not apply:
                 continue
             bak = f.with_name(f"school.db.before-democlean-{time.strftime('%Y%m%d-%H%M%S')}")
