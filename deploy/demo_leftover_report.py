@@ -6,6 +6,8 @@
 (บุคลากรตัวอย่าง 12 ชื่อ ผู้ขายตัวอย่าง เรื่องจัดซื้อ การเงิน ฯลฯ) สคริปต์นี้แค่รายงาน ให้เจ้าของดูก่อนตัดสินใจ
 
     sudo -u ddoc /opt/ddoc/.venv/bin/python /opt/ddoc/deploy/demo_leftover_report.py /opt/ddoc/data
+    ... /opt/ddoc/data --detail            # แจกแจงรายตารางที่มีข้อมูลเกินต้นแบบ ทุกโรงเรียน
+    ... /opt/ddoc/data --detail 126 247    # เฉพาะบางโรงเรียน
 
 เปิดฐานแบบ mode=ro ทั้งหมด รันด้วยผู้ใช้ ddoc (ไม่ใช่ root) ไม่ import แอป
 คอลัมน์สำคัญ:
@@ -41,10 +43,14 @@ def counts(db):
 
 
 def main(argv):
+    detail = "--detail" in argv
+    only = {int(x) for x in argv if x.isdigit()}
+    argv = [a for a in argv if not a.startswith("--") and not a.isdigit()]
     if len(argv) != 1:
         print(__doc__)
         return 2
     data = Path(argv[0])
+    details = []
     templates = sorted((data / "sandbox").glob("template-*.db"))
     base = {}
     if templates:
@@ -79,10 +85,21 @@ def main(argv):
         extra = sum(max(0, n - base.get(t, 0)) for t, n in c.items())
         rows.append((tid, name or "", plan, (created or "")[:10], (last or "")[:10], active, users.get(tid, 0),
                      demo, len(people) - demo, (sch[0] if sch else ""), extra))
+        if detail and (not only or tid in only):
+            more = sorted(((t, n, base.get(t, 0)) for t, n in c.items() if n > base.get(t, 0)), key=lambda x: -(x[1] - x[2]))
+            details.append((tid, name or "", [p for p in people if p not in DEMO_PEOPLE], more))
     print(f"\nพบโรงเรียนที่มีข้อมูลตัวอย่าง {len(rows)} แห่ง (ไม่รวมระบบตัวอย่าง)\n")
     print("id | ชื่อโรงเรียนในบัญชี | แผน | สมัคร | ใช้ล่าสุด | เปิดอยู่ | ผู้ใช้ | ตัวอย่าง/12 | คนอื่น | ชื่อในข้อมูลโรงเรียน | เกินต้นแบบ")
     for r in rows:
         print(" | ".join(str(x) for x in r))
+    for tid, name, others, more in details:
+        print(f"\n== {tid} {name}")
+        if others:
+            print("   บุคลากรที่โรงเรียนเพิ่มเอง:", ", ".join(others))
+        for t, n, b in more:
+            print(f"   {t}: {n} แถว (ต้นแบบ {b}) เกิน {n - b}")
+        if not more:
+            print("   ไม่มีตารางที่เกินต้นแบบ")
     print("\nอ่านอย่างเดียว ไม่ได้แก้ข้อมูลใด ๆ")
     return 0
 
