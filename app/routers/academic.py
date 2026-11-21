@@ -3097,6 +3097,11 @@ async def calendar_save_all(request: Request, db: Session = Depends(get_db), yea
 
 
 # ---------------- เวลาเรียน (สรุปรายเดือน + เช็กชื่อรายวัน) ----------------
+def _today_month():
+    from app.thai_utils import thai_today
+    return thai_today().month
+
+
 def _month_nav(month):
     """(เดือนก่อน, เดือนถัดไป) ตามลำดับปีการศึกษา ไม่มี = None"""
     order = [m for m, _ in TH_MONTHS]
@@ -3233,6 +3238,7 @@ def attendance_page(request: Request, db: Session = Depends(get_db),
         "picked": picked, "home_pick": home_pick, "mode": mode,
         "mterm": {m: (1 if m in TERM_MONTHS[1] else 2) for m, _ in TH_MONTHS},
         "cur_term": current_term(),
+        "today_month": _today_month(),
     })
 
 

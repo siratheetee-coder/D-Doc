@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}เวลาเรียน{% endblock %}
+{% block title %}เวลาเรียน</div>
+{% endblock %}
 {% block content %}
-<div class="hero">
-  <div>
-    <div class="hero-sub">งานวิชาการ ใช้ประกอบ ปพ.5 / ปพ.6</div>
-    <span class="hero-title">เวลาเรียน</span>
-    <div class="hero-meta">{{ school.name or "" }} ปีการศึกษา {{ year }}</div>
-  </div>
+<link rel="stylesheet" href="/static/acad-page.css?v=1">
+<div class="ap-page">
+<div class="ap-head">
+  <img class="ap-art" src="/static/images/home3d/clock.png" width="64" height="64" alt="" aria-hidden="true">
+  <div class="ap-title"><h1>เวลาเรียน</h1><p>{{ school.name or "" }} ปีการศึกษา {{ year }}</p></div>
 </div>
 
 <p class="muted" style="margin:0 0 14px;">เลือกวิธีเช็กเวลาเรียนของโรงเรียน ทั้งสองแบบใช้ร่วมกันได้</p>
@@ -36,5 +36,6 @@
       <li>ใช้ในเอกสาร <b>ปพ.5 รายวิชา</b> ของครูผู้สอน</li>
     </ul>
   </a>
+</div>
 </div>
 {% endblock %}

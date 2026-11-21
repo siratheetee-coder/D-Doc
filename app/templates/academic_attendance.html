@@ -2,12 +2,11 @@
 {% block title %}เวลาเรียน{% endblock %}
 {% block content %}
 {% from "_empty.html" import empty_state %}
-<div class="hero">
-  <div>
-    <div class="hero-sub">งานวิชาการ ใช้ประกอบ ปพ.5</div>
-    <span class="hero-title">เวลาเรียน</span>
-    <div class="hero-meta">{{ school.name or "" }} ปีการศึกษา {{ year }}</div>
-  </div>
+<link rel="stylesheet" href="/static/acad-page.css?v=1">
+<div class="ap-page">
+<div class="ap-head">
+  <img class="ap-art" src="/static/images/home3d/clock.png" width="64" height="64" alt="" aria-hidden="true">
+  <div class="ap-title"><h1>เวลาเรียน</h1><p>{% if c %}ห้อง {{ class_label(c) }} {% endif %}ปีการศึกษา {{ year }} ใช้ประกอบ ปพ.5 / ปพ.6</p></div>{% if c and not by_subj and picked and has_cal %}<div class="ap-acts"><a class="ap-btn ap-main" href="/academic/attendance?cid={{ c.id }}&month={{ today_month }}&mode={{ mode }}"><svg class="icon"><use href="#ic-check"/></svg> เช็กชื่อวันนี้</a></div>{% endif %}
 </div>
 
 {% if request.query_params.get('saved') %}<div class="alert">✔ บันทึกเวลาเรียนแล้ว</div>{% endif %}
@@ -89,7 +88,7 @@
       <button type="button" class="tseg-btn" data-term="2">ภาคเรียน 2</button>
       <button type="button" class="tseg-btn" data-term="0">ทั้งปี</button>
     </div>
-    <a class="btn" id="printTermBtn" href="#" style="display:none;"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์เวลาเรียนทั้งภาคเรียน</a>
+    <a class="ap-btn ap-blue" id="printTermBtn" href="#" style="display:none;"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์เวลาเรียนทั้งภาคเรียน</a>
   </div>
 
   <form method="post" action="/academic/attendance/save">
@@ -167,7 +166,7 @@
     </div>
     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:12px;">
       <button class="btn" type="submit"><svg class="icon"><use href="#ic-save"/></svg> บันทึกเวลาเรียน</button>
-      <button class="btn green" type="submit" formaction="/academic/attendance/fill-year" formnovalidate
+      <button class="ap-btn ap-green" type="submit" formaction="/academic/attendance/fill-year" formnovalidate
               onclick="return confirm('ทุกคนมาเรียนทุกวัน (ใส่ให้ถึงวันล่าสุด)? \n(วันที่เช็กไว้แล้ว เช่น ขาด หรือ ลา จะไม่ถูกเปลี่ยน วันที่ยังไม่ถึงจะไม่ถูกใส่)');">
         ✔ ทุกคนมาเรียนทุกวัน</button>
     </div>
@@ -353,4 +352,5 @@
 
 </script>
 {% endif %}
+</div>
 {% endblock %}

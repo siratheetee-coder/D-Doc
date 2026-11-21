@@ -1,0 +1,20 @@
+/* หัวหน้าและการ์ดแบบเดียวกับหน้าตารางเรียน/ปฏิทิน ใช้ร่วมกันในหน้างานวิชาการ */
+.ap-head{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:18px 22px;margin-bottom:14px;border-radius:22px;background:linear-gradient(135deg,#ffffff,#f5f3ff);box-shadow:0 4px 18px rgba(79,70,229,.08)}
+.ap-art{flex:none;width:64px;height:64px;clip-path:inset(4% round 22%)}
+.ap-title{flex:1;min-width:160px;padding-left:16px;border-left:2px solid #e0e7ff}
+.ap-title h1{margin:0;font-size:26px;color:#1e1b4b;background:none!important;padding:0!important;box-shadow:none!important;border:0!important}
+.ap-title h1::before,.ap-title h1::after{display:none!important}
+.ap-title p{margin:2px 0 0;color:#64748b;font-size:14px}
+.ap-acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ap-page .card{border:0;border-radius:18px;box-shadow:0 2px 12px rgba(30,40,90,.06)}
+.ap-page .card > h2,.ap-page .card .ap-h2{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:19px;color:#1e1b4b;background:none!important;padding:0!important;border:0!important;box-shadow:none!important;border-radius:0!important}
+.ap-page .card > h2::before,.ap-page .card > h2::after{display:none!important}
+.ap-btn{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:11px;padding:9px 15px;font:inherit;font-size:.92rem;font-weight:600;cursor:pointer;text-decoration:none;color:#fff;box-shadow:0 2px 6px rgba(30,40,90,.15)}
+.ap-btn .icon{width:16px;height:16px}
+.ap-btn:hover{filter:brightness(1.05)}
+.ap-main{background:linear-gradient(135deg,#7c3aed,#ec4899);box-shadow:0 4px 14px rgba(168,60,220,.35);padding:10px 18px}
+.ap-green{background:linear-gradient(135deg,#4ade80,#059669)}
+.ap-blue{background:linear-gradient(135deg,#0ea5e9,#2563eb)}
+.ap-red{background:linear-gradient(135deg,#f87171,#dc2626)}
+.ap-soft{background:linear-gradient(135deg,#eef2ff,#e0e7ff);color:#4338ca;box-shadow:none}
+@media (max-width:640px){.ap-head{padding:14px}.ap-art{width:48px;height:48px}.ap-title h1{font-size:21px}.ap-acts{width:100%}.ap-acts .ap-btn{flex:1 1 46%;justify-content:center}}
