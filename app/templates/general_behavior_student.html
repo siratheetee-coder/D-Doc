@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}ความประพฤติ {{ stu.name }}{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/acad-page.css?v=1">
+<div class="ap-page">
+<div class="ap-head">
+  <img class="ap-art" src="/static/images/home3d/t_check.png" width="64" height="64" alt="" aria-hidden="true">
+  <div class="ap-title"><h1>{{ stu.name }}</h1><p>{{ cls }}{% if stu.student_no %} เลขประจำตัว {{ stu.student_no }}{% endif %} ปีการศึกษา {{ year }}</p></div>
+  <div class="ap-acts"><a class="ap-btn ap-soft" href="/general/behavior">← รายห้อง</a></div>
+</div>
+{% if msg %}<div class="alert">{{ msg }}</div>{% endif %}
+
+<div class="card bs-top lv-{{ level }}">
+  <div class="bs-score"><small>คะแนนคงเหลือ</small><b>{{ score }}</b><small>จาก {{ bst.full }}</small></div>
+  <div class="bs-mid">
+    <span class="bs-lv">{{ levels[level] }}</span>
+    <i class="bs-bar"><i style="width:{{ [[score / bst.full * 100, 0]|max, 100]|min }}%"></i></i>
+    <small class="muted">ต่ำกว่า {{ bst.warn_parent }} ควรเชิญผู้ปกครองพบ ต่ำกว่า {{ bst.warn_probation }} ควรทำทัณฑ์บน</small>
+  </div>
+  <div class="bs-acts">
+    <button type="button" class="ap-btn ap-main" data-sid="{{ stu.id }}" data-name="{{ stu.name }}" onclick="bhOpen([this.dataset.sid], [this.dataset.name])" data-no-floating-save><svg class="icon"><use href="#ic-plus"/></svg> บันทึกคะแนน</button>
+    <a class="ap-btn ap-blue" target="_blank" href="/general/behavior/s/{{ stu.id }}/letter?kind=parent"><svg class="icon"><use href="#ic-printer"/></svg> หนังสือเชิญผู้ปกครอง</a>
+    <a class="ap-btn ap-red" target="_blank" href="/general/behavior/s/{{ stu.id }}/letter?kind=probation"><svg class="icon"><use href="#ic-printer"/></svg> บันทึกทัณฑ์บน</a>
+  </div>
+</div>
+
+<div class="card">
+  <h2 class="ap-h2">ประวัติ {{ hist|length }} รายการ</h2>
+  {% for r in hist %}
+  <div class="bs-rec">
+    <span class="bh-pts {{ 'plus' if r.points > 0 else 'minus' }}">{{ '+' if r.points > 0 }}{{ r.points }}</span>
+    <span class="bs-body"><b>{{ r.label }}</b><small>{{ be(r.date) }} โดย {{ r.by_name or '-' }}{% if r.note %} หมายเหตุ: {{ r.note }}{% endif %}</small></span>
+    {% if staff or (pid and r.by_pid == pid) %}
+    <form method="post" action="/general/behavior/r/{{ r.id }}/delete" onsubmit="return confirm('ลบรายการนี้? คะแนนจะคืนตามรายการ')"><button class="bs-del" title="ลบ" data-no-floating-save>✕</button></form>
+    {% endif %}
+  </div>
+  {% else %}<p class="muted" style="margin:6px 0 0;">ยังไม่มีการหักหรือเพิ่มคะแนนในปีการศึกษานี้</p>{% endfor %}
+</div>
+</div>
+{% include "_behavior_dialog.html" %}
+<style>
+.bs-top{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.bs-score{display:flex;flex-direction:column;align-items:center;min-width:110px;padding:10px 16px;border-radius:16px;background:linear-gradient(135deg,#dcfce7,#bbf7d0);color:#166534}
+.lv-parent .bs-score{background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e}
+.lv-probation .bs-score{background:linear-gradient(135deg,#fee2e2,#fecaca);color:#991b1b}
+.bs-score b{font-size:40px;line-height:1.1}
+.bs-mid{flex:1;min-width:200px;display:flex;flex-direction:column;gap:6px}
+.bs-lv{font-weight:700;font-size:17px}
+.bs-bar{height:8px;border-radius:9px;background:#e2e8f0;display:block;overflow:hidden}
+.bs-bar i{display:block;height:100%;background:linear-gradient(90deg,#4ade80,#059669)}
+.lv-parent .bs-bar i{background:linear-gradient(90deg,#fbbf24,#f59e0b)}.lv-probation .bs-bar i{background:linear-gradient(90deg,#f87171,#dc2626)}
+.bs-acts{display:flex;gap:8px;flex-wrap:wrap}
+.bs-rec{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #f1f5f9}
+.bs-rec:last-child{border:0}
+.bs-rec form{margin:0}
+.bh-pts{flex:none;min-width:46px;text-align:center;font-weight:700;border-radius:10px;padding:6px 4px}
+.bh-pts.minus{background:#fee2e2;color:#b91c1c}.bh-pts.plus{background:#dcfce7;color:#166534}
+.bs-body{flex:1;min-width:0}.bs-body small{display:block;color:#64748b;font-size:12.5px}
+.bs-del{border:0;background:#fee2e2;color:#b91c1c;border-radius:8px;width:30px;height:30px;cursor:pointer;font-weight:700}
+</style>
+{% endblock %}

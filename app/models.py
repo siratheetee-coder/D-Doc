@@ -504,6 +504,49 @@ class Arrival(Base):
     student = relationship("Student")
 
 
+class BehaviorSetting(Base):
+    """ตั้งค่าคะแนนความประพฤติ (แถวเดียวต่อโรงเรียน) ระเบียบ ศธ. ว่าด้วยการลงโทษนักเรียน 2548 ข้อ 9
+    ให้แต่ละโรงเรียนกำหนดเอง ระบบจึงให้ตั้งคะแนนเต็ม เกณฑ์ และการหักอัตโนมัติจากการเข้าแถวได้"""
+    __tablename__ = "behavior_setting"
+
+    id = Column(Integer, primary_key=True)
+    full = Column(Integer, default=100)              # คะแนนเริ่มต้นต่อปีการศึกษา
+    warn_parent = Column(Integer, default=70)        # ต่ำกว่านี้ = เชิญผู้ปกครองพบ
+    warn_probation = Column(Integer, default=50)     # ต่ำกว่านี้ = ทำทัณฑ์บน (ข้อ 8 ต้องทำเป็นหนังสือ)
+    auto_late = Column(Integer, default=0)           # หักอัตโนมัติเมื่อเข้าแถว "สาย" (0 = ไม่หัก)
+    auto_skip = Column(Integer, default=0)           # หักอัตโนมัติเมื่อ "โดดแถว"
+
+
+class BehaviorRule(Base):
+    """รายการความผิด (หัก) / ความดี (เพิ่ม) ที่โรงเรียนตั้งเอง"""
+    __tablename__ = "behavior_rule"
+
+    id = Column(Integer, primary_key=True)
+    kind = Column(String, default="minus")           # minus / plus
+    name = Column(String, nullable=False)
+    points = Column(Integer, default=5)              # จำนวนบวกเสมอ เครื่องหมายมาจาก kind
+    seq = Column(Integer, default=0)
+    active = Column(Boolean, default=True)
+
+
+class BehaviorRecord(Base):
+    """ประวัติการหัก/เพิ่มคะแนนรายครั้ง (หลักฐานตามข้อ 9) ไม่แก้ทับ ลบได้แต่เก็บว่าใครลบไว้ใน audit"""
+    __tablename__ = "behavior_record"
+
+    id = Column(Integer, primary_key=True)
+    student_id = Column(Integer, ForeignKey("student.id"), nullable=False, index=True)
+    year = Column(Integer, nullable=False, index=True)     # ปีการศึกษา (คะแนนเริ่มใหม่ทุกปี)
+    date = Column(String, nullable=False)                  # ISO
+    points = Column(Integer, nullable=False)               # ติดลบ = หัก บวก = เพิ่ม/ซ่อม
+    label = Column(String, default="")                     # ชื่อรายการ ณ ตอนบันทึก
+    rule_id = Column(Integer, nullable=True)
+    source = Column(String, default="manual")              # manual / repair / late / skip
+    note = Column(String, default="")
+    by_name = Column(String, default="")
+    by_pid = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.now)
+
+
 class ItemCatalog(Base):
     """คลังรายการพัสดุมาตรฐาน (ใช้ซ้ำ) - พิมพ์ชื่อครั้งเดียว เลือกใช้ในเรื่องจัดซื้อทุกครั้ง
     ระบบเติมให้อัตโนมัติจากรายการที่เคยกรอก (dedupe ตามชื่อ)"""

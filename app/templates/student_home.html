@@ -65,6 +65,17 @@
     <a href="/student/grades" class="{{ 'on' if tab=='grades' }}"><img src="/static/images/home3d/myplans.png" alt="" aria-hidden="true">ผลการเรียน</a>
   </div>
 
+  {% if bh and (bh.hist or tab == 'home') %}
+  <div class="card">
+    <h2 class="h3d"><img src="/static/images/home3d/notes.png" alt="" aria-hidden="true">คะแนนความประพฤติ</h2>
+    <div class="stats">
+      <div class="stat {{ 'warn' if bh.level != 'ok' else 'ok' }}"><span>คงเหลือ</span><b>{{ bh.score }}</b> <span style="display:inline">จาก {{ bh.full }}</span></div>
+      <div class="stat"><span>สถานะ</span><b style="font-size:16px">{{ bh.label }}</b></div>
+    </div>
+    {% for r in bh.hist %}<p style="margin:8px 0 0;font-size:14px"><b style="color:{{ '#059669' if r.points > 0 else '#dc2626' }}">{{ '+' if r.points > 0 }}{{ r.points }}</b> {{ r.label }} <span style="color:#64748b">{{ r.date[8:10]|int }}/{{ r.date[5:7] }}/{{ r.date[:4]|int + 543 }}</span></p>{% endfor %}
+  </div>
+  {% endif %}
+
   {% if att %}{% set o = att.overall %}
   <div class="card">
     <h2 class="h3d"><img src="/static/images/home3d/t_check.png" alt="" aria-hidden="true">เวลาเรียน</h2>

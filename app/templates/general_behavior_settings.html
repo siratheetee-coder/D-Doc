@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}ตั้งกติกาคะแนนความประพฤติ{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/acad-page.css?v=1">
+<div class="ap-page">
+<div class="ap-head">
+  <img class="ap-art" src="/static/images/home3d/t_check.png" width="64" height="64" alt="" aria-hidden="true">
+  <div class="ap-title"><h1>ตั้งกติกาคะแนนความประพฤติ</h1><p>ระเบียบ ศธ. ว่าด้วยการลงโทษนักเรียน พ.ศ. 2548 ข้อ 9 ให้แต่ละโรงเรียนกำหนดเอง</p></div>
+  <div class="ap-acts"><a class="ap-btn ap-soft" href="/general/behavior">← กลับ</a></div>
+</div>
+{% if msg %}<div class="alert">{{ msg }}</div>{% endif %}
+
+<form method="post" action="/general/behavior/settings">
+<div class="card">
+  <h2 class="ap-h2">คะแนนและเกณฑ์</h2>
+  <div class="bt-grid">
+    <div><label>คะแนนเต็ม (เริ่มทุกปีการศึกษา)</label><input name="full" value="{{ bst.full }}" inputmode="numeric"></div>
+    <div><label>ต่ำกว่านี้ ควรเชิญผู้ปกครองพบ</label><input name="warn_parent" value="{{ bst.warn_parent }}" inputmode="numeric"></div>
+    <div><label>ต่ำกว่านี้ ควรทำทัณฑ์บน</label><input name="warn_probation" value="{{ bst.warn_probation }}" inputmode="numeric"></div>
+  </div>
+  <h2 class="ap-h2" style="margin-top:16px!important">หักอัตโนมัติจากการเข้าแถว</h2>
+  <p class="muted" style="font-size:13px;margin:4px 0 8px">ใส่ 0 = ไม่หัก ครูแก้สถานะเข้าแถวทีหลัง รายการหักจะเปลี่ยนตามเอง</p>
+  <div class="bt-grid">
+    <div><label>มาสาย หักครั้งละ</label><input name="auto_late" value="{{ bst.auto_late }}" inputmode="numeric"></div>
+    <div><label>โดดแถว หักครั้งละ</label><input name="auto_skip" value="{{ bst.auto_skip }}" inputmode="numeric"></div>
+  </div>
+</div>
+
+{% for kind, title in [('minus', 'รายการหักคะแนน'), ('plus', 'รายการเพิ่มคะแนน / ซ่อมความประพฤติ')] %}
+<div class="card">
+  <h2 class="ap-h2">{{ title }}</h2>
+  {% for r in rules if r.kind == kind and r.active %}
+  <div class="bt-row"><input name="n_{{ r.id }}" value="{{ r.name }}"><input name="p_{{ r.id }}" value="{{ r.points }}" inputmode="numeric" class="bt-pts">
+    <label class="bt-del"><input type="checkbox" name="del_{{ r.id }}" value="1"> เลิกใช้</label></div>
+  {% endfor %}
+  <div class="bt-row bt-new"><input name="new_{{ kind }}_name" placeholder="เพิ่มรายการใหม่"><input name="new_{{ kind }}_pts" placeholder="คะแนน" inputmode="numeric" class="bt-pts"><span></span></div>
+</div>
+{% endfor %}
+<p class="muted" style="font-size:13px">รายการที่เลิกใช้จะไม่ขึ้นให้เลือก แต่ประวัติเดิมของนักเรียนยังอยู่ครบ</p>
+<div class="bt-save"><button class="ap-btn ap-main" type="submit" data-no-floating-save><svg class="icon"><use href="#ic-save"/></svg> บันทึก</button></div>
+</form>
+</div>
+<style>
+.bt-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:8px}
+.bt-grid label{font-size:13px;color:#64748b}
+.bt-row{display:grid;grid-template-columns:1fr 90px 90px;gap:8px;align-items:center;margin-top:8px}
+.bt-pts{text-align:center}
+.bt-del{font-size:13px;color:#b91c1c;display:flex;gap:5px;align-items:center;margin:0}
+.bt-del input{width:16px;height:16px}
+.bt-new input{background:#f8fafc}
+.bt-save{position:sticky;bottom:10px;display:flex;justify-content:flex-end;padding:10px 84px 10px 16px;border-radius:16px;background:rgba(255,255,255,.95);box-shadow:0 6px 24px rgba(30,40,90,.14)}
+@media(max-width:640px){.bt-grid{grid-template-columns:1fr}.bt-row{grid-template-columns:1fr 70px 70px}.bt-save{padding-right:70px}}
+</style>
+{% endblock %}

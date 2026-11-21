@@ -29,6 +29,18 @@ def _setting(db: Session) -> ArrivalSetting:
     return s
 
 
+def _behavior_sync(db, student_ids, day):
+    """หักคะแนนความประพฤติอัตโนมัติจากการเข้าแถว (ถ้าโรงเรียนเปิดไว้) พังก็ไม่ให้บันทึกเข้าแถวพัง"""
+    try:
+        from app.routers.academic import _acad_year
+        from app.services import behavior
+        y = _acad_year(db)
+        for sid in set(student_ids):
+            behavior.sync_arrival(db, y, sid, day)
+    except Exception as e:  # noqa: BLE001
+        print("[behavior] sync failed:", repr(e))
+
+
 def _today_iso() -> str:
     return _date.today().isoformat()
 
@@ -165,6 +177,8 @@ def arrival_record(request: Request, db: Session = Depends(get_db),
     else:
         rec = Arrival(student_id=student_id, date=day, time=hm, status=status)
         db.add(rec)
+    db.flush()
+    _behavior_sync(db, [student_id], day)
     db.commit()
     db.refresh(rec)
     return JSONResponse({
@@ -180,7 +194,10 @@ def arrival_delete(aid: int, request: Request, db: Session = Depends(get_db),
     rec = db.get(Arrival, aid)
     day = _valid_date(date or (rec.date if rec else ""))
     if rec:
+        sid = rec.student_id
         db.delete(rec)
+        db.flush()
+        _behavior_sync(db, [sid], day)
         db.commit()
     return RedirectResponse(f"/general/arrival?date={day}", status_code=303)
 
@@ -425,6 +442,7 @@ def assembly_save(request: Request, db: Session = Depends(get_db), date: str = F
         data = {}
     now = datetime.now().strftime("%H:%M")
     n = 0
+    touched = []
     for k, v in (data.items() if isinstance(data, dict) else []):
         try:
             sid = int(k)
@@ -435,13 +453,16 @@ def assembly_save(request: Request, db: Session = Depends(get_db), date: str = F
         rec = db.query(Arrival).filter(Arrival.student_id == sid, Arrival.date == day).first()
         if not v:
             if rec:
-                db.delete(rec); n += 1
+                db.delete(rec); n += 1; touched.append(sid)
             continue
         if rec:
             rec.status = v
         else:
             db.add(Arrival(student_id=sid, date=day, time=now if day == _today_iso() else "", status=v))
         n += 1
+        touched.append(sid)
+    db.flush()
+    _behavior_sync(db, touched, day)
     db.commit()
     return RedirectResponse(f"/general/assembly?cid={c.id}&date={day}&msg=บันทึกแล้ว {n} คน", status_code=303)
 
@@ -997,3 +1018,205 @@ def trip_schedule_default(tid: int, db: Session = Depends(get_db)):
     t.schedule = json.dumps(default_schedule(t, get_school(db)), ensure_ascii=False)
     db.commit()
     return RedirectResponse(f"/general/trips/{tid}?msg=ใส่กำหนดการตัวอย่างแล้ว แก้ไขได้ตามจริง#sec-sched", status_code=303)
+
+
+# ============================================================
+# คะแนนความประพฤตินักเรียน (ระเบียบ ศธ. ว่าด้วยการลงโทษนักเรียน 2548 ข้อ 9: โรงเรียนกำหนดเอง + บันทึกหลักฐาน)
+# ครูทุกคนหัก/เพิ่มคะแนนได้ทุกห้อง (เช่น ครูเวร) ลบได้เฉพาะคนที่บันทึกหรือเจ้าหน้าที่ ตั้งกติกาได้เฉพาะเจ้าหน้าที่
+# ============================================================
+def _bh_staff(request) -> bool:
+    return not _is_teacher(request)
+
+
+def _bh_who(request):
+    ss = request.session
+    return (ss.get("name") or ss.get("username") or ""), (int(ss["person_id"]) if ss.get("person_id") else None)
+
+
+def _bh_rows(db, c, year):
+    from app.services import behavior
+    studs, _ = _class_students(c)
+    sc = behavior.scores(db, year, [s.student_id for s in studs])
+    st = behavior.setting(db)
+    return [{"sid": s.student_id, "seq": s.seq or "", "name": s.name, "score": sc.get(s.student_id, st.full),
+             "level": behavior.level(sc.get(s.student_id, st.full), st)} for s in studs]
+
+
+def _bh_back(url, msg):
+    url = url if (url or "").startswith("/general/behavior") else "/general/behavior"
+    return RedirectResponse(url + ("&" if "?" in url else "?") + "msg=" + msg, status_code=303)
+
+
+@router.get("/general/behavior", response_class=HTMLResponse)
+def behavior_page(request: Request, db: Session = Depends(get_db), cid: int = 0, msg: str = ""):
+    from app.routers.academic import _acad_year, _class_label as acad_label
+    from app.services import behavior
+    from app.models import AcadClass, BehaviorRecord
+    from app.thai_utils import level_key
+    y = _acad_year(db)
+    st = behavior.setting(db)
+    mine = _my_homerooms(request, db)
+    allc = sorted(db.query(AcadClass).filter(AcadClass.year == y).all(),
+                  key=lambda c: (level_key(c.level or ""), int(c.room) if (c.room or "").isdigit() else 999))
+    c = db.get(AcadClass, cid) if cid else (mine[0] if mine else (allc[0] if allc else None))
+    if c and any(not s.student_id for s in c.students):
+        # นักเรียนที่ครูเพิ่มตรงในห้องยังไม่ผูกทะเบียนกลาง ผูกให้ (คะแนนอ้าง Student.id ข้ามปีได้)
+        from app.routers.student_portal import _link_registry
+        _link_registry(db, c)
+        db.refresh(c)
+    rows = _bh_rows(db, c, y) if c else []
+    recent = (db.query(BehaviorRecord).filter(BehaviorRecord.year == y)
+              .order_by(BehaviorRecord.id.desc()).limit(8).all())
+    names = {s.id: (s.name, _class_label(s)) for s in db.query(Student).filter(
+        Student.id.in_([r.student_id for r in recent] or [0]))}
+    return templates.TemplateResponse("general_behavior.html", {
+        "request": request, "school": get_school(db), "year": y, "bst": st,
+        "classes": allc, "mine_ids": [k.id for k in mine], "c": c, "class_label": acad_label,
+        "rows": rows, "rules": behavior.rules(db), "students": _student_rows(db),
+        "recent": recent, "names": names, "levels": behavior.LEVEL_LABEL,
+        "is_staff": _bh_staff(request), "msg": msg, "today_input": _be_input(_today_iso()), "be": _be,
+    })
+
+
+@router.post("/general/behavior/add")
+def behavior_add(request: Request, db: Session = Depends(get_db), student_ids: str = Form(""),
+                 rule_id: int = Form(0), kind: str = Form("minus"), points: str = Form(""),
+                 label: str = Form(""), date: str = Form(""), note: str = Form(""),
+                 back: str = Form("")):
+    from app.routers.academic import _acad_year
+    from app.services import behavior
+    from app.models import BehaviorRule
+    y = _acad_year(db)
+    rule = db.get(BehaviorRule, rule_id) if rule_id else None
+    if rule:
+        kind, pts, lab = rule.kind, rule.points, rule.name
+    else:
+        try:
+            pts = abs(int(points or 0))
+        except ValueError:
+            pts = 0
+        lab = (label or "").strip()
+    if not pts or not lab:
+        return _bh_back(back, "เลือกรายการ หรือกรอกชื่อรายการและคะแนนก่อน")
+    signed = pts if kind == "plus" else -pts
+    who, pid = _bh_who(request)
+    ids = []
+    for x in (student_ids or "").split(","):
+        x = x.strip()
+        if x.isdigit() and db.get(Student, int(x)):
+            ids.append(int(x))
+    ids = list(dict.fromkeys(ids))
+    if not ids:
+        return _bh_back(back, "ยังไม่ได้เลือกนักเรียน")
+    for sid in ids:
+        behavior.add(db, year=y, student_id=sid, points=signed, label=lab, day=_valid_date(date),
+                     rule_id=rule.id if rule else None,
+                     source="repair" if (kind == "plus" and "ซ่อม" in lab) else "manual",
+                     note=note, by_name=who, by_pid=pid)
+    db.commit()
+    return _bh_back(back, f"บันทึกแล้ว {len(ids)} คน")
+
+
+@router.get("/general/behavior/s/{sid}", response_class=HTMLResponse)
+def behavior_student(sid: int, request: Request, db: Session = Depends(get_db), msg: str = ""):
+    from fastapi import HTTPException
+    from app.routers.academic import _acad_year
+    from app.services import behavior
+    stu = db.get(Student, sid)
+    if not stu:
+        raise HTTPException(404)
+    y = _acad_year(db)
+    st = behavior.setting(db)
+    score = behavior.scores(db, y, [sid])[sid]
+    _who, pid = _bh_who(request)
+    staff = _bh_staff(request)
+    return templates.TemplateResponse("general_behavior_student.html", {
+        "request": request, "school": get_school(db), "year": y, "bst": st, "stu": stu,
+        "cls": _class_label(stu), "score": score, "level": behavior.level(score, st),
+        "levels": behavior.LEVEL_LABEL, "hist": behavior.history(db, y, sid), "rules": behavior.rules(db),
+        "be": _be, "staff": staff, "pid": pid, "msg": msg, "today_input": _be_input(_today_iso()),
+    })
+
+
+@router.post("/general/behavior/r/{rid}/delete")
+def behavior_delete(rid: int, request: Request, db: Session = Depends(get_db)):
+    from fastapi import HTTPException
+    from app.models import BehaviorRecord
+    r = db.get(BehaviorRecord, rid)
+    if not r:
+        raise HTTPException(404)
+    _who, pid = _bh_who(request)
+    if not (_bh_staff(request) or (pid and r.by_pid == pid)):
+        raise HTTPException(403, "ลบได้เฉพาะคนที่บันทึก หรือเจ้าหน้าที่")
+    sid = r.student_id
+    db.delete(r)
+    db.commit()
+    return RedirectResponse(f"/general/behavior/s/{sid}?msg=ลบรายการแล้ว", status_code=303)
+
+
+@router.get("/general/behavior/s/{sid}/letter", response_class=HTMLResponse)
+def behavior_letter(sid: int, request: Request, db: Session = Depends(get_db), kind: str = "parent"):
+    """พิมพ์หนังสือเชิญผู้ปกครองพบ / บันทึกทัณฑ์บน (ข้อ 8: ทำเป็นหนังสือ ผู้ปกครองลงชื่อรับทราบ)"""
+    from fastapi import HTTPException
+    from app.routers.academic import _acad_year
+    from app.services import behavior
+    stu = db.get(Student, sid)
+    if not stu:
+        raise HTTPException(404)
+    y = _acad_year(db)
+    score = behavior.scores(db, y, [sid])[sid]
+    hist = [r for r in behavior.history(db, y, sid) if r.points < 0][:12]
+    school = get_school(db)
+    return templates.TemplateResponse("general_behavior_letter.html", {
+        "request": request, "school": school, "stu": stu, "cls": _class_label(stu), "score": score,
+        "full": behavior.setting(db).full, "hist": hist, "kind": "probation" if kind == "probation" else "parent",
+        "be": _be, "today": _be(_today_iso()), "year": y, "head": head_title(school),
+    })
+
+
+@router.get("/general/behavior/settings", response_class=HTMLResponse)
+def behavior_settings_page(request: Request, db: Session = Depends(get_db), msg: str = ""):
+    from fastapi import HTTPException
+    from app.services import behavior
+    if not _bh_staff(request):
+        raise HTTPException(403, "ตั้งกติกาคะแนนได้เฉพาะเจ้าหน้าที่ / ไอดีหลัก")
+    return templates.TemplateResponse("general_behavior_settings.html", {
+        "request": request, "school": get_school(db), "bst": behavior.setting(db),
+        "rules": behavior.rules(db, active_only=False), "msg": msg,
+    })
+
+
+@router.post("/general/behavior/settings")
+async def behavior_settings_save(request: Request, db: Session = Depends(get_db)):
+    from fastapi import HTTPException
+    from app.services import behavior
+    from app.models import BehaviorRule
+    if not _bh_staff(request):
+        raise HTTPException(403)
+    f = await request.form()
+
+    def num(k, d, lo=0, hi=1000):
+        try:
+            return max(lo, min(hi, int(str(f.get(k, d)).strip() or d)))
+        except ValueError:
+            return d
+    st = behavior.setting(db)
+    st.full = num("full", 100, 1)
+    st.warn_parent = num("warn_parent", 70)
+    st.warn_probation = num("warn_probation", 50)
+    st.auto_late = num("auto_late", 0, 0, 100)
+    st.auto_skip = num("auto_skip", 0, 0, 100)
+    for r in db.query(BehaviorRule).all():
+        if f.get(f"del_{r.id}"):
+            r.active = False            # ไม่ลบจริง ประวัติเดิมยังอ้างชื่อได้
+            continue
+        if f"n_{r.id}" in f:
+            r.name = ((f.get(f"n_{r.id}") or "").strip()[:200]) or r.name
+            r.points = num(f"p_{r.id}", r.points, 1, 100)
+            r.active = True
+    for kind in ("minus", "plus"):
+        nm = (f.get(f"new_{kind}_name") or "").strip()
+        if nm:
+            db.add(BehaviorRule(kind=kind, name=nm[:200], points=num(f"new_{kind}_pts", 5, 1, 100), seq=999))
+    db.commit()
+    return RedirectResponse("/general/behavior/settings?msg=บันทึกแล้ว", status_code=303)

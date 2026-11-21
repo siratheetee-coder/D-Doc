@@ -37,6 +37,19 @@ def _student_page(request, db, tab):
             ctx["tt"] = sp.timetable(db, klass)
         if tab in ("home", "grades"):
             ctx["grades"] = sp.grades(db, row)
+        if tab == "home":
+            # คะแนนความประพฤติ (งานบริหารทั่วไป) ดูอย่างเดียว อ้างจาก student_id ในบัญชีเท่านั้น
+            try:
+                from app.routers.academic import _acad_year
+                from app.services import behavior
+                y = _acad_year(db)
+                st = behavior.setting(db)
+                sc = behavior.scores(db, y, [row.student_id])[row.student_id]
+                ctx["bh"] = {"score": sc, "full": st.full, "level": behavior.level(sc, st),
+                             "label": behavior.LEVEL_LABEL[behavior.level(sc, st)],
+                             "hist": behavior.history(db, y, row.student_id)[:5]}
+            except Exception:  # noqa: BLE001
+                ctx["bh"] = None
     ctx["mark_label"] = sp.MARK_LABEL
     return templates.TemplateResponse("student_home.html", ctx)
 

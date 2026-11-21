@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}คะแนนความประพฤติ{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/acad-page.css?v=1">
+<div class="ap-page">
+<div class="ap-head">
+  <img class="ap-art" src="/static/images/home3d/t_check.png" width="64" height="64" alt="" aria-hidden="true">
+  <div class="ap-title"><h1>คะแนนความประพฤติ</h1><p>ปีการศึกษา {{ year }} คะแนนเต็ม {{ bst.full }} เริ่มใหม่ทุกปีการศึกษา</p></div>
+  <div class="ap-acts">
+    {% if is_staff %}<a class="ap-btn ap-soft" href="/general/behavior/settings"><svg class="icon"><use href="#ic-settings"/></svg> ตั้งกติกา</a>{% endif %}
+  </div>
+</div>
+
+{% if msg %}<div class="alert">{{ msg }}</div>{% endif %}
+
+<div class="card bh-tools">
+  <form method="get" action="/general/behavior" class="bh-pick">
+    <label>ห้อง</label>
+    <select name="cid" onchange="this.form.submit()">
+      {% for k in classes %}<option value="{{ k.id }}" {{ 'selected' if c and k.id == c.id }}>{{ class_label(k) }}{{ ' (ห้องของฉัน)' if k.id in mine_ids }}</option>{% endfor %}
+    </select>
+  </form>
+  <div class="bh-find">
+    <label>ค้นหานักเรียนทั้งโรงเรียน</label>
+    <select id="bhFind" data-combo data-combo-placeholder="พิมพ์ชื่อหรือเลขประจำตัว">
+      <option value=""></option>
+      {% for s in students %}<option value="{{ s.id }}" data-cp-sub="{{ s.cls }}">{{ s.name }}{% if s.no %} ({{ s.no }}){% endif %}</option>{% endfor %}
+    </select>
+  </div>
+</div>
+
+{% if c %}
+<div class="card">
+  <div class="bh-head">
+    <h2 class="ap-h2">ห้อง {{ class_label(c) }} <small class="muted">{{ rows|length }} คน</small></h2>
+    <div class="bh-legend"><span class="lv-ok">ปกติ</span><span class="lv-parent">ต่ำกว่า {{ bst.warn_parent }} เชิญผู้ปกครอง</span><span class="lv-probation">ต่ำกว่า {{ bst.warn_probation }} ทัณฑ์บน</span></div>
+  </div>
+  {% if rows %}
+  <p class="muted bh-tip">กดที่ชื่อเพื่อดูประวัติ ติ๊กหลายคนแล้วกด "บันทึกคะแนน" เพื่อบันทึกพร้อมกัน</p>
+  <div class="bh-grid">
+    {% for r in rows %}
+    <div class="bh-card lv-{{ r.level }}">
+      <label class="bh-chk"><input type="checkbox" value="{{ r.sid }}" data-name="{{ r.name }}"></label>
+      <a class="bh-name" href="/general/behavior/s/{{ r.sid }}"><small>{{ r.seq }}</small>{{ r.name }}</a>
+      <b class="bh-score">{{ r.score }}</b>
+      <i class="bh-bar"><i style="width:{{ [[r.score / bst.full * 100, 0]|max, 100]|min }}%"></i></i>
+      <button type="button" class="bh-one" data-sid="{{ r.sid }}" data-name="{{ r.name }}" title="หัก/เพิ่มคะแนน" aria-label="หัก/เพิ่มคะแนน {{ r.name }}" data-no-floating-save><svg class="icon"><use href="#ic-edit"/></svg></button>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}<p class="muted">ห้องนี้ยังไม่มีนักเรียนที่เชื่อมกับทะเบียนนักเรียน</p>{% endif %}
+</div>
+{% else %}
+<div class="card"><p class="muted" style="margin:0;">ยังไม่มีห้องเรียนในปีการศึกษานี้ ใช้ช่องค้นหานักเรียนด้านบนได้</p></div>
+{% endif %}
+
+{% if recent %}
+<div class="card">
+  <h2 class="ap-h2">บันทึกล่าสุดของโรงเรียน</h2>
+  {% for r in recent %}{% set nm = names.get(r.student_id, ('-', '')) %}
+  <a class="bh-rec" href="/general/behavior/s/{{ r.student_id }}">
+    <span class="bh-pts {{ 'plus' if r.points > 0 else 'minus' }}">{{ '+' if r.points > 0 }}{{ r.points }}</span>
+    <span class="bh-rbody"><b>{{ nm[0] }}</b> <small>{{ nm[1] }}</small><br><small>{{ r.label }} {{ be(r.date) }} โดย {{ r.by_name or '-' }}</small></span>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+</div>
+
+<div class="bh-dock" id="bhDock" hidden><span id="bhDockN"></span><button type="button" class="ap-btn ap-main" id="bhDockGo" data-no-floating-save>บันทึกคะแนน</button></div>
+
+{% include "_behavior_dialog.html" %}
+
+<style>
+.bh-tools{display:grid;grid-template-columns:220px 1fr;gap:12px;align-items:end}
+.bh-tools label{font-size:13px;color:#64748b}
+.bh-pick{margin:0}
+.bh-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.bh-legend{display:flex;gap:6px;flex-wrap:wrap;font-size:12px}
+.bh-legend span{padding:2px 9px;border-radius:99px}
+.lv-ok{background:#dcfce7;color:#166534}.lv-parent{background:#fef3c7;color:#92400e}.lv-probation{background:#fee2e2;color:#991b1b}
+.bh-tip{font-size:13px;margin:6px 0 10px}
+.bh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.bh-card{display:grid;grid-template-columns:24px 1fr auto 34px;grid-template-rows:auto auto;align-items:center;gap:2px 8px;padding:10px 12px;border-radius:14px;background:linear-gradient(135deg,#fff,#f8fafc);box-shadow:0 1px 6px rgba(30,40,90,.07)}
+.bh-card.lv-parent{background:linear-gradient(135deg,#fffbeb,#fff)}
+.bh-card.lv-probation{background:linear-gradient(135deg,#fef2f2,#fff)}
+.bh-chk{grid-row:1/3;margin:0}.bh-chk input{width:18px;height:18px}
+.bh-name{color:#1e293b;text-decoration:none;font-weight:600;font-size:14px;line-height:1.25;min-width:0;overflow-wrap:anywhere}
+.bh-name small{color:#94a3b8;margin-right:5px;font-weight:400}
+.bh-score{font-size:20px;color:#1e1b4b}
+.lv-parent .bh-score{color:#b45309}.lv-probation .bh-score{color:#dc2626}
+.bh-bar{grid-column:2/4;height:5px;border-radius:9px;background:#e2e8f0;display:block;overflow:hidden}
+.bh-bar i{display:block;height:100%;background:linear-gradient(90deg,#4ade80,#059669)}
+.lv-parent .bh-bar i{background:linear-gradient(90deg,#fbbf24,#f59e0b)}.lv-probation .bh-bar i{background:linear-gradient(90deg,#f87171,#dc2626)}
+.bh-one .icon{width:17px;height:17px}
+.bh-one{grid-column:4;display:grid;place-items:center;grid-row:1/3;border:0;border-radius:10px;height:34px;font:inherit;font-size:18px;font-weight:700;color:#4338ca;background:linear-gradient(135deg,#eef2ff,#e0e7ff);cursor:pointer}
+.bh-rec{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9;text-decoration:none;color:#334155}
+.bh-rec:last-child{border:0}
+.bh-pts{flex:none;min-width:46px;text-align:center;font-weight:700;border-radius:10px;padding:6px 4px}
+.bh-pts.minus{background:#fee2e2;color:#b91c1c}.bh-pts.plus{background:#dcfce7;color:#166534}
+.bh-rbody small{color:#64748b}
+.bh-dock[hidden]{display:none}
+.bh-dock{position:sticky;bottom:10px;z-index:30;display:flex;justify-content:flex-end;align-items:center;gap:12px;padding:10px 84px 10px 16px;border-radius:16px;background:rgba(255,255,255,.95);box-shadow:0 6px 24px rgba(30,40,90,.16)}
+@media(max-width:640px){.bh-tools{grid-template-columns:1fr}.bh-grid{grid-template-columns:1fr}.bh-dock{padding-right:70px}}
+</style>
+<script>
+(function(){
+  var find = document.getElementById('bhFind');
+  if (find) find.addEventListener('change', function(){ if (this.value) location.href = '/general/behavior/s/' + this.value; });
+  var dock = document.getElementById('bhDock');
+  function picked(){ return [].slice.call(document.querySelectorAll('.bh-chk input:checked')); }
+  document.addEventListener('change', function(e){
+    if (!e.target.closest('.bh-chk')) return;
+    var p = picked(); dock.hidden = !p.length; document.getElementById('bhDockN').textContent = 'เลือก ' + p.length + ' คน';
+  });
+  document.getElementById('bhDockGo').addEventListener('click', function(){
+    var p = picked(); window.bhOpen(p.map(function(x){ return x.value; }), p.map(function(x){ return x.dataset.name; }));
+  });
+  document.querySelectorAll('.bh-one').forEach(function(b){
+    b.addEventListener('click', function(){ window.bhOpen([b.dataset.sid], [b.dataset.name]); });
+  });
+})();
+</script>
+{% endblock %}
