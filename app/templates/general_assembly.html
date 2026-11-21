@@ -8,6 +8,16 @@
 .as-top select{width:auto;min-width:150px;padding-right:34px;cursor:pointer;appearance:none;-webkit-appearance:none;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center}
 .as-top label{font-size:12.5px;color:#64748b;font-weight:600;display:block;margin-bottom:3px}
 .as-top .grow{flex:1}
+.as-prints{display:flex;gap:8px;flex-wrap:wrap}
+@media(max-width:640px){
+  .as-top{display:grid;grid-template-columns:1fr;gap:8px}
+  .as-top form{display:grid;grid-template-columns:1fr auto;gap:8px}
+  .as-top form b,.as-top form select{grid-column:1/-1}
+  .as-top form input[name=date]{width:100%!important}
+  .as-top .grow,.as-daybe{display:none}
+  .as-prints{display:grid;grid-template-columns:1fr 1fr}
+  .as-prints .btn{justify-content:center}
+}
 .as-sum{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:14px}
 .as-card{display:flex;align-items:center;gap:12px;padding:14px;border-radius:16px;background:#fff;box-shadow:0 1px 3px rgba(15,23,42,.06),0 6px 18px rgba(15,23,42,.06)}
 .as-card i{flex:none;width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;color:#fff;position:relative;
@@ -51,11 +61,13 @@
       oninput="if(this.value.length===10)this.form.submit()">
     <button class="btn sm" type="submit"><svg class="icon"><use href="#ic-calendar"/></svg> เปลี่ยนวันที่</button>
   </form>
-  <span class="muted">{{ day_be }}</span>
+  <span class="muted as-daybe">{{ day_be }}</span>
   <span class="grow"></span>
+  <div class="as-prints">
   <a class="btn sm" href="/general/assembly/print?cid={{ c.id }}&date={{ day }}" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์รายวัน</a>
   <a class="btn sm soft" href="/general/assembly/month?cid={{ c.id }}&month={{ month }}" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-calendar"/></svg> พิมพ์รายเดือน</a>
   {% if not is_teacher %}<a class="btn sm gray" href="/general/arrival/stats"><svg class="icon"><use href="#ic-layers"/></svg> สถิติ</a>{% endif %}
+  </div>
 </div>
 
 <div class="as-sum">
