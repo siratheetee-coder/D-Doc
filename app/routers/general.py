@@ -360,7 +360,7 @@ def assembly_page(request: Request, db: Session = Depends(get_db), date: str = "
             r = recs.get(s.student_id)
             rows.append({"sid": s.student_id, "no": s.seq or i, "name": s.name, "status": r.status if r else ""})
     return templates.TemplateResponse("general_assembly.html", {
-        "request": request, "school": get_school(db), "day": day, "day_be": _be(day), "day_input": _be_input(day),
+        "request": request, "school": get_school(db), "day": day, "day_be": _be(day), "day_input": _be_input(day), "today_iso": _today_iso(),
         "classes": [(x.id, acad_label(x)) for x in classes], "c": c, "c_label": acad_label(c) if c else "",
         "rows": rows, "missing": missing, "states": ASSEMBLY_STATUS, "msg": msg,
         "is_teacher": _is_teacher(request), "month": day[:7],
