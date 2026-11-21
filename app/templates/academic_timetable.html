@@ -170,11 +170,11 @@
   <div class="tv-cardhead"><svg class="icon tv-hic"><use href="#ic-edit"/></svg>
     <div><h2>จัดตาราง {{ class_label(c) }}</h2><small>เลือกวิชาในแต่ละช่อง กดรูปกุญแจเพื่อล็อกคาบ ช่องที่ไม่ลงวิชาเลือก "เว้นว่าง"</small></div>
     <div class="ts-gacts">
-      <button type="button" class="btn soft sm" id="btnCheck"><svg class="icon"><use href="#ic-eye"/></svg> ตรวจสอบปัญหา</button>
-      <button type="button" class="btn soft sm" id="btnGoAuto"><svg class="icon"><use href="#ic-sparkle"/></svg> จัดอัตโนมัติ</button>
-      <button type="button" class="btn soft sm" id="btnLockAll"><svg class="icon"><use href="#ic-lock"/></svg> ล็อกที่จัดแล้ว</button>
-      <button type="button" class="btn soft sm" id="btnUnlockAll"><svg class="icon"><use href="#ic-unlock"/></svg> ปลดล็อก</button>
-      {% if has_undo %}<button class="btn soft sm" type="submit" formaction="/academic/timetable/undo" formnovalidate><svg class="icon"><use href="#ic-undo"/></svg> ย้อนกลับ</button>{% endif %}
+      <button type="button" class="tb-btn tb-auto" id="btnGoAuto"><svg class="icon"><use href="#ic-sparkle"/></svg> จัดตารางอัตโนมัติ</button>
+      <button type="button" class="tb-btn tb-check" id="btnCheck"><svg class="icon"><use href="#ic-eye"/></svg> ตรวจสอบปัญหา</button>
+      <button type="button" class="tb-btn tb-lock" id="btnLockAll"><svg class="icon"><use href="#ic-lock"/></svg> ล็อกที่จัดแล้ว</button>
+      <button type="button" class="tb-btn tb-unlock" id="btnUnlockAll"><svg class="icon"><use href="#ic-unlock"/></svg> ปลดล็อก</button>
+      {% if has_undo %}<button class="tb-btn tb-undo" type="submit" formaction="/academic/timetable/undo" formnovalidate><svg class="icon"><use href="#ic-undo"/></svg> ย้อนกลับ</button>{% endif %}
     </div>
   </div>
   <div class="tt-scroll">
@@ -316,7 +316,15 @@
 .tv-cardhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
 .tv-cardhead h2{margin:0;font-size:20px;color:#1e1b4b;background:none;padding:0;box-shadow:none;border:0}
 .tv-cardhead small{color:#64748b}
-.tv-cardhead .ts-gacts{margin-left:auto}
+.tv-cardhead .ts-gacts{margin-left:auto;align-items:center}
+.tb-btn{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:11px;padding:8px 14px;font:inherit;font-size:.9rem;font-weight:600;cursor:pointer;color:#fff;box-shadow:0 2px 6px rgba(30,40,90,.15);transition:transform .12s,box-shadow .12s}
+.tb-btn:hover{transform:translateY(-1px);box-shadow:0 5px 12px rgba(30,40,90,.22)}
+.tb-btn .icon{width:16px;height:16px}
+.tb-auto{background:linear-gradient(135deg,#7c3aed,#ec4899);padding:10px 18px;font-size:.98rem;box-shadow:0 4px 14px rgba(168,60,220,.4)}
+.tb-check{background:linear-gradient(135deg,#f59e0b,#f97316)}
+.tb-lock{background:linear-gradient(135deg,#0ea5e9,#2563eb)}
+.tb-unlock{background:linear-gradient(135deg,#e2e8f0,#cbd5e1);color:#334155}
+.tb-undo{background:linear-gradient(135deg,#f1f5f9,#e2e8f0);color:#475569}
 .tv-hic{width:34px;height:34px;color:#6366f1}
 .tv-gridwrap{overflow-x:auto;border-radius:16px;background:linear-gradient(135deg,#f5f3ff,#eef2ff);padding:6px}
 table.tv-grid{width:100%;border-collapse:separate;border-spacing:6px;table-layout:fixed;min-width:760px}
