@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded',function(){var t=document.querySele
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
     <h2 style="margin:0; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">{% set pv, nx = mnav %}{% if pv %}<a class="mnav" href="/academic/attendance?cid={{ c.id }}&month={{ pv[0] }}&mode={{ mode }}{% if by_subj and subj %}&sid={{ subj.id }}{% endif %}" title="{{ pv[1] }}">‹</a>{% endif %}{{ month_name }}{% if nx %}<a class="mnav" href="/academic/attendance?cid={{ c.id }}&month={{ nx[0] }}&mode={{ mode }}{% if by_subj and subj %}&sid={{ subj.id }}{% endif %}" title="{{ nx[1] }}">›</a>{% endif %} <span class="muted" style="font-size:15px;">เปิดเรียน {{ open_days|length }} วัน {{ students|length }} คน</span></h2>
     <div class="attn-actions" style="display:flex; gap:8px; flex-wrap:wrap;">
-      <button class="btn green" type="button" onclick="allPresent()"><svg class="icon"><use href="#ic-check"/></svg> {{ "ทุกคนมาถึงวันนี้" if until_day and until_day < 31 else "ทุกคนมาทุกวัน" }}</button>
+      <button class="btn green" type="button" onclick="allPresent()"><svg class="icon"><use href="#ic-check"/></svg> ทุกคนมาเรียนทุกวัน</button>
       <button class="btn red" type="button" onclick="clearAll()">ล้างข้อมูล</button>
       <a class="btn" href="/academic/attendance/month.docx?cid={{ c.id }}&month={{ month }}&mode={{ mode }}{% if by_subj and subj %}&sid={{ subj.id }}{% endif %}"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์เวลาเรียนเดือนนี้</a>
       <a class="btn gray" href="/academic/attendance?cid={{ c.id }}&show=months&mode={{ mode }}{% if by_subj and subj %}&sid={{ subj.id }}{% endif %}">← กลับหน้ารายเดือน</a>
