@@ -3134,7 +3134,7 @@ def attendance_page(request: Request, db: Session = Depends(get_db),
         })
 
     # ---- โหมดสรุปรายเดือน ----
-    opens, att, marked = {}, {}, set()
+    opens, att, marked, sofar = {}, {}, set(), {}
     if c:
         # ปฏิทินการศึกษาเป็นตัวตั้ง ห้องที่ไม่ได้แก้เองเดินตามปฏิทินเสมอ
         opens = class_open_days(db, c.id, y)
@@ -3142,15 +3142,18 @@ def attendance_page(request: Request, db: Session = Depends(get_db),
                          .filter_by(class_id=c.id) if m.days_open_manual}
         for a in rows:
             att[(a.acad_student_id, a.month)] = a.present
-            if (a.marks or "").strip(MARK_BLANK):
+            mk = parse_marks(a.marks)
+            if mk:
                 marked.add((a.acad_student_id, a.month))
+                # "มาแล้วกี่ % ของวันที่เช็กแล้ว" นับเฉพาะวันที่เช็กชื่อไปแล้ว ไม่รวมวันที่ยังไม่ถึง
+                sofar[(a.acad_student_id, a.month)] = (sum(1 for v in mk.values() if v == "/"), len(mk))
     return templates.TemplateResponse("academic_attendance.html", {
         "request": request, "school": school, "year": y, "years": _years(db, y),
         # ปุ่มสลับโหมด: ครูเห็นเฉพาะโหมดที่ตัวเองใช้ได้ (ไม่มีห้องประจำชั้น = ไม่มีโหมดรายห้อง)
         "can_overall": (not sc.is_teacher) or bool(sc.homeroom_ids),
         "can_subject": (not sc.is_teacher) or bool(sc.teach_pairs),
         "classes": classes, "c": c, "students": students, "class_label": _class_label,
-        "months": TH_MONTHS, "opens": opens, "att": att, "marked": marked,
+        "months": TH_MONTHS, "opens": opens, "att": att, "marked": marked, "sofar": sofar,
         "cal_days": {m: len(d) for m, d in cal.items()}, "has_cal": bool(cal),
         "manual_months": manual_months if c else set(),
         "by_subj": by_subj, "subjects": subjects, "subj": subj, "term": term,

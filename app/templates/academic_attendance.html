@@ -110,6 +110,7 @@
         <th class="center">เปิด(รวม)</th>
         <th class="center gapcol">ป่วย</th><th class="center gapcol">ลา</th><th class="center gapcol">ขาด</th>
         <th class="center">มา(รวม)</th><th class="center">ร้อยละ</th><th class="center">ผล</th>
+        <th class="center sofar-h" title="คิดจากวันที่เช็กชื่อไปแล้วเท่านั้น วันที่ยังไม่ถึงไม่นับ ใช้ดูระหว่างภาคว่าใครเสี่ยงไม่ถึง 80%">มาเรียนแล้ว<br><small>จากวันที่เช็กแล้ว</small></th>
       </tr></thead>
       <tbody>
         <tr style="background:#f8f7ff;">
@@ -122,7 +123,7 @@
                      inputmode="numeric" style="width:46px; text-align:center;"></td>
           {% endfor %}
           <td class="center" data-open-total style="font-weight:700;"></td>
-          <td colspan="6"></td>
+          <td colspan="7"></td>
         </tr>
       {% for s in students %}
         {% set e = s.eval %}
@@ -158,6 +159,7 @@
                      style="width:60px; text-align:center; background:#f3f4f6; font-weight:700; cursor:default;"></td>
           <td class="center" data-pct style="font-weight:700;"></td>
           <td class="center" data-res style="font-weight:700; white-space:nowrap;"></td>
+          <td class="center" data-sofar style="white-space:nowrap;">{% for mnum, mname in months %}{% set sf = sofar.get((s.id, mnum)) %}{% if sf %}<span class="m-t{{ mterm[mnum] }}" data-sf="{{ sf[0] }},{{ sf[1] }}" hidden></span>{% endif %}{% endfor %}<b data-sf-out></b></td>
         </tr>
       {% endfor %}
       </tbody>
@@ -220,7 +222,7 @@
   // เดือนที่ "นับ" คือเดือนที่แสดงอยู่ตามปุ่มภาคเรียน ไม่ใช่ทั้ง 11 เดือนเสมอ
   // (ของเดิมนับช่องที่ถูก CSS ซ่อนไว้ด้วย กดภาคเรียน 1 จึงได้ยอดทั้งปี)
   function inTerm(el){
-    var td = el.closest('td,th');
+    var td = el.hasAttribute('data-sf') ? el : el.closest('td,th');
     if (!td) return true;
     var table = document.getElementById('attTable');
     if (table.classList.contains('show-t1')) return !td.classList.contains('m-t2');
@@ -281,6 +283,19 @@
       var pct = (open && pres !== null) ? (pres * 100 / open) : null;
       tr.querySelector('[data-pct]').textContent = pct === null ? '' : (Math.round(pct*10)/10).toFixed(1);
       tr.querySelector('[data-res]').textContent = pct === null ? '' : (pct >= 80 ? 'ผ่าน' : 'ไม่ผ่าน');
+      // มาเรียนแล้ว: ร้อยละจากวันที่เช็กชื่อแล้วเท่านั้น (ระหว่างภาคตัวเลขไม่ดิ่งเพราะวันที่ยังไม่ถึง)
+      var sp = 0, sd = 0;
+      tr.querySelectorAll('[data-sf]').forEach(function(x){
+        if (!inTerm(x)) return;
+        var a = x.getAttribute('data-sf').split(','); sp += +a[0]; sd += +a[1];
+      });
+      var so = tr.querySelector('[data-sf-out]');
+      if (sd) {
+        var q = sp * 100 / sd;
+        so.textContent = (Math.round(q*10)/10).toFixed(1) + '%';
+        so.style.color = q >= 80 ? '#059669' : '#dc2626';
+        so.title = 'มา ' + sp + ' จาก ' + sd + ' วันที่เช็กแล้ว';
+      } else { so.textContent = '-'; so.style.color = '#94a3b8'; so.title = 'ยังไม่ได้เช็กชื่อรายวัน'; }
     });
     var warn = document.getElementById('attWarn');
     warn.style.display = bad ? '' : 'none';
