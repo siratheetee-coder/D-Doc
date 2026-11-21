@@ -21,12 +21,22 @@
   .case.on i::after{content:"✓";position:absolute;left:0;top:-3mm;font-size:16pt;font-style:normal}
   .facts{min-height:22mm;border-bottom:1px dotted #000;outline:none;background:repeating-linear-gradient(transparent 0 9mm,#999 9mm 9.3mm)}
   .facts:empty::before{content:attr(data-ph);color:#94a3b8}
-  @media print{.facts:empty::before{content:""}.bar{display:none}body{background:#fff}.page{margin:0}}
+  .meet{font:inherit;width:120mm;border:0;border-bottom:1px dotted #000;background:#fffbeb;padding:0 2mm}
+  .facts{white-space:pre-wrap}
+  @media print{.meet{background:none}.facts:empty::before{content:""}.bar{display:none}body{background:#fff}.page{margin:0}}
 </style>
 </head>
 <body>
-<div class="bar">{% if kind == "probation" %}คลิกกรณีที่ตรง และพิมพ์พฤติการณ์ได้ แล้วกด{% else %}ตรวจข้อความแล้วกด{% endif %} <button onclick="print()">พิมพ์</button> ช่องจุดไข่ปลาเขียนด้วยมือตอนพบผู้ปกครอง</div>
+{% if saved %}
+<div class="bar">ออกหนังสือเมื่อ {{ be(saved.date) }} โดย {{ saved.by_name or '-' }} <button onclick="print()">พิมพ์</button> <a href="/general/behavior/s/{{ stu.id }}" style="color:#cbd5e1;margin-left:10px">กลับ</a></div>
 <div class="page">
+{% else %}
+<form method="post" action="/general/behavior/s/{{ stu.id }}/letter" id="ltForm">
+<input type="hidden" name="kind" value="{{ kind }}"><input type="hidden" name="cases" id="ltCases"><input type="hidden" name="facts" id="ltFacts">
+<div class="bar">{% if kind == "probation" %}คลิกกรณีที่ตรง และพิมพ์พฤติการณ์{% else %}ใส่วันเวลานัดพบ{% endif %} แล้วกด
+  <button type="submit">บันทึกเก็บไว้ แล้วพิมพ์</button> <button type="button" onclick="print()" style="background:#475569">พิมพ์โดยไม่บันทึก</button></div>
+<div class="page">
+{% endif %}
 {% if kind == 'probation' %}
   <h1>บันทึกการทำทัณฑ์บน</h1>
   <p class="r">{{ school.name or '' }}<br>วันที่ {{ today }}</p>
@@ -39,10 +49,10 @@
                  'ทำให้เสื่อมเสียชื่อเสียงและเกียรติศักดิ์ของสถานศึกษา',
                  'ฝ่าฝืนระเบียบของสถานศึกษา',
                  'ได้รับโทษว่ากล่าวตักเตือนแล้ว แต่ยังไม่เข็ดหลาบ'] %}
-    <div class="case" onclick="this.classList.toggle('on')"><i></i>{{ t }}</div>{% endfor %}
+    <div class="case{{ ' on' if loop.index|string in cases_on }}" data-n="{{ loop.index }}"{% if not saved %} onclick="this.classList.toggle('on')"{% endif %}><i></i>{{ t }}</div>{% endfor %}
   </div>
   <p style="margin:3mm 0 0">พฤติการณ์ที่เกิดขึ้น</p>
-  <div class="facts" contenteditable="true" data-ph="พิมพ์พฤติการณ์ก่อนพิมพ์ หรือเว้นไว้เขียนด้วยมือ"></div>
+  <div class="facts" {% if not saved %}contenteditable="true" {% endif %}data-ph="พิมพ์พฤติการณ์ก่อนพิมพ์ หรือเว้นไว้เขียนด้วยมือ">{{ facts }}</div>
   <p class="ind">ปัจจุบันนักเรียนมีคะแนนความประพฤติคงเหลือ <b>{{ score }}</b> คะแนน จากคะแนนเต็ม {{ full }} คะแนน รายการที่ถูกตัดคะแนนดังนี้</p>
 {% else %}
   <h1>หนังสือเชิญผู้ปกครองพบ</h1>
@@ -66,8 +76,8 @@
     <div>ลงชื่อ <span class="line"></span><br>( {% if school.director_name %}{{ school.director_name }}{% else %}<span class="line" style="min-width:50mm"></span>{% endif %} )<br>{{ head }}</div>
   </div>
 {% else %}
-  <p class="ind">โรงเรียนจึงขอเชิญท่านมาพบครู ในวันที่ <span class="line" style="min-width:40mm"></span>
-    เวลา <span class="line" style="min-width:25mm"></span> น. เพื่อร่วมกันหาแนวทางดูแลและแก้ไขพฤติกรรมของนักเรียน</p>
+  <p class="ind">โรงเรียนจึงขอเชิญท่านมาพบครู {% if saved and meet %}<b>{{ meet }}</b>{% elif saved %}ในวันที่ <span class="line" style="min-width:40mm"></span>
+    เวลา <span class="line" style="min-width:25mm"></span> น.{% else %}<input name="meet" class="meet" placeholder="เช่น วันที่ 25 พ.ย. 2569 เวลา 15.30 น. (เว้นว่างไว้เขียนเองได้)">{% endif %} เพื่อร่วมกันหาแนวทางดูแลและแก้ไขพฤติกรรมของนักเรียน</p>
   <p class="ind">จึงเรียนมาเพื่อโปรดทราบและให้ความร่วมมือ</p>
   <div class="sig">
     <div></div>
@@ -76,5 +86,12 @@
   <p style="margin-top:14mm">ผู้ปกครองรับทราบ ลงชื่อ <span class="line"></span> วันที่ <span class="line" style="min-width:35mm"></span></p>
 {% endif %}
 </div>
+{% if not saved %}</form>
+<script>
+document.getElementById('ltForm').addEventListener('submit', function(){
+  document.getElementById('ltCases').value = [].map.call(document.querySelectorAll('.case.on'), function(x){ return x.dataset.n; }).join(',');
+  var f = document.querySelector('.facts'); document.getElementById('ltFacts').value = f ? f.innerText.trim() : '';
+});
+</script>{% else %}<script>if (location.search.indexOf('print=1') >= 0) setTimeout(function(){ print(); }, 400);</script>{% endif %}
 </body>
 </html>

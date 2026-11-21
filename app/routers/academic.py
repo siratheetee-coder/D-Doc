@@ -2841,8 +2841,23 @@ def assess_page(request: Request, db: Session = Depends(get_db),
         "students": students, "rows": rows, "fields": fields, "labels": labels,
         "terms": terms, "term": term, "has_terms": has_terms,
         "sec": sec, "prathom_term": prathom_term, "eval_term": eval_term,
-        "class_label": _class_label, "term_label": term_label,
+        "class_label": _class_label, "term_label": term_label, "bh": _behavior_hint(db, students, y) if kind == "char" else {},
     })
+
+
+def _behavior_hint(db, students, year):
+    """คะแนนความประพฤติ (งานบริหารทั่วไป) ให้ครูเห็นประกอบการประเมินคุณลักษณะ แสดงอย่างเดียว ไม่คำนวณแทนครู"""
+    try:
+        from app.services import behavior
+        st = behavior.setting(db)
+        ids = [s.student_id for s in students if s.student_id]
+        if not ids:
+            return {}
+        sc = behavior.scores(db, year, ids)
+        return {s.id: (s.student_id, sc[s.student_id], behavior.level(sc[s.student_id], st))
+                for s in students if s.student_id}
+    except Exception:  # noqa: BLE001
+        return {}
 
 
 @router.post("/academic/assess/save")

@@ -24,6 +24,22 @@
   </div>
 </div>
 
+{% if letters %}
+<div class="card">
+  <h2 class="ap-h2">หนังสือที่ออกแล้ว {{ letters|length }} ฉบับ</h2>
+  {% for l in letters %}
+  <div class="bs-rec">
+    <span class="bh-pts {{ 'minus' if l.kind == 'probation' else 'plus' }}" style="min-width:86px;font-size:12.5px">{{ 'ทัณฑ์บน' if l.kind == 'probation' else 'เชิญผู้ปกครอง' }}</span>
+    <span class="bs-body"><b>{{ be(l.date) }}</b><small>คะแนนตอนออก {{ l.score }} โดย {{ l.by_name or '-' }}{% if l.facts %} พฤติการณ์: {{ l.facts[:80] }}{% endif %}</small></span>
+    <a class="ap-btn ap-soft" href="/general/behavior/l/{{ l.id }}" target="_blank" style="padding:6px 12px">เปิด / พิมพ์</a>
+    {% if staff or (pid and l.by_pid == pid) %}
+    <form method="post" action="/general/behavior/l/{{ l.id }}/delete" onsubmit="return confirm('ลบหนังสือฉบับนี้?')"><button class="bs-del" title="ลบ" data-no-floating-save>✕</button></form>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 <div class="card">
   <h2 class="ap-h2">ประวัติ {{ hist|length }} รายการ</h2>
   {% for r in hist %}

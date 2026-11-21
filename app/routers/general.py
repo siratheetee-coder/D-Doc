@@ -1042,6 +1042,11 @@ def _bh_rows(db, c, year):
              "level": behavior.level(sc.get(s.student_id, st.full), st)} for s in studs]
 
 
+def _letters_of(db, sid):
+    from app.models import BehaviorLetter
+    return db.query(BehaviorLetter).filter_by(student_id=sid).order_by(BehaviorLetter.id.desc()).all()
+
+
 def _bh_back(url, msg):
     url = url if (url or "").startswith("/general/behavior") else "/general/behavior"
     return RedirectResponse(url + ("&" if "?" in url else "?") + "msg=" + msg, status_code=303)
@@ -1134,6 +1139,7 @@ def behavior_student(sid: int, request: Request, db: Session = Depends(get_db), 
         "request": request, "school": get_school(db), "year": y, "bst": st, "stu": stu,
         "cls": _class_label(stu), "score": score, "level": behavior.level(score, st),
         "levels": behavior.LEVEL_LABEL, "hist": behavior.history(db, y, sid), "rules": behavior.rules(db),
+        "letters": _letters_of(db, sid),
         "be": _be, "staff": staff, "pid": pid, "msg": msg, "today_input": _be_input(_today_iso()),
     })
 
@@ -1154,24 +1160,82 @@ def behavior_delete(rid: int, request: Request, db: Session = Depends(get_db)):
     return RedirectResponse(f"/general/behavior/s/{sid}?msg=ลบรายการแล้ว", status_code=303)
 
 
+def _letter_ctx(request, db, stu, kind, saved=None):
+    from app.routers.academic import _acad_year
+    from app.services import behavior
+    y = saved.year if saved else _acad_year(db)
+    score = saved.score if (saved and saved.score is not None) else behavior.scores(db, y, [stu.id])[stu.id]
+    hist = [r for r in behavior.history(db, y, stu.id) if r.points < 0
+            and (not saved or r.date <= saved.date)][:12]
+    school = get_school(db)
+    return {
+        "request": request, "school": school, "stu": stu, "cls": _class_label(stu), "score": score,
+        "full": behavior.setting(db).full, "hist": hist, "kind": kind, "saved": saved,
+        "cases_on": set((saved.cases or "").split(",")) if saved else set(),
+        "facts": saved.facts if saved else "", "meet": saved.meet if saved else "",
+        "be": _be, "today": _be(saved.date if saved else _today_iso()), "year": y, "head": head_title(school),
+    }
+
+
 @router.get("/general/behavior/s/{sid}/letter", response_class=HTMLResponse)
 def behavior_letter(sid: int, request: Request, db: Session = Depends(get_db), kind: str = "parent"):
-    """พิมพ์หนังสือเชิญผู้ปกครองพบ / บันทึกทัณฑ์บน (ข้อ 8: ทำเป็นหนังสือ ผู้ปกครองลงชื่อรับทราบ)"""
+    """ร่างหนังสือเชิญผู้ปกครองพบ / บันทึกทัณฑ์บน (ข้อ 8: ทำเป็นหนังสือ ผู้ปกครองลงชื่อรับทราบ)"""
     from fastapi import HTTPException
+    stu = db.get(Student, sid)
+    if not stu:
+        raise HTTPException(404)
+    return templates.TemplateResponse("general_behavior_letter.html",
+                                      _letter_ctx(request, db, stu, "probation" if kind == "probation" else "parent"))
+
+
+@router.post("/general/behavior/s/{sid}/letter")
+def behavior_letter_save(sid: int, request: Request, db: Session = Depends(get_db), kind: str = Form("parent"),
+                         cases: str = Form(""), facts: str = Form(""), meet: str = Form("")):
+    """เก็บหนังสือที่ออกไว้เป็นหลักฐาน (ข้อ 9) แล้วเปิดฉบับที่บันทึกเพื่อพิมพ์"""
+    from fastapi import HTTPException
+    from app.models import BehaviorLetter
     from app.routers.academic import _acad_year
     from app.services import behavior
     stu = db.get(Student, sid)
     if not stu:
         raise HTTPException(404)
     y = _acad_year(db)
-    score = behavior.scores(db, y, [sid])[sid]
-    hist = [r for r in behavior.history(db, y, sid) if r.points < 0][:12]
-    school = get_school(db)
-    return templates.TemplateResponse("general_behavior_letter.html", {
-        "request": request, "school": school, "stu": stu, "cls": _class_label(stu), "score": score,
-        "full": behavior.setting(db).full, "hist": hist, "kind": "probation" if kind == "probation" else "parent",
-        "be": _be, "today": _be(_today_iso()), "year": y, "head": head_title(school),
-    })
+    who, pid = _bh_who(request)
+    ok_cases = ",".join(c for c in (cases or "").split(",") if c in ("1", "2", "3", "4"))
+    lt = BehaviorLetter(student_id=sid, year=y, kind="probation" if kind == "probation" else "parent",
+                        date=_today_iso(), cases=ok_cases, facts=(facts or "").strip()[:3000],
+                        meet=(meet or "").strip()[:200], score=behavior.scores(db, y, [sid])[sid],
+                        by_name=who[:120], by_pid=pid)
+    db.add(lt)
+    db.commit()
+    return RedirectResponse(f"/general/behavior/l/{lt.id}?print=1", status_code=303)
+
+
+@router.get("/general/behavior/l/{lid}", response_class=HTMLResponse)
+def behavior_letter_view(lid: int, request: Request, db: Session = Depends(get_db)):
+    from fastapi import HTTPException
+    from app.models import BehaviorLetter
+    lt = db.get(BehaviorLetter, lid)
+    stu = db.get(Student, lt.student_id) if lt else None
+    if not lt or not stu:
+        raise HTTPException(404)
+    return templates.TemplateResponse("general_behavior_letter.html", _letter_ctx(request, db, stu, lt.kind, lt))
+
+
+@router.post("/general/behavior/l/{lid}/delete")
+def behavior_letter_delete(lid: int, request: Request, db: Session = Depends(get_db)):
+    from fastapi import HTTPException
+    from app.models import BehaviorLetter
+    lt = db.get(BehaviorLetter, lid)
+    if not lt:
+        raise HTTPException(404)
+    _who, pid = _bh_who(request)
+    if not (_bh_staff(request) or (pid and lt.by_pid == pid)):
+        raise HTTPException(403, "ลบได้เฉพาะคนที่ออกหนังสือ หรือเจ้าหน้าที่")
+    sid = lt.student_id
+    db.delete(lt)
+    db.commit()
+    return RedirectResponse(f"/general/behavior/s/{sid}?msg=ลบหนังสือแล้ว", status_code=303)
 
 
 @router.get("/general/behavior/settings", response_class=HTMLResponse)

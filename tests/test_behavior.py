@@ -86,3 +86,30 @@ def test_letters_and_levels(env):
     p = env.get(f"/general/behavior/s/{a}/letter?kind=probation").text
     assert "บันทึกการทำทัณฑ์บน" in p and "ทะเลาะวิวาท" in p and "45" in p
     assert "หนังสือเชิญผู้ปกครองพบ" in env.get(f"/general/behavior/s/{a}/letter").text
+
+
+def test_saved_probation_letter_keeps_cases_and_facts(env):
+    cid, (a, _b), y = _class_with_students()
+    env.post("/general/behavior/add", data={"student_ids": str(a), "label": "ทะเลาะวิวาท", "points": "20"})
+    r = env.post(f"/general/behavior/s/{a}/letter", data={"kind": "probation", "cases": "1,3,9",
+                                                         "facts": "ชกต่อยกันหลังเลิกเรียน"}, follow_redirects=False)
+    assert r.status_code == 303 and "/general/behavior/l/" in r.headers["location"]
+    page = env.get(r.headers["location"]).text
+    assert "ชกต่อยกันหลังเลิกเรียน" in page and 'data-n="3"' in page
+    assert page.count('class="case on"') == 2            # กรณี 9 ไม่มีจริง ถูกตัดทิ้ง
+    assert "ltForm" not in page                            # ฉบับที่บันทึกแล้ว อ่านอย่างเดียว
+    assert "หนังสือที่ออกแล้ว 1 ฉบับ" in env.get(f"/general/behavior/s/{a}").text
+    p = env.post(f"/general/behavior/s/{a}/letter", data={"kind": "parent", "meet": "วันที่ 25 พ.ย. 2569 เวลา 15.30 น."})
+    assert "วันที่ 25 พ.ย. 2569 เวลา 15.30 น." in p.text
+
+
+def test_assess_page_shows_behavior_hint(env):
+    import app.tenancy as tn
+    from app.models import AcadSubject
+    cid, (a, _b), y = _class_with_students()
+    with tn.session_for(next(iter(tn._engines))) as s:
+        sb = AcadSubject(year=y, code="ท22101", name="ภาษาไทย", level="ม.2"); s.add(sb); s.commit(); sid = sb.id
+    env.post("/general/behavior/add", data={"student_ids": str(a), "label": "หนีเรียน", "points": "35"})
+    html = env.get(f"/academic/assess?cid={cid}&sid={sid}&kind=char").text
+    assert "ความประพฤติ 65" in html and "lv-parent" in html
+    assert "ความประพฤติ 65" not in env.get(f"/academic/assess?cid={cid}&sid={sid}&kind=read").text

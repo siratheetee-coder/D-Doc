@@ -559,9 +559,10 @@ body.dd-on,body.dd-on *{cursor:grabbing!important;user-select:none!important}
 {% if c %}
 <script>
   // สีประจำวิชา: ตามลำดับวิชาของชั้น (ไม่ซ้ำกันจนกว่าจะเกิน 12 วิชา) ใช้ทั้งแผงตั้งค่าและตาราง
-  var TT_PAL = [["#dbeafe","#3b82f6"],["#ede9fe","#8b5cf6"],["#d1fae5","#10b981"],["#fef3c7","#f59e0b"],
-                ["#ffe4e6","#f43f5e"],["#cffafe","#06b6d4"],["#ffedd5","#f97316"],["#ecfccb","#84cc16"],
-                ["#fae8ff","#d946ef"],["#ccfbf1","#14b8a6"],["#e0e7ff","#6366f1"],["#fce7f3","#ec4899"]];
+  // เรียงให้วิชาที่อยู่ติดกันสีต่างกันชัด (เดิม ฟ้า-ม่วงอ่อน ติดกัน ภาษาไทยกับคณิตดูคล้ายกัน)
+  var TT_PAL = [["#dbeafe","#3b82f6"],["#fef3c7","#f59e0b"],["#d1fae5","#10b981"],["#ffe4e6","#f43f5e"],
+                ["#ede9fe","#8b5cf6"],["#ffedd5","#f97316"],["#cffafe","#06b6d4"],["#fae8ff","#d946ef"],
+                ["#ecfccb","#84cc16"],["#fce7f3","#ec4899"],["#ccfbf1","#14b8a6"],["#e0e7ff","#6366f1"]];
   var TT_NOTE = ["#f1f5f9","#94a3b8"];
   var TT_GROUP = {{ subj_group|tojson }};      // วิชาต่างภาค -> วิชาตัวแทน
   var TT_COLOR = {{ subj_color|tojson }};

@@ -547,6 +547,24 @@ class BehaviorRecord(Base):
     created_at = Column(DateTime, default=datetime.now)
 
 
+class BehaviorLetter(Base):
+    """หนังสือเชิญผู้ปกครอง / บันทึกทัณฑ์บน ที่ออกแล้ว (เก็บไว้เป็นหลักฐาน ข้อ 8-9 พิมพ์ซ้ำได้)"""
+    __tablename__ = "behavior_letter"
+
+    id = Column(Integer, primary_key=True)
+    student_id = Column(Integer, ForeignKey("student.id"), nullable=False, index=True)
+    year = Column(Integer, nullable=False)
+    kind = Column(String, default="probation")       # probation / parent
+    date = Column(String, nullable=False)            # ISO วันที่ออกหนังสือ
+    cases = Column(String, default="")               # ทัณฑ์บน: เลขกรณีตามข้อ 8 เช่น "1,3"
+    facts = Column(Text, default="")                 # พฤติการณ์
+    meet = Column(String, default="")                # หนังสือเชิญ: วันเวลานัดพบ (ข้อความ)
+    score = Column(Integer, nullable=True)           # คะแนนคงเหลือ ณ วันออกหนังสือ
+    by_name = Column(String, default="")
+    by_pid = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.now)
+
+
 class ItemCatalog(Base):
     """คลังรายการพัสดุมาตรฐาน (ใช้ซ้ำ) - พิมพ์ชื่อครั้งเดียว เลือกใช้ในเรื่องจัดซื้อทุกครั้ง
     ระบบเติมให้อัตโนมัติจากรายการที่เคยกรอก (dedupe ตามชื่อ)"""

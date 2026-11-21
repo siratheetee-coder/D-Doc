@@ -69,7 +69,8 @@
       <button class="btn gray" type="button" onclick="clearAll()">ล้างทุกช่อง</button>
     </div>
   </div>
-  <p class="muted" style="font-size:13px; margin:6px 0 8px;">คะแนน 0-3 ต่อข้อ เฉลี่ย ≥2.5 = ดีเยี่ยม 1.5-2.49 = ดี 1-1.49 = ผ่าน ต่ำกว่า 1 = ไม่ผ่าน เว้นว่างได้ถ้ายังไม่ประเมิน</p>
+  {% if bh %}<style>.bh-hint{display:block;font-size:11px;text-decoration:none;font-weight:600;margin-top:2px}.bh-hint.lv-ok{color:#059669}.bh-hint.lv-parent{color:#b45309}.bh-hint.lv-probation{color:#dc2626}</style>{% endif %}
+  <p class="muted" style="font-size:13px; margin:6px 0 8px;">{% if bh %}ใต้ชื่อมีคะแนนความประพฤติให้ดูประกอบ (ไม่ได้นำมาคิดคะแนนให้) {% endif %}คะแนน 0-3 ต่อข้อ เฉลี่ย ≥2.5 = ดีเยี่ยม 1.5-2.49 = ดี 1-1.49 = ผ่าน ต่ำกว่า 1 = ไม่ผ่าน เว้นว่างได้ถ้ายังไม่ประเมิน</p>
   {% if students %}
   <form method="post" action="/academic/assess/save" id="assessForm">
     <input type="hidden" name="cid" value="{{ c.id }}">
@@ -88,7 +89,8 @@
         {% set r = rows.get(s.id) %}
         <tr data-row>
           <td>{{ s.seq or '' }}</td>
-          <td style="white-space:nowrap;">{{ s.name }}</td>
+          <td style="white-space:nowrap;">{{ s.name }}{% set h = bh.get(s.id) %}{% if h %}
+            <a class="bh-hint lv-{{ h[2] }}" href="/general/behavior/s/{{ h[0] }}" target="_blank" title="คะแนนความประพฤติ (ดูประกอบ ไม่ได้คำนวณให้)">ความประพฤติ {{ h[1] }}</a>{% endif %}</td>
           {% for f in fields %}
           {% set v = (r|attr(f)) if r else none %}
           <td><input name="{{ f }}_{{ s.id }}" data-score inputmode="numeric" maxlength="1" class="grid-adv"
