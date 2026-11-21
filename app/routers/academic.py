@@ -3034,6 +3034,68 @@ async def calendar_save(request: Request, db: Session = Depends(get_db), year: s
     return sc.redirect(request,y,"saved=1",return_to)
 
 
+@router.post("/settings/calendar/save-all")
+@router.post("/academic/calendar/save-all")
+async def calendar_save_all(request: Request, db: Session = Depends(get_db), year: str = Form(""), return_to: str = Form("")):
+    """ปุ่มบันทึกเดียวของหน้าตั้งค่าวันเรียน: ภาคเรียน + วันหยุด + วันเรียนรายวัน ในครั้งเดียว
+    act=seed (ใส่วันหยุดราชการ) / act=autofill (กรอกปฏิทินทั้งปี) ทำหลังบันทึกที่แก้ไว้ ของที่พิมพ์ไว้จะไม่หาย"""
+    from app.services import school_calendar as sc
+    if not sc.may_edit(request,db):raise HTTPException(403,"ไม่มีสิทธิ์แก้ไขปฏิทินโรงเรียน")
+    form = await request.form()
+    y = _to_int(year, 0) or _acad_year(db)
+    if not 2500<=y<=2800:raise HTTPException(400,"ปีการศึกษาไม่ถูกต้อง")
+    previous_holidays=set(holiday_map(y,db))
+    # 1) ภาคเรียน
+    terms_changed=False
+    if "t1_start" in form:
+        row = db.query(AcadYearSetting).filter_by(year=y).first()
+        if not row:
+            row = AcadYearSetting(year=y); db.add(row)
+        for col in ("t1_start","t1_end","t2_start","t2_end"):
+            v = parse_be_date(form.get(col, "") or "")
+            if getattr(row, col) != v:
+                setattr(row, col, v); terms_changed=True
+    # 2) วันหยุด (ลบ/แก้/เพิ่ม)
+    for r in db.query(AcadHoliday).filter_by(year=y).all():
+        if form.get(f"del_{r.id}"):
+            db.delete(r); continue
+        if f"n_{r.id}" not in form: continue
+        r.month = _to_int(form.get(f"m_{r.id}", ""), None) or None
+        r.day = _to_int(form.get(f"d_{r.id}", ""), None) or None
+        r.name = (form.get(f"n_{r.id}", "") or "").strip()
+    nm = (form.get("new_name", "") or "").strip()
+    nmm = _to_int(form.get("new_month", ""), None)
+    nmd = _to_int(form.get("new_day", ""), None)
+    if nm and nmm and nmd:
+        db.add(AcadHoliday(year=y, month=nmm, day=nmd, name=nm, kind="other"))
+    # 3) วันเรียนรายวัน: บันทึกเฉพาะเมื่อมีการคลิกแก้ (เดือนที่ยังเป็นค่าแนะนำจะได้ไม่ถูกบันทึกโดยไม่ตั้งใจ)
+    if form.get("days_dirty") == "1":
+        cur = {r.month: r for r in db.query(AcadCalendar).filter_by(year=y).all()}
+        for mnum, _short in sc.MONTHS:
+            if f"m_{mnum}" not in form: continue
+            row = cur.get(mnum)
+            if not row:
+                row = AcadCalendar(year=y, month=mnum); db.add(row)
+            row.days_csv = ",".join(str(d) for d in parse_days_csv(form.get(f"m_{mnum}", "")))
+    db.flush()
+    sc.apply_exclusions(db, y, previous_holidays, terms=terms_changed)
+    flag = "saved=1"
+    act = form.get("act", "")
+    if act == "seed":
+        before=set(holiday_map(y,db)); n = seed_fixed_holidays(y, db); db.flush()
+        sc.apply_exclusions(db, y, before); flag = f"seeded={n}"
+    elif act == "autofill":
+        cur = {r.month: r for r in db.query(AcadCalendar).filter_by(year=y).all()}
+        for mnum, _short in sc.MONTHS:
+            row = cur.get(mnum)
+            if not row:
+                row = AcadCalendar(year=y, month=mnum); db.add(row)
+            row.days_csv = ",".join(str(d) for d in auto_open_days(y, mnum, db))
+        flag = "filled=1"
+    db.commit()
+    return sc.redirect(request,y,flag,return_to)
+
+
 # ---------------- เวลาเรียน (สรุปรายเดือน + เช็กชื่อรายวัน) ----------------
 def _mark_until(year_be, month):
     """ปุ่ม "ทุกคนมาทุกวัน" ใส่ได้ถึงวันไหน: เดือนนี้ = ถึงวันนี้ · เดือนที่ยังไม่ถึง = 0 · เดือนที่ผ่านแล้ว = ทั้งเดือน"""

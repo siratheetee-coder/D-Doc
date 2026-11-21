@@ -101,9 +101,11 @@ def context(db,request,year,month=None,event_id=None):
     for d in range(1,last.day+1):
         day=date(ce,month,d);iso=day.isoformat()
         dates.append(dict(iso=iso,day=d,weekend=day.weekday()>=5,today=day==now,open=opened.get(iso,False),events=[e for e in monthly if e['start']<=iso<=e['end']],markers=[e for e in markers if e['d']==iso]))
+    # รายการ/ใกล้ถึง: รวมวันหยุดและวันเปิด-ปิดภาคเรียนด้วย ไม่ใช่แค่กิจกรรม
+    up_marks=[m for m in year_events(db,year) if m['d']>=now.isoformat()][:3]
     prev=first-timedelta(days=1);nxt=last+timedelta(days=1)
     ay=lambda d:d.year+543-(1 if d.month<5 else 0)
-    return dict(events=events,monthly=monthly,upcoming=upcoming,selected=selected or (upcoming[0] if upcoming else (monthly[0] if monthly else None)),days=dates,lead=first.weekday(),month=month,month_label=f'{MONTHS[month]} {ce+543}',can_edit=editable(request,db),classes=[dict(id=c.id,name=f'{c.level}/{c.room}') for c in classes],levels=sorted({c.level for c in classes}),kinds=KINDS,
+    return dict(events=events,monthly=monthly,upcoming=upcoming,markers=markers,up_marks=up_marks,selected=selected or (upcoming[0] if upcoming else (monthly[0] if monthly else None)),days=dates,lead=first.weekday(),month=month,month_label=f'{MONTHS[month]} {ce+543}',can_edit=editable(request,db),classes=[dict(id=c.id,name=f'{c.level}/{c.room}') for c in classes],levels=sorted({c.level for c in classes}),kinds=KINDS,
         prev=f'{base}?year={ay(prev)}&month={prev.month}',next=f'{base}?year={ay(nxt)}&month={nxt.month}',today=f'{base}?year={ay(now)}&month={now.month}',base=base,initial_day=first.isoformat(),today_iso=now.isoformat())
 
 def home_events(db,year,pid):

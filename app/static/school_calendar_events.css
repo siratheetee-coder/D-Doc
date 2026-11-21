@@ -4,3 +4,4 @@
 
 .se-settings-back{font-size:12px;color:#8b779f;text-decoration:none;display:inline-block;margin:2px 0 0}.se-heading-actions>.btn,.se-dialog-foot>.btn:not(.gray),#se-add-on-day{background:#784bc8}.sc-teacher-followups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.sc-teacher-followups>.home-updates{grid-column:1/-1}.sc-teacher-followups>.home-panel{min-width:0}.sc-teacher-followups .th-head{flex-wrap:wrap}.sc-teacher-followups .th-head h2{font-size:16px}.sc-teacher-followups .th-head>.btn{font-size:11px}.sc-teacher-followups .home-panel{padding:16px}.sc-teacher-followups .home-updates .home-update{padding:9px 0}.sc-teacher-followups .home-updates p{font-size:12px}
 @media(max-width:650px){.sc-teacher-followups{grid-template-columns:1fr}}
+.se-holday{background:#fff5f7}.se-holday .se-day-number{color:#c0264a}.se-list-mark{cursor:default}.se-empty-hint{font-size:12px;color:#7d8496;margin:10px 0 0}
