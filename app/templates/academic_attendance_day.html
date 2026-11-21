@@ -41,7 +41,7 @@
     {# มือถือ: เช็กทีละวัน เป็นรายชื่อ + ปุ่ม มา/ป่วย/ลา/ขาด (ใช้ช่องในตารางเดียวกัน บันทึกพร้อมกัน) #}
     <div id="dayMode" class="dm" hidden>
       <div class="dm-days" id="dmDays"></div>
-      <div class="dm-bar"><b id="dmTitle"></b><button type="button" class="dm-all" id="dmAll">ทุกคนมาวันนี้</button></div>
+      <div class="dm-bar"><b id="dmTitle"></b><span class="dm-acts"><button type="button" class="dm-all" id="dmAll">ทุกคนมาวันนี้</button><button type="button" class="dm-clr" id="dmClr">ล้างวันนี้</button></span></div>
       <div id="dmList"></div>
       <button type="button" class="dm-full" id="dmFull">ดูตารางทั้งเดือน</button>
     </div>
@@ -207,6 +207,7 @@ document.addEventListener('DOMContentLoaded',function(){var t=document.querySele
 .dm-days button.fut{opacity:.45}
 .dm-days button.on{background:linear-gradient(135deg,#6366f1,#7c3aed);color:#fff}
 .dm-bar{display:flex;justify-content:space-between;align-items:center;margin:6px 0 8px;gap:8px}
+.dm-acts{display:flex;gap:6px}.dm-clr{border:0;border-radius:10px;padding:9px 12px;font:inherit;font-weight:700;color:#fff;background:linear-gradient(135deg,#f87171,#dc2626)}
 .dm-all{border:0;border-radius:10px;padding:9px 12px;font:inherit;font-weight:700;color:#fff;background:linear-gradient(135deg,#4ade80,#059669)}
 .dm-row{display:flex;align-items:center;gap:8px;padding:8px 2px;border-bottom:1px solid #f1f5f9}
 .dm-row .nm{flex:1;min-width:0;font-size:14px;line-height:1.2}
@@ -259,6 +260,11 @@ document.addEventListener('DOMContentLoaded',function(){var t=document.querySele
   });
   document.getElementById('dmAll').addEventListener('click', function(){
     rows.forEach(function(tr){ var c = cell(tr, cur); if (!c.getAttribute('data-v')) setCell(c, '/'); recalcRow(tr); });
+    drawList(); drawDays();
+  });
+  document.getElementById('dmClr').addEventListener('click', function(){
+    if (!confirm('ล้างการเช็กชื่อของวันที่ ' + cur + ' ทั้งห้อง? (ต้องกดบันทึกเพื่อยืนยัน)')) return;
+    rows.forEach(function(tr){ setCell(cell(tr, cur), ''); recalcRow(tr); });
     drawList(); drawDays();
   });
   document.getElementById('dmFull').addEventListener('click', function(){ document.body.classList.add('dm-month'); });
