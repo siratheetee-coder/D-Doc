@@ -126,6 +126,75 @@ def page(request, db, c, subject, term, *, preview=None, token="", error="", ent
                               checked=cc.get(r.id, 0)) for r in state['lessons']], **state))
 
 
+def _slot_minutes(label):
+    """'08:30-09:20' -> (510, 560) นาทีนับจากเที่ยงคืน · อ่านไม่ได้ = None"""
+    import re
+    m = re.match(r"\s*(\d{1,2})[:.](\d{2})\s*-\s*(\d{1,2})[:.](\d{2})", label or "")
+    if not m:
+        return None
+    a, b, c, d = map(int, m.groups())
+    return a * 60 + b, c * 60 + d
+
+
+def pick_lesson(lessons, period_times, now):
+    """คาบที่ใกล้เวลาตอนนี้ที่สุด: กำลังสอนอยู่ > คาบถัดไปของวันนี้ > คาบล่าสุดของวันนี้
+    > คาบถัดไปในวันข้างหน้า > คาบล่าสุดที่ผ่านมา"""
+    if not lessons:
+        return None
+    today, mins = now.date(), now.hour * 60 + now.minute
+    todays = [l for l in lessons if l.date == today]
+    if todays:
+        def rng(l):
+            return period_times.get((l.slot or "").strip()) or _slot_minutes(l.slot)
+        timed = [(rng(l), l) for l in todays]
+        for r, l in timed:
+            if r and r[0] <= mins < r[1]:
+                return l
+        later = sorted(((r[0], l) for r, l in timed if r and r[0] >= mins), key=lambda x: x[0])
+        if later:
+            return later[0][1]
+        earlier = sorted(((r[1], l) for r, l in timed if r and r[1] <= mins), key=lambda x: -x[0])
+        if earlier:
+            return earlier[0][1]
+        return todays[0]
+    future = sorted((l for l in lessons if l.date > today), key=lambda l: l.date)
+    if future:
+        return future[0]
+    return max(lessons, key=lambda l: l.date)
+
+
+@router.get("/academic/lessons/next")
+def lesson_next(request: Request, db: Session = Depends(get_db)):
+    """ปุ่ม "เช็กชื่อคาบที่สอน" หน้าหลักครู: เปิดคาบที่ใกล้เวลาตอนนี้ที่สุดของครูคนนี้"""
+    from datetime import datetime, timedelta
+    from app.models import AcadPeriod
+    from app.routers.academic import _scope, _acad_year
+    from app.thai_utils import thai_today
+    sc = _scope(request, db)
+    pairs = sc.teach_pairs if sc.is_teacher else None
+    if not pairs:
+        return RedirectResponse("/academic/attendance?mode=subject", status_code=303)
+    today = thai_today()
+    lo, hi = today - timedelta(days=45), today + timedelta(days=45)
+    rows = [l for l in db.query(AcadLesson).filter(AcadLesson.date >= lo, AcadLesson.date <= hi,
+                                                   AcadLesson.class_id.in_({c for c, _ in pairs})).all()
+            if (l.class_id, l.subject_id) in pairs]
+    if not rows:
+        return RedirectResponse("/academic/attendance?mode=subject", status_code=303)
+    periods = {}
+    for p in db.query(AcadPeriod).filter_by(year=_acad_year(db)).all():
+        r = _slot_minutes(p.time_label)
+        if r and (p.name or "").strip():
+            periods.setdefault(p.name.strip(), r)
+    now = datetime.now()
+    if now.date() != today:                # เซิร์ฟเวอร์คนละโซนเวลา ใช้วันที่ไทยเป็นหลัก
+        now = datetime.combine(today, now.time())
+    l = pick_lesson(rows, periods, now)
+    q = urlencode({"cid": l.class_id, "sid": l.subject_id, "term": l.term or 1,
+                   "month": l.date.strftime("%Y-%m"), "lesson": l.id})
+    return RedirectResponse(f"/academic/lessons?{q}#lgDay", status_code=303)
+
+
 @router.get("/academic/lessons")
 def lesson_page(request: Request, cid: int, sid: int, term: int = 1, db: Session = Depends(get_db)):
     c, subject = access(request, db, cid, sid)

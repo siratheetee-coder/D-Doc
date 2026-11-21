@@ -121,7 +121,7 @@
 .grid-save{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;margin-top:12px;background:linear-gradient(120deg,#eef2ff,#f5f3ff);border-radius:14px}
 .grid-save .btn{white-space:normal}#gridStatus{color:#3730a3;font-weight:600;font-size:14px}
 .lg-empty{padding:18px;background:#f8fafc;border-radius:14px;color:#475569;display:flex;flex-wrap:wrap;align-items:center;gap:10px}
-@media(max-width:650px){.lesson-stats{grid-template-columns:1fr}.lesson-stat{padding:12px}.lesson-stat strong{font-size:20px}.lesson-inputs .short{flex:1 1 120px}
+@media(max-width:650px){.lesson-stats{grid-template-columns:repeat(3,1fr);gap:6px}.lesson-stat{padding:8px 6px;font-size:11px;line-height:1.3;text-align:center}.lesson-stat strong{font-size:15px;margin:2px 0}.lesson-stat .lesson-note,.lesson-stat br{display:none}.lesson-actions{gap:6px!important;margin:10px 0!important}.lesson-actions .btn{padding:7px 10px;font-size:13px}.hero{padding:12px 14px}.hero .hero-title{font-size:20px}.lesson-inputs .short{flex:1 1 120px}
   .lesson-calendar button{min-height:44px;font-size:14px}.lesson-calendar button small{display:none}
   .lesson-matrix .student-pin{min-width:150px;max-width:170px}.grid-save{flex-wrap:wrap}.ls-block{padding:12px}.ls-dayrow{grid-template-columns:1fr}.ls-need{grid-column:1}}
 </style>
@@ -138,7 +138,7 @@
 {% set q_add = request.query_params.get('imported') %}{% set q_del = request.query_params.get('removed') %}{% if q_add is not none or q_del is not none %}<div class="alert" role="status">บันทึกคาบสอนแล้ว{% if q_add and q_add != '0' %} เพิ่ม {{ q_add }} คาบ{% endif %}{% if q_del and q_del != '0' %} ลบ {{ q_del }} คาบ{% endif %}{% if (not q_add or q_add == '0') and (not q_del or q_del == '0') %} ไม่มีคาบที่ต้องเปลี่ยน{% endif %}</div>{% endif %}
 <div class="lesson-stats">
   <div class="lesson-stat">ชั่วโมงรายวิชา{{ 'ต่อเทอม' if subj.term in [1,2] else 'ทั้งปี' }}<strong>{{ subj.hours or 0 }} ชั่วโมง</strong>{% if not subj.hours %}<span class="lesson-note">ยังไม่ได้กำหนดในหน้ารายวิชา</span>{% endif %}</div>
-  <div class="lesson-stat">จัดวันสอนเทอมนี้แล้ว<strong>{{ hours(totals[term]) }} ชั่วโมง</strong>{{ lessons|length }} คาบ{% if target is not none %} เป้าหมาย {{ hours(target) }} ชม.{% else %} ยังไม่กำหนดเป้าหมายรายเทอม{% endif %}</div>
+  <div class="lesson-stat">จัดวันสอนเทอมนี้แล้ว<strong>{{ hours(totals[term]) }} ชั่วโมง</strong><span class="lesson-note">{{ lessons|length }} คาบ{% if target is not none %} เป้าหมาย {{ hours(target) }} ชม.{% else %} ยังไม่กำหนดเป้าหมายรายเทอม{% endif %}</span></div>
   <div class="lesson-stat">เช็คชื่อครบทุกคนแล้ว<strong>{{ hours(checked) }} ชั่วโมง</strong><span class="lesson-note">เฉพาะคาบที่บันทึกสถานะครบทั้งห้อง</span></div>
 </div>
 {% if target is not none and totals[term] != target %}<div class="alert warn">จัดวันสอน{{ 'ขาดอีก' if totals[term] < target else 'เกินเป้าหมาย' }} {{ hours((totals[term]-target)|abs) }} ชั่วโมง ยังเพิ่มวันสอนและเช็คชื่อได้ตามปกติ</div>{% endif %}
@@ -184,5 +184,5 @@ if(split)split.addEventListener('click',()=>{document.getElementById('target1').
 ['target1','target2'].forEach(id=>document.getElementById(id)?.addEventListener('input',targetNote));targetNote();
 </script>
 <script id="lessonConfig" type="application/json">{{ {'months':months,'month':month,'events':calendar_events,'entered':entered,'days':day_info,'term':term,'students':students|length,'pattern':pattern}|tojson }}</script>
-<script src="/static/academic_lessons_grid.js?v=9"></script>
+<script src="/static/academic_lessons_grid.js?v=10"></script>
 {% endblock %}

@@ -117,6 +117,7 @@ def build(db, pid):
         year = _acad_year(db)
         out["homeroom"] = bool(sc.homeroom_ids)
         out["homeroom_cid"] = sorted(sc.homeroom_ids)[0] if sc.homeroom_ids else None
+        out["teaching"] = bool(sc.teach_pairs)
         out["month"] = today.month
         out["lessons"] = today_lessons(db, sc, today)
         if sc.teach_pairs:

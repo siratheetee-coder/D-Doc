@@ -35,12 +35,23 @@
 {% endmacro %}
 {% if not home.teacher %}{{ approval_summary() }}{% endif %}
 {% if home.letter_counts and not home.teacher %}<h2 class="home-section-title">{{ 'หนังสือและงานที่ส่งถึงฉัน' if home.teacher else 'ติดตามหนังสือรับ' }}</h2><div class="home-summary letters">{% for label,n in home.letter_counts %}{% set tone = ['blue','purple','red'][loop.index0] %}<a class="home-stat letter-stat tone-{{ tone }}" href="{{ '/me/letters' if home.teacher else ('/home/letters?group=' ~ ['waiting','unacked','overdue'][loop.index0]) }}"><img class="stat-3d" src="/static/images/home3d/{{ ['a_wait_dir','a_unacked','a_late_report'][loop.index0] }}.png" alt=""><span class="letter-stat-label">{{ label }}</span><span class="letter-stat-value"><b>{{ n }}</b><small>เรื่อง</small></span><svg class="icon stat-arrow" aria-hidden="true"><use href="#ic-arrow-right"/></svg></a>{% endfor %}</div>{% endif %}
-{% if home.teacher and home.ta %}{% set ta = home.ta %}<div class="hq-bar{{ ' hq-3' if ta.homeroom }}">
-{% if ta.homeroom %}<a class="hq-btn hq-att" href="/academic/attendance?mode=overall&cid={{ ta.homeroom_cid }}&month={{ ta.month }}"><img src="/static/images/home3d/clock.png" alt=""><span><b>เช็กชื่อวันนี้</b><small>ห้องที่ปรึกษา</small></span></a>
-<a class="hq-btn hq-line" href="/general/assembly"><img src="/static/images/home3d/assembly.png" alt=""><span><b>บันทึกการเข้าแถว</b><small>หน้าเสาธง</small></span></a>{% endif %}
+{% if home.teacher and home.ta %}{% set ta = home.ta %}<div class="hq-bar">
+{% if ta.homeroom %}<a class="hq-btn hq-att" href="/academic/attendance?mode=overall&cid={{ ta.homeroom_cid }}&month={{ ta.month }}"><img src="/static/images/home3d/clock.png" alt=""><span><b>เช็กชื่อ</b><small>ห้องที่ปรึกษา</small></span></a>{% endif %}
+{% if ta.teaching %}<a class="hq-btn hq-sub" href="/academic/lessons/next"><img src="/static/images/home3d/academic.png" alt=""><span><b>เช็กชื่อ</b><small>คาบที่สอน</small></span></a>{% endif %}
+{% if ta.homeroom %}<a class="hq-btn hq-line" href="/general/assembly"><img src="/static/images/home3d/assembly.png" alt=""><span><b>บันทึกการเข้าแถว</b><small>หน้าเสาธง</small></span></a>{% endif %}
 <a class="hq-btn hq-bh" href="/general/behavior"><img src="/static/images/home3d/t_check.png" alt=""><span><b>คะแนนความประพฤติ</b><small>หัก / เพิ่มคะแนน</small></span></a>
 </div>
-<style>.hq-bar{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:4px 0 14px}.hq-btn{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:18px;text-decoration:none;color:#fff;box-shadow:0 6px 18px rgba(79,70,229,.25)}.hq-btn img{width:42px;height:42px;flex:none;clip-path:inset(4% round 22%)}.hq-btn b{display:block;font-size:16px;line-height:1.2}.hq-btn small{font-size:12px;opacity:.9}.hq-att{background:linear-gradient(135deg,#7c3aed,#ec4899)}.hq-line{background:linear-gradient(135deg,#0ea5e9,#2563eb)}.hq-bh{background:linear-gradient(135deg,#10b981,#059669)}.hq-3{grid-template-columns:repeat(3,1fr)}@media(max-width:700px){.hq-3{grid-template-columns:1fr 1fr}.hq-3 .hq-bh{grid-column:1/3}}.hq-btn:hover{filter:brightness(1.05)}@media(max-width:420px){.hq-btn{padding:10px;gap:8px}.hq-btn img{width:34px;height:34px}.hq-btn b{font-size:14px}}</style>{% endif %}
+<style>
+.hq-bar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:1fr;gap:10px;margin:4px 0 14px}
+.hq-btn{display:flex;align-items:center;gap:10px;min-width:0;padding:12px 14px;border-radius:18px;text-decoration:none;color:#fff;box-shadow:0 6px 18px rgba(79,70,229,.22)}
+.hq-btn img{width:42px;height:42px;flex:none;clip-path:inset(4% round 22%)}
+.hq-btn span{min-width:0}.hq-btn b{display:block;font-size:16px;line-height:1.2}.hq-btn small{display:block;font-size:12.5px;opacity:.92}
+.hq-att{background:linear-gradient(135deg,#7c3aed,#ec4899)}.hq-sub{background:linear-gradient(135deg,#f97316,#f43f5e)}
+.hq-line{background:linear-gradient(135deg,#0ea5e9,#2563eb)}.hq-bh{background:linear-gradient(135deg,#10b981,#059669)}
+.hq-btn:hover{filter:brightness(1.05)}
+@media(max-width:900px){.hq-bar{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:420px){.hq-btn{padding:10px;gap:8px}.hq-btn img{width:34px;height:34px}.hq-btn b{font-size:14px}.hq-btn small{font-size:11.5px}}
+</style>{% endif %}
 {% if home.teacher and home.th %}<h2 class="home-section-title">งานของฉัน</h2><div class="home-summary letters th-stats">{% for s in home.th.stats %}<a class="home-stat letter-stat tone-{{ s.tone }}" href="{{ s.href }}">{% if s.img %}<img class="stat-3d" src="/static/images/home3d/{{ s.img }}.png" alt="">{% else %}<span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#{{ s.icon }}"/></svg></span>{% endif %}<span class="letter-stat-label">{{ s.label }}</span><span class="letter-stat-count"><b>{{ s.n }}</b> <small>{{ s.unit or 'เรื่อง' }}</small></span></a>{% endfor %}</div>{% endif %}
 <div class="home-columns">
 <div class="home-right-column"><section class="home-panel home-tasks"><h2>{% if home.teacher %}<img class="h3d" src="/static/images/home3d/todo.png" alt="">{% else %}<img class="h3d" src="/static/images/home3d/todo.png" alt="">{% endif %} {{ 'สิ่งที่ฉันต้องทำ' if home.teacher else 'งานที่ต้องจัดการ' }}</h2>

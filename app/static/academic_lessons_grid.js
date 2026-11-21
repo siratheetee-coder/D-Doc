@@ -220,6 +220,7 @@
     const opts=[...cells[0].options].filter(o=>o.value).map(o=>({v:o.value,l:o.textContent.trim()}));
     const today=new Date(),iso=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
     let idx=lessons.findIndex(l=>l.d===iso);if(idx<0){idx=-1;lessons.forEach((l,i)=>{if(l.d<=iso)idx=i;});if(idx<0)idx=0;}
+    {const want=new URLSearchParams(location.search).get('lesson');const wi=want?lessons.findIndex(l=>String(l.id)===want):-1;if(wi>=0)idx=wi;}
     box.hidden=false;
     const bar=document.createElement('div');bar.className='lgd-bar';
     const prev=document.createElement('button');prev.type='button';prev.className='lgd-nav';prev.textContent='‹';prev.setAttribute('aria-label','คาบก่อน');
@@ -248,6 +249,7 @@
     all.onclick=()=>{const lid=String(lessons[idx].id);const cs=studs.map(s=>cellOf(lid,s)).filter(Boolean);
       if(cs.some(c=>c.value&&c.value!=='/')&&!confirm('เปลี่ยนสถานะทุกคนในคาบนี้เป็นมา?'))return;cs.forEach(c=>{c.value='/';c.dispatchEvent(new Event('change'));});render();};
     if(lessons.length)render();else box.hidden=true;
+    if(lessons.length&&location.hash==='#lgDay')setTimeout(()=>box.scrollIntoView({block:'start',behavior:'smooth'}),150);
   }
   window.addEventListener('beforeunload',event=>{if(window.lessonGridDirty){event.preventDefault();event.returnValue='';}});update();
 })();
