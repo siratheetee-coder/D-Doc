@@ -114,7 +114,9 @@ def bahttext(amount: float) -> str:
     เช่น 1250.50 -> "หนึ่งพันสองร้อยห้าสิบบาทห้าสิบสตางค์"
          1000    -> "หนึ่งพันบาทถ้วน"
     """
-    amount = round(float(amount), 2)
+    amount = round(float(amount or 0), 2)
+    if amount < 0:  # ยอดติดลบ (เช่น ส่วนลดเกินราคา) อ่านว่า "ลบ..." แทนที่จะพัง
+        return "ลบ" + bahttext(-amount)
     baht = int(amount)
     satang = int(round((amount - baht) * 100))
 
