@@ -28,7 +28,7 @@
       <a class="ap-btn ap-soft" href="/academic/attendance?cid={{ c.id }}&show=months&mode={{ mode }}{% if by_subj and subj %}&sid={{ subj.id }}{% endif %}">← กลับหน้ารายเดือน</a>
     </div>
   </div>
-  <p class="muted" style="font-size:13px; margin:6px 0 8px;">
+  <p class="muted dm-hide" style="font-size:13px; margin:6px 0 8px;">
     คลิกที่ช่องเพื่อเปลี่ยนสถานะ: <b>ว่าง → มา → ป่วย → ลา → ขาด</b>
     คอลัมน์คือเฉพาะวันเปิดเรียนตาม<a href="/academic/calendar?year={{ year }}">ปฏิทินการศึกษา</a>
     ยอด ป่วย/ลา/ขาด ทั้งปีระบบรวมให้เอง</p>
@@ -229,7 +229,7 @@ document.addEventListener('DOMContentLoaded',function(){var t=document.querySele
   var WD = {}; document.querySelectorAll('#dayTable thead th .colmk').forEach(function(b){ var d = +b.getAttribute('onclick').match(/\d+/)[0]; WD[d] = b.parentNode.querySelector('i').textContent; });
   var past = days.filter(function(d){ return d <= UNTIL; });
   var cur = past.length ? past[past.length - 1] : days[0];
-  var L = {'/':'มา','ป':'ป่วย','ล':'ลา','ข':'ขาด'};
+  var L = {'/':'มา','ป':'ป่วย','ล':'ลา','ข':'ขาด'}; if (innerWidth < 400) L = {'/':'มา','ป':'ป','ล':'ล','ข':'ข'};
   function cell(tr, d){ return tr.querySelector('[data-mk][data-day="' + d + '"]'); }
   function drawDays(){
     var h = '';
@@ -266,4 +266,24 @@ document.addEventListener('DOMContentLoaded',function(){var t=document.querySele
 })();
 </script>
 </div>
+<style>
+/* มือถือโหมดทีละวัน: ตัดส่วนที่ไม่จำเป็น ให้รายชื่อขึ้นมาเร็วและชื่อเด็กเห็นเต็ม */
+@media (max-width:640px){
+  body:not(.dm-month) .dm-hide{display:none}
+  body:not(.dm-month) .ap-head{padding:8px 12px;margin-bottom:8px;gap:10px;border-radius:16px}
+  body:not(.dm-month) .ap-art{width:34px;height:34px}
+  body:not(.dm-month) .ap-title{padding-left:10px}
+  body:not(.dm-month) .ap-title h1{font-size:17px}
+  body:not(.dm-month) .ap-title p{font-size:12px}
+  body:not(.dm-month) .attn-actions{flex-wrap:nowrap!important;gap:6px!important}
+  body:not(.dm-month) .attn-actions > *{flex:none!important;padding:7px 10px!important;font-size:12.5px!important}
+  body:not(.dm-month) .attn-actions > button{display:none}
+  body:not(.dm-month) .attn-actions .ap-blue{font-size:0!important}
+  body:not(.dm-month) .attn-actions .ap-blue .icon{width:18px;height:18px}
+  .dm-row{gap:6px;padding:7px 0}
+  .dm-row .nm{font-size:13.5px;word-break:break-word}
+  .dm-row .bt{gap:3px}
+  .dm-row .bt button{width:36px;height:38px;font-size:12px;border-radius:9px}
+}
+</style>
 {% endblock %}
