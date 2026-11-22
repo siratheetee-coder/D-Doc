@@ -29,7 +29,7 @@ def _setup():
         cm = Committee(procurement_id=pr.id, kind="inspect"); s.add(cm); s.flush()
         s.add(CommitteeMember(committee_id=cm.id, name="ภาระ มากมาย"))          # ไม่มีคำนำหน้า ต้องจับคู่ได้
         s.add(CommitteeMember(committee_id=cm.id, name="คนนอก ไม่อยู่ในทะเบียน"))
-        s.add(Project(name="โครงการรักการอ่าน", plan_year=y, responsible="นายภาระ มากมาย และฝ่ายวิชาการ"))
+        s.add(Project(name="โครงการรักการอ่าน", plan_year=y + 1, responsible="นายภาระ มากมาย และฝ่ายวิชาการ"))
         s.add(StaffDuty(person_id=b.id, year=y, name="ครูเวร", weight=2))
         s.commit()
         return y, a.id, b.id

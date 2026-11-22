@@ -10,7 +10,7 @@ from datetime import datetime
 
 from app.models import (Person, AcadClass, AcadTeaching, AcadTimetable, SubstituteAssignment, Committee,
                         CommitteeMember, Procurement, LunchCommittee, LunchHireRound, FieldTrip,
-                        FieldTripStaff, StaffDuty, WorkloadSetting, Project)
+                        FieldTripStaff, StaffDuty, WorkloadSetting, Project, PlanBudget, School)
 
 PREFIXES = ("ว่าที่ร้อยตรีหญิง", "ว่าที่ร้อยตรี", "ว่าที่ ร.ต.", "นางสาว", "นาง", "นาย", "น.ส.", "ดร.", "ด.ร.")
 
@@ -98,9 +98,10 @@ def compute(db, year):
         else:
             match(s.name, label, "trip")
     # ผู้รับผิดชอบโครงการ: ช่องเป็นข้อความอิสระ (อาจมีหลายชื่อหรือชื่อฝ่าย) หาชื่อบุคลากรที่อยู่ในข้อความ
-    # ปีของแผนอาจเป็นปีงบหรือปีการศึกษา ใช้เลขปีเดียวกัน ชื่อที่หาไม่เจอไม่นับเป็นชื่อตกหล่น (มักเป็นชื่อฝ่าย)
+    # ปีของแผนเป็นปีงบหรือปีการศึกษาตามตั้งค่า: ปีการศึกษา Y (พ.ค.) ตรงกับปีงบ Y+1 (ต.ค.) เกือบทั้งปี
+    # ชื่อที่หาไม่เจอไม่นับเป็นชื่อตกหล่น (มักเป็นชื่อฝ่าย)
     names = sorted(((k, pid) for k, pid in by_name.items() if len(k) >= 4), key=lambda x: -len(x[0]))
-    for pj in db.query(Project).filter(Project.plan_year == year).all():
+    for pj in project_list(db, year):
         txt = norm_name(pj.responsible)
         hit = set()
         for k, pid in names:
@@ -130,6 +131,14 @@ def compute(db, year):
     return {"rows": out, "avg": avg, "setting": st, "unmatched": unmatched,
             "n_high": sum(1 for r in out if r["level"] == "high"), "n_low": sum(1 for r in out if r["level"] == "low"),
             "avg_periods": round(sum(r["periods"] for r in counted) / len(counted), 1) if counted else 0}
+
+
+def project_list(db, year):
+    sc = db.query(School).first()
+    default = (getattr(sc, "project_year_mode", None) or "budget") if sc else "budget"
+    saved = {p.year: p.mode for p in db.query(PlanBudget).filter(PlanBudget.year.in_([year, year + 1])).all()}
+    want = [y for y, m in ((year, "academic"), (year + 1, "budget")) if saved.get(y, default) == m]
+    return db.query(Project).filter(Project.plan_year.in_(want or [0])).all()
 
 
 def person_row(db, year, pid):
