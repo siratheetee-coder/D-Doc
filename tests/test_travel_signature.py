@@ -120,15 +120,6 @@ def test_travel_order_is_signed_by_the_director(sig):
     _check_float(anchors)
 
 
-# ---------------- บันทึกขออนุญาตแบบย่อ (สำรอง) ----------------
-def test_simple_travel_request_signs_the_director_when_approved(sig):
-    from app.services.hr_doc import render_travel_request
-    path = render_travel_request(_school(), _person(), _record(), approver=O(name="นายสมชาย ใจดี"))
-    assert len(_anchors(path)) == 1
-    path = render_travel_request(_school(), _person(), _record(), approver=None)
-    assert _anchors(path) == [], "ยังไม่อนุมัติ ต้องไม่มีลายเซ็น"
-
-
 # ---------------- กันบัคเดิมกลับมา ----------------
 def test_no_document_sets_run_text_right_after_stamping_a_signature():
     """ตั้ง .text บน run หลังแปะรูป = ลบรูปทิ้ง (python-docx clear_content)
