@@ -45,8 +45,12 @@
       <div class="only-maint"><label>เวลาสิ้นสุด</label>{{ time_input('end_time', end_default) }}</div>
     </div>
     <div class="row">
-      <div style="flex:1;"><label><span class="lb-items">สิ่งที่จะปรับปรุง</span> <span class="muted" style="font-size:13px;">(บรรทัดละข้อ)</span></label>
-        <textarea name="items" rows="4" placeholder="แก้ปัญหาออกเอกสาร ปพ.5 ไม่ได้ในชั้นเรียนที่มีนักเรียนจำนวนมาก&#10;เพิ่มทะเบียนคุมโครงการ ผูกกับเงินที่จ่ายจริงในงานการเงิน"></textarea></div>
+      <div style="flex:1;"><label><span class="lb-items">สิ่งที่จะปรับปรุง</span> <span class="muted" style="font-size:13px;">(1 กล่อง = 1 ข้อ กด Enter ขึ้นบรรทัดใหม่ในข้อเดิมได้)</span></label>
+        <textarea name="items" id="itemsRaw" hidden></textarea>
+        <div id="itemRows"></div>
+        <button type="button" class="btn soft sm" id="addItem" style="margin-top:6px;">+ เพิ่มข้อ</button>
+        <datalist id="pageList">{% for t, path, mod, kw in pages %}<option value="{{ path }}">{{ t }}</option>{% endfor %}</datalist>
+        <div class="nt-prev"><div class="muted" style="font-size:13px; margin-bottom:4px;">ตัวอย่างที่ผู้ใช้จะเห็น</div><ul id="itemPrev"></ul></div></div>
     </div>
     <div class="row">
       <div style="flex:1;"><label>ข้อความท้ายการ์ด</label>
@@ -147,4 +151,47 @@
   })();
 </script>
 {{ dmy_script() }}
+<style>
+.nt-row{display:grid;grid-template-columns:1fr 260px 34px;gap:8px;align-items:start;margin:6px 0;padding:8px;border-radius:12px;background:linear-gradient(135deg,#f8fafc,#eef2ff)}
+.nt-row textarea{min-height:42px;resize:vertical;font:inherit}
+.nt-row .nt-del{border:0;background:#fee2e2;color:#b91c1c;border-radius:8px;height:34px;cursor:pointer;font-weight:700}
+.nt-row small{display:block;color:#64748b;font-size:12px;margin-top:3px}
+.nt-prev{margin-top:10px;padding:10px 14px;border-radius:12px;background:#f1f5f9}
+.nt-prev li{margin:4px 0}.nt-prev a{margin-left:6px;padding:2px 10px;border-radius:999px;background:#fff;font-size:13px;font-weight:700;text-decoration:none;color:#4338ca}
+@media(max-width:700px){.nt-row{grid-template-columns:1fr 34px}.nt-row .nt-link{grid-column:1/2}}
+</style>
+<script>
+(function(){
+  var rows = document.getElementById('itemRows'), raw = document.getElementById('itemsRaw'), prev = document.getElementById('itemPrev');
+  if (!rows) return;
+  var names = {}; document.querySelectorAll('#pageList option').forEach(function(o){ names[o.value] = o.textContent; });
+  function esc(s){ return s.replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  function sync(){
+    var out = [], html = '';
+    rows.querySelectorAll('.nt-row').forEach(function(r){
+      var t = r.querySelector('textarea').value.trim(), l = r.querySelector('input').value.trim();
+      r.querySelector('small').textContent = l ? (names[l] ? 'ปุ่มไปดูจะเปิด: ' + names[l] : (l.charAt(0) === '/' ? 'ลิงก์ในระบบ' : 'ต้องขึ้นต้นด้วย / (ลิงก์ในระบบเท่านั้น)')) : 'ไม่มีปุ่มไปดู';
+      if (!t) return;
+      out.push('- ' + t.split('\n').map(function(x){ return x.trim(); }).filter(Boolean).join('\n'));
+      if (l && l.charAt(0) === '/') out.push('>> ' + l);
+      html += '<li>' + esc(t).replace(/\n/g, '<br>') + (l && l.charAt(0) === '/' ? '<a href="#" onclick="return false">ไปดู →</a>' : '') + '</li>';
+    });
+    raw.value = out.join('\n');
+    prev.innerHTML = html || '<li class="muted">ยังไม่มีรายการ</li>';
+  }
+  function add(text, link){
+    var r = document.createElement('div'); r.className = 'nt-row';
+    r.innerHTML = '<textarea rows="2" placeholder="เช่น เพิ่มปุ่มเช็กชื่อคาบที่สอนในหน้าหลักครู"></textarea>'
+      + '<div class="nt-link"><input list="pageList" placeholder="ปุ่มไปดู: เลือกเมนู (ไม่ใส่ก็ได้)"><small></small></div>'
+      + '<button type="button" class="nt-del" title="ลบข้อนี้">✕</button>';
+    r.querySelector('textarea').value = text || ''; r.querySelector('input').value = link || '';
+    r.querySelector('.nt-del').onclick = function(){ r.remove(); sync(); };
+    rows.appendChild(r); sync(); return r;
+  }
+  rows.addEventListener('input', sync);
+  document.getElementById('addItem').onclick = function(){ add().querySelector('textarea').focus(); };
+  add(); add();
+  rows.closest('form').addEventListener('submit', sync);
+})();
+</script>
 {% endblock %}

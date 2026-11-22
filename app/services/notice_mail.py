@@ -35,7 +35,18 @@ _BOX = {      # สีกล่องวันเวลาในอีเมล 
 def build_html(notice, school: str = "") -> str:
     k = kind_of(notice)
     bg, line, ink = _BOX.get(k["css"], _BOX["maint"])
-    items = "".join(f"<li style='margin:4px 0'>{_esc(x)}</li>" for x in notice.lines())
+    try:
+        from app.services.retention import _base_url
+        base = _base_url().rstrip("/")
+    except Exception:  # noqa: BLE001
+        base = ""
+
+    def li(e):
+        text = "<br>".join(_esc(x) for x in e["text"].split("\n"))
+        go = (f" <a href='{_esc(base + e['href'])}' style='color:#4338ca;font-weight:700'>ไปดู &rarr;</a>"
+              if e.get("href") and base else "")
+        return f"<li style='margin:6px 0'>{text}{go}</li>"
+    items = "".join(li(e) for e in notice.entries())
     items_html = (f"<b>{_esc(k['items_label'])}</b>"
                   f"<ul style='padding-left:18px;margin:8px 0'>{items}</ul>" if items else "")
     hello = f"เรียน ผู้ดูแลระบบ{(' ' + school) if school else ''}"

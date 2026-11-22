@@ -790,6 +790,7 @@ def notice_page(request: Request, msg: str = "", err: str = ""):
             "live": live, "today": today, "sending": sending,
             "busy": busy, "stuck": stuck,
             "kinds": NOTICE_KINDS, "kind_of": notice_kind,
+            "pages": __import__("app.services.search", fromlist=["PAGES"]).PAGES,
             "today_digits": f"{today.day:02d}{today.month:02d}{today.year + 543}",
             "start_default": datetime(today.year, today.month, today.day, 21, 0),
             "end_default": datetime(today.year, today.month, today.day, 23, 0),

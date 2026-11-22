@@ -533,9 +533,9 @@
               <svg class="icon" style="width:18px;height:18px;"><use href="#ic-clock"/></svg>
               {{ _mt.k.when_label }} {{ _mt.when }}
             </div>
-            {% if _mt.lines %}
+            {% if _mt.entries %}
             <div style="margin-top:10px; font-weight:600; font-size:14px; opacity:.95;">{{ _mt.k.items_label }}</div>
-            <ul>{% for it in _mt.lines %}<li>{{ it }}</li>{% endfor %}</ul>
+            <ul class="mt-list">{% for it in _mt.entries %}<li><span>{% for ln in it.text.split('\n') %}{{ ln }}{% if not loop.last %}<br>{% endif %}{% endfor %}</span>{% if it.href %} <a class="mt-go" href="{{ it.href }}">ไปดู →</a>{% endif %}</li>{% endfor %}</ul>
             {% endif %}
             <div class="mt-act">
               <button type="button" class="btn" onclick="maintAck()">

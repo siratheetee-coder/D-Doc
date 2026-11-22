@@ -295,8 +295,31 @@ class MaintenanceNotice(AccBase):
     email_total = Column(Integer, default=0)        # ต้องส่งทั้งหมดกี่โรงเรียน
     created_at = Column(DateTime, default=datetime.now)
 
+    def entries(self) -> list:
+        """รายการในประกาศ [{text, href}] · ข้อใหม่ขึ้นต้นด้วย "- " บรรทัดอื่นต่อจากข้อเดิม (ขึ้นบรรทัดในข้อได้)
+        บรรทัด ">> /path" = ปุ่ม "ไปดู" ของข้อนั้น (ลิงก์ในระบบเท่านั้น)
+        ประกาศเก่าที่ไม่มี "- " เลย ถือว่าบรรทัดละข้อเหมือนเดิม"""
+        raw = [x.strip() for x in (self.items or "").splitlines()]
+        marked = any(x[:1] in ("-", "•", "*") for x in raw if x)
+        out = []
+        for s in raw:
+            if not s:
+                continue
+            if s.startswith(">>"):
+                href = s[2:].strip()
+                if out and href.startswith("/") and not href.startswith("//") and len(href) < 300:
+                    out[-1]["href"] = href
+                continue
+            if not marked or s[:1] in ("-", "•", "*"):
+                out.append({"text": s.lstrip("-•* ").strip() if marked else s, "href": ""})
+            elif out:
+                out[-1]["text"] += "\n" + s
+            else:
+                out.append({"text": s, "href": ""})
+        return [e for e in out if e["text"]]
+
     def lines(self) -> list:
-        return [x.strip() for x in (self.items or "").splitlines() if x.strip()]
+        return [e["text"] for e in self.entries()]
 
 
 class SandboxVisit(AccBase):
@@ -2344,7 +2367,7 @@ def active_notice():
         stamp = int((n.created_at or n.start_at).timestamp() * 1_000_000)
         return {"id": n.id, "key": f"{n.id}_{stamp}", "title": n.title,
                 "start_at": n.start_at, "end_at": n.end_at,
-                "lines": n.lines(), "note": n.note, "k": notice_kind(n.kind),
+                "lines": n.lines(), "entries": n.entries(), "note": n.note, "k": notice_kind(n.kind),
                 "when": notice_when(n)}
     except Exception as e:      # noqa: BLE001
         print("[notice] อ่านประกาศไม่สำเร็จ:", e)
