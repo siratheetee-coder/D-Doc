@@ -11,7 +11,7 @@ from tests.test_subsidy import env  # noqa: F401
 ALLOWED = {
     "/", "/account/password", "/account/profile", "/ai/status", "/checkout", "/email/stop", "/forgot",
     "/guide", "/healthz", "/home/approvals", "/knowledge", "/landing", "/me/leave", "/me/leave/blank.docx",
-    "/me/letters", "/me/travel", "/me/travel/blank.docx", "/privacy", "/quote", "/reset", "/robots.txt",
+    "/me/letters", "/me/travel", "/me/travel/blank.docx", "/me/workload", "/privacy", "/quote", "/reset", "/robots.txt",
     "/sale-thanks", "/search", "/search/suggest", "/sitemap.xml", "/support", "/support/chat/messages",
     "/system-updates", "/verify", "/settings/calendar",   # ดูปฏิทินโรงเรียนได้ บันทึกไม่ได้
     "/general/assembly",   # ครูประจำชั้นเช็คเข้าแถวห้องตัวเอง (route กันเอง: เห็นเฉพาะห้องที่ประจำชั้น)

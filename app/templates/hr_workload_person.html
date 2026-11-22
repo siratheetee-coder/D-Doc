@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}ภาระงาน {{ r.p.name }}{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/acad-page.css?v=1">
+<div class="ap-page">
+<div class="ap-head">
+  <img class="ap-art" src="/static/images/home3d/mod_hr.png" width="64" height="64" alt="" aria-hidden="true">
+  <div class="ap-title"><h1>{{ 'ภาระงานของฉัน' if own else r.p.name }}</h1><p>{% if own %}{{ r.p.name }} {% endif %}{{ r.p.position or '' }} ปีการศึกษา {{ year }}</p></div>
+  {% if not own %}<div class="ap-acts"><a class="ap-btn ap-soft" href="/hr/workload?year={{ year }}">← ทุกคน</a></div>{% endif %}
+</div>
+{% if msg %}<div class="alert">{{ msg }}</div>{% endif %}
+
+<div class="card wp-top lv-{{ r.level }}">
+  <div class="wp-score"><small>คะแนนภาระงาน</small><b>{{ r.score }}</b><small>{{ r.pct }}% ของค่าเฉลี่ย ({{ d.avg }})</small></div>
+  <div class="wp-parts">
+    {% for lab, v in r.parts %}{% if v %}<div><span>{{ lab }}</span><b>{{ v|round(1) }}</b></div>{% endif %}{% endfor %}
+  </div>
+</div>
+
+<div class="wp-grid">
+  <div class="card">
+    <h2 class="ap-h2">การสอน</h2>
+    <p class="wp-line"><b>{{ r.periods }}</b> คาบต่อสัปดาห์ ({{ r.subjects|length }} วิชา {{ r.classes|length }} ห้อง)</p>
+    {% if r.homeroom %}<p class="wp-line">ครูประจำชั้น: {% for c in r.homeroom %}{{ label(c) }}{{ ', ' if not loop.last }}{% endfor %}</p>{% endif %}
+    {% if r.cohome %}<p class="wp-line">ครูคู่ชั้น: {% for c in r.cohome %}{{ label(c) }}{{ ', ' if not loop.last }}{% endfor %}</p>{% endif %}
+    {% if r.sub %}<p class="wp-line">สอนแทน {{ r.sub }} คาบ</p>{% endif %}
+    {% if not r.periods and not r.homeroom and not r.cohome %}<p class="muted">ยังไม่มีข้อมูลการสอนในปีนี้</p>{% endif %}
+  </div>
+  <div class="card">
+    <h2 class="ap-h2">กรรมการ {{ (r.proc|length) + (r.lunch|length) + (r.trip|length) }} งาน</h2>
+    {% for x in r.proc + r.lunch + r.trip %}<p class="wp-line">{{ x }}</p>{% else %}<p class="muted">ยังไม่มีงานกรรมการในปีนี้</p>{% endfor %}
+  </div>
+</div>
+
+<div class="card">
+  <h2 class="ap-h2">หน้าที่อื่น ๆ</h2>
+  {% for dty in r.duties %}
+  <div class="wp-duty"><span><b>{{ dty.name }}</b> <small class="muted">น้ำหนัก {{ dty.weight|round(1) }}</small></span>
+    {% if not own %}<form method="post" action="/hr/workload/duty/{{ dty.id }}/delete" onsubmit="return confirm('ลบหน้าที่นี้?')"><input type="hidden" name="back" value="{{ r.p.id }}"><button class="wp-del" data-no-floating-save title="ลบ">✕</button></form>{% endif %}</div>
+  {% else %}<p class="muted">ยังไม่มีหน้าที่อื่นที่บันทึกไว้</p>{% endfor %}
+  {% if not own %}
+  <form method="post" action="/hr/workload/duty" class="wp-add">
+    <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="person_ids" value="{{ r.p.id }}"><input type="hidden" name="back" value="{{ r.p.id }}">
+    <input name="name" required maxlength="200" placeholder="+ เพิ่มหน้าที่ เช่น หัวหน้างานวัดผล"><input name="weight" value="1" inputmode="decimal" aria-label="น้ำหนัก" style="max-width:90px">
+    <button class="ap-btn ap-main" type="submit" data-no-floating-save>เพิ่ม</button>
+  </form>
+  {% else %}<p class="muted" style="font-size:13px">ถ้าหน้าที่ของคุณไม่ครบ แจ้งเจ้าหน้าที่งานบุคคลให้เพิ่มได้</p>{% endif %}
+</div>
+</div>
+<style>
+.wp-top{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.wp-score{display:flex;flex-direction:column;align-items:center;min-width:150px;padding:10px 16px;border-radius:16px;background:linear-gradient(135deg,#dcfce7,#bbf7d0);color:#166534;text-align:center}
+.lv-high .wp-score{background:linear-gradient(135deg,#ffedd5,#fed7aa);color:#9a3412}.lv-low .wp-score{background:linear-gradient(135deg,#e0f2fe,#bae6fd);color:#075985}
+.wp-score b{font-size:38px;line-height:1.1}.wp-score small{font-size:12px}
+.wp-parts{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.wp-parts div{padding:8px 10px;border-radius:12px;background:#f8fafc}.wp-parts span{display:block;font-size:12px;color:#64748b}.wp-parts b{font-size:18px}
+.wp-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.wp-line{margin:6px 0;font-size:14.5px}
+.wp-duty{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9}.wp-duty form{margin:0}
+.wp-del{border:0;background:#fee2e2;color:#b91c1c;border-radius:8px;width:30px;height:30px;cursor:pointer;font-weight:700}
+.wp-add{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}.wp-add input[name=name]{flex:1;min-width:200px}
+@media(max-width:700px){.wp-grid{grid-template-columns:1fr}}
+</style>
+{% endblock %}

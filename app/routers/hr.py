@@ -768,3 +768,122 @@ def travel_request_delete(tid: int, db: Session = Depends(get_db)):
                 db.delete(rec)
         db.delete(r); db.commit()
     return RedirectResponse("/hr/travel-requests?msg=ลบคำขอไปราชการแล้ว", status_code=303)
+
+
+# ==================== ภาระงานบุคลากร ====================
+# ภาพรวมทั้งโรงเรียน: บัญชีที่มีสิทธิ์งานบุคคล (ด่านงานใน main.py) · ครูดูของตัวเองที่ /me/workload
+def _wl_year(db, year=None):
+    from app.routers.academic import _acad_year
+    return year or _acad_year(db)
+
+
+def _wl_back(pid, msg, year):
+    from urllib.parse import quote
+    return RedirectResponse((f"/hr/workload/{pid}" if pid else "/hr/workload") + f"?year={year}&msg=" + quote(msg), 303)
+
+
+@router.get("/hr/workload", response_class=HTMLResponse)
+def workload_page(request: Request, db: Session = Depends(get_db), year: int | None = None, msg: str = ""):
+    from app.services import hr_workload as wl
+    from app.routers.academic import _years
+    y = _wl_year(db, year)
+    data = wl.compute(db, y)
+    return templates.TemplateResponse("hr_workload.html", {
+        "request": request, "school": get_school(db), "year": y, "years": _years(db, y), "d": data, "msg": msg,
+        "people": [r["p"] for r in data["rows"]],
+    })
+
+
+@router.get("/hr/workload/{pid}", response_class=HTMLResponse)
+def workload_person(pid: int, request: Request, db: Session = Depends(get_db), year: int | None = None, msg: str = ""):
+    from fastapi import HTTPException
+    from app.services import hr_workload as wl
+    y = _wl_year(db, year)
+    r, data = wl.person_row(db, y, pid)
+    if not r:
+        raise HTTPException(404)
+    return templates.TemplateResponse("hr_workload_person.html", {
+        "request": request, "school": get_school(db), "year": y, "r": r, "d": data, "msg": msg, "own": False,
+        "label": __import__("app.routers.academic", fromlist=["_class_label"])._class_label,
+    })
+
+
+@router.get("/me/workload", response_class=HTMLResponse)
+def workload_me(request: Request, db: Session = Depends(get_db)):
+    """ครูดูภาระงานของตัวเองเท่านั้น (ไม่เห็นของคนอื่น ตามที่เจ้าของกำหนด)"""
+    from app.services import hr_workload as wl
+    pid = request.session.get("person_id")
+    if not pid:
+        return RedirectResponse("/hr/workload", 303)
+    y = _wl_year(db)
+    r, data = wl.person_row(db, y, int(pid))
+    if not r:
+        return RedirectResponse("/", 303)
+    return templates.TemplateResponse("hr_workload_person.html", {
+        "request": request, "school": get_school(db), "year": y, "r": r, "d": data, "msg": "", "own": True,
+        "label": __import__("app.routers.academic", fromlist=["_class_label"])._class_label,
+    })
+
+
+@router.post("/hr/workload/duty")
+def workload_duty_add(request: Request, db: Session = Depends(get_db), name: str = Form(""), weight: str = Form("1"),
+                      person_ids: list[str] = Form([]), year: int = Form(0), back: int = Form(0)):
+    from app.models import StaffDuty
+    y = _wl_year(db, year or None)
+    name = (name or "").strip()[:200]
+    try:
+        w = max(0.0, min(50.0, float(weight or 1)))
+    except ValueError:
+        w = 1.0
+    ids = [int(x) for x in person_ids if str(x).isdigit() and db.get(Person, int(x))]
+    if not name or not ids:
+        return _wl_back(back, "ใส่ชื่อหน้าที่และเลือกบุคลากรอย่างน้อย 1 คน", y)
+    for pid in dict.fromkeys(ids):
+        db.add(StaffDuty(person_id=pid, year=y, name=name, weight=w))
+    db.commit()
+    return _wl_back(back, f"เพิ่มหน้าที่ \"{name}\" ให้ {len(ids)} คนแล้ว", y)
+
+
+@router.post("/hr/workload/duty/{did}/delete")
+def workload_duty_delete(did: int, db: Session = Depends(get_db), back: int = Form(0)):
+    from app.models import StaffDuty
+    d = db.get(StaffDuty, did)
+    y = d.year if d else _wl_year(db)
+    if d:
+        db.delete(d)
+        db.commit()
+    return _wl_back(back, "ลบหน้าที่แล้ว", y)
+
+
+@router.post("/hr/workload/copy-duties")
+def workload_copy(db: Session = Depends(get_db), year: int = Form(0)):
+    """คัดลอกหน้าที่จากปีการศึกษาก่อน (ต้นปีใหม่ไม่ต้องกรอกใหม่ทั้งหมด) ข้ามรายการที่มีอยู่แล้ว"""
+    from app.models import StaffDuty
+    y = _wl_year(db, year or None)
+    have = {(d.person_id, d.name) for d in db.query(StaffDuty).filter_by(year=y)}
+    n = 0
+    for d in db.query(StaffDuty).filter_by(year=y - 1).all():
+        if (d.person_id, d.name) not in have:
+            db.add(StaffDuty(person_id=d.person_id, year=y, name=d.name, weight=d.weight, note=d.note))
+            n += 1
+    db.commit()
+    return _wl_back(0, f"คัดลอกหน้าที่จากปี {y - 1} มา {n} รายการ", y)
+
+
+@router.post("/hr/workload/settings")
+async def workload_settings(request: Request, db: Session = Depends(get_db)):
+    from app.services import hr_workload as wl
+    f = await request.form()
+    st = wl.setting(db)
+    for k in ("w_period", "w_homeroom", "w_cohome", "w_sub", "w_proc", "w_lunch", "w_trip"):
+        try:
+            setattr(st, k, max(0.0, min(50.0, float(f.get(k) or 0))))
+        except ValueError:
+            pass
+    for k, lo, hi in (("high_pct", 100, 500), ("low_pct", 0, 100)):
+        try:
+            setattr(st, k, max(lo, min(hi, int(f.get(k) or getattr(st, k)))))
+        except ValueError:
+            pass
+    db.commit()
+    return _wl_back(0, "บันทึกน้ำหนักภาระงานแล้ว", _wl_year(db, int(f.get("year") or 0) or None))

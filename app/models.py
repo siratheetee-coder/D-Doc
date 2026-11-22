@@ -565,6 +565,35 @@ class BehaviorLetter(Base):
     created_at = Column(DateTime, default=datetime.now)
 
 
+class StaffDuty(Base):
+    """หน้าที่/งานพิเศษที่ระบบยังไม่รู้เอง (หัวหน้ากลุ่มสาระ เจ้าหน้าที่การเงิน ครูเวร ...) ใช้คิดภาระงาน"""
+    __tablename__ = "staff_duty"
+
+    id = Column(Integer, primary_key=True)
+    person_id = Column(Integer, ForeignKey("person.id"), nullable=False, index=True)
+    year = Column(Integer, nullable=False, index=True)     # ปีการศึกษา
+    name = Column(String, nullable=False)
+    weight = Column(Float, default=1.0)                    # น้ำหนักภาระงาน
+    note = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.now)
+
+
+class WorkloadSetting(Base):
+    """น้ำหนักภาระงาน (แถวเดียวต่อโรงเรียน) ค่าเริ่มต้นเป็นค่ากลางที่ระบบตั้ง ไม่ได้มาจากระเบียบ แก้ได้"""
+    __tablename__ = "workload_setting"
+
+    id = Column(Integer, primary_key=True)
+    w_period = Column(Float, default=1.0)       # ต่อคาบสอน/สัปดาห์
+    w_homeroom = Column(Float, default=3.0)     # ครูประจำชั้น (ต่อห้อง)
+    w_cohome = Column(Float, default=1.5)       # ครูคู่ชั้น (ต่อห้อง)
+    w_sub = Column(Float, default=0.2)          # ต่อคาบสอนแทน (ทั้งปี)
+    w_proc = Column(Float, default=0.5)         # ต่อการเป็นกรรมการจัดซื้อ/ตรวจรับ 1 เรื่อง
+    w_lunch = Column(Float, default=0.5)        # ต่อการเป็นกรรมการอาหารกลางวัน 1 ชุด
+    w_trip = Column(Float, default=1.0)         # ต่อการควบคุมทัศนศึกษา 1 ครั้ง
+    high_pct = Column(Integer, default=130)     # เกินค่าเฉลี่ยกี่ % = ภาระงานสูง
+    low_pct = Column(Integer, default=70)       # ต่ำกว่าค่าเฉลี่ยกี่ % = ภาระงานน้อย
+
+
 class ItemCatalog(Base):
     """คลังรายการพัสดุมาตรฐาน (ใช้ซ้ำ) - พิมพ์ชื่อครั้งเดียว เลือกใช้ในเรื่องจัดซื้อทุกครั้ง
     ระบบเติมให้อัตโนมัติจากรายการที่เคยกรอก (dedupe ตามชื่อ)"""

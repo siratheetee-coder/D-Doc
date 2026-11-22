@@ -39,7 +39,7 @@ def test_teacher_home_keeps_role_specific_tasks_and_hides_setup(env,monkeypatch)
  links=re.findall(r'<a class="ah-menu" href="([^"]+)"',res.text)
  assert 'id="setup-acad"' not in res.text
  assert 'class="card ah-progress"' not in res.text
- assert len(links)==9
+ assert len(links)==10
  assert '/academic/teacher-accounts' not in links
  for href in ['/me/leave','/me/travel','/general/assembly','/academic/attendance?mode=overall','/academic/student-accounts']:
   assert href in links

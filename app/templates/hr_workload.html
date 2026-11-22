@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}ภาระงานบุคลากร{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/acad-page.css?v=1">
+{% set st = d.setting %}
+<div class="ap-page">
+<div class="ap-head">
+  <img class="ap-art" src="/static/images/home3d/mod_hr.png" width="64" height="64" alt="" aria-hidden="true">
+  <div class="ap-title"><h1>ภาระงานบุคลากร</h1><p>ปีการศึกษา {{ year }} รวมงานที่ระบบรู้อยู่แล้ว และหน้าที่ที่กรอกเพิ่ม</p></div>
+  <form method="get" action="/hr/workload" class="ap-acts" style="margin:0">
+    <select name="year" onchange="this.form.submit()" aria-label="ปีการศึกษา">{% for y in years %}<option value="{{ y }}" {{ 'selected' if y == year }}>ปีการศึกษา {{ y }}</option>{% endfor %}</select>
+  </form>
+</div>
+{% if msg %}<div class="alert">{{ msg }}</div>{% endif %}
+
+<div class="wl-stats">
+  <div class="wl-st s1"><small>บุคลากร</small><b>{{ d.rows|length }}</b><span>คน</span></div>
+  <div class="wl-st s2"><small>คาบสอนเฉลี่ย</small><b>{{ d.avg_periods }}</b><span>คาบ/สัปดาห์</span></div>
+  <div class="wl-st s3"><small>ภาระงานสูง</small><b>{{ d.n_high }}</b><span>คน (เกิน {{ st.high_pct }}% ของค่าเฉลี่ย)</span></div>
+  <div class="wl-st s4"><small>ภาระงานน้อย</small><b>{{ d.n_low }}</b><span>คน (ต่ำกว่า {{ st.low_pct }}%)</span></div>
+</div>
+
+<div class="card">
+  <div class="wl-head">
+    <h2 class="ap-h2">ภาระงานรายคน <small class="muted">ค่าเฉลี่ย {{ d.avg }} คะแนน</small></h2>
+    <div class="wl-legend"><span class="lv-high">สูง</span><span class="lv-ok">ปกติ</span><span class="lv-low">น้อย</span></div>
+  </div>
+  <p class="muted wl-tip">คะแนนภาระงาน = คาบสอน x {{ st.w_period|round(1) }} + ประจำชั้น x {{ st.w_homeroom|round(1) }} + กรรมการ และหน้าที่อื่นตามน้ำหนัก กดชื่อเพื่อดูรายละเอียดและเพิ่มหน้าที่</p>
+  <div class="table-wrap">
+  <table class="wl-table">
+    <thead><tr><th>ชื่อ</th><th class="center">คาบ/สัปดาห์</th><th class="center">วิชา/ห้อง</th><th class="center">ประจำชั้น</th><th class="center">สอนแทน</th><th class="center">กรรมการ</th><th class="center">หน้าที่อื่น</th><th style="min-width:170px">ภาระงานรวม</th></tr></thead>
+    <tbody>
+    {% for r in d.rows %}
+    <tr class="lv-{{ r.level }}">
+      <td data-label="ชื่อ"><a href="/hr/workload/{{ r.p.id }}?year={{ year }}"><b>{{ r.p.name }}</b></a><small class="muted wl-pos">{{ r.p.position or '' }}</small></td>
+      <td class="center" data-label="คาบ/สัปดาห์">{{ r.periods or '-' }}</td>
+      <td class="center" data-label="วิชา/ห้อง">{% if r.subjects %}{{ r.subjects|length }} / {{ r.classes|length }}{% else %}-{% endif %}</td>
+      <td class="center" data-label="ประจำชั้น">{{ (r.homeroom|length) + (r.cohome|length) or '-' }}</td>
+      <td class="center" data-label="สอนแทน">{{ r.sub or '-' }}</td>
+      <td class="center" data-label="กรรมการ">{{ (r.proc|length) + (r.lunch|length) + (r.trip|length) or '-' }}</td>
+      <td class="center" data-label="หน้าที่อื่น">{{ r.duties|length or '-' }}</td>
+      <td data-label="ภาระงานรวม"><div class="wl-bar"><i style="width:{{ [r.pct / 2, 100]|min }}%"></i></div><b class="wl-score">{{ r.score }}</b> <small class="muted">({{ r.pct }}%)</small></td>
+    </tr>
+    {% else %}<tr><td colspan="8" class="muted">ยังไม่มีบุคลากรในทะเบียน</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<details class="card wl-fold" id="addDuty">
+  <summary><b>เพิ่มหน้าที่ให้หลายคนพร้อมกัน</b> <small class="muted">เช่น หัวหน้ากลุ่มสาระ คณะกรรมการวัดผล ครูเวร</small></summary>
+  <form method="post" action="/hr/workload/duty">
+    <input type="hidden" name="year" value="{{ year }}">
+    <div class="wl-form"><div><label>ชื่อหน้าที่</label><input name="name" required maxlength="200" placeholder="เช่น หัวหน้ากลุ่มสาระคณิตศาสตร์"></div>
+      <div><label>น้ำหนัก</label><input name="weight" value="1" inputmode="decimal"></div></div>
+    <label>เลือกบุคลากร</label>
+    <div class="wl-pick">{% for p in people %}<label><input type="checkbox" name="person_ids" value="{{ p.id }}"> {{ p.name }}</label>{% endfor %}</div>
+    <button class="ap-btn ap-main" type="submit" data-no-floating-save style="margin-top:10px">เพิ่มหน้าที่</button>
+  </form>
+  <form method="post" action="/hr/workload/copy-duties" style="margin-top:12px" onsubmit="return confirm('คัดลอกหน้าที่ทั้งหมดจากปีการศึกษา {{ year - 1 }} มาปีนี้? (รายการที่มีอยู่แล้วจะข้าม)')">
+    <input type="hidden" name="year" value="{{ year }}"><button class="ap-btn ap-soft" type="submit" data-no-floating-save>คัดลอกหน้าที่จากปี {{ year - 1 }}</button></form>
+</details>
+
+<details class="card wl-fold">
+  <summary><b>น้ำหนักภาระงาน</b> <small class="muted">ค่ากลางที่ระบบตั้งไว้ ไม่ได้มาจากระเบียบ แก้ให้เหมาะกับโรงเรียนได้</small></summary>
+  <form method="post" action="/hr/workload/settings">
+    <input type="hidden" name="year" value="{{ year }}">
+    <div class="wl-wgrid">
+      {% for k, lab in [('w_period','คาบสอน 1 คาบ/สัปดาห์'),('w_homeroom','ครูประจำชั้น 1 ห้อง'),('w_cohome','ครูคู่ชั้น 1 ห้อง'),('w_sub','สอนแทน 1 คาบ'),('w_proc','กรรมการจัดซื้อ/ตรวจรับ 1 เรื่อง'),('w_lunch','กรรมการอาหารกลางวัน 1 ชุด'),('w_trip','ควบคุมทัศนศึกษา 1 ครั้ง')] %}
+      <div><label>{{ lab }}</label><input name="{{ k }}" value="{{ st[k] }}" inputmode="decimal"></div>{% endfor %}
+      <div><label>ภาระงานสูง เมื่อเกิน (% ของค่าเฉลี่ย)</label><input name="high_pct" value="{{ st.high_pct }}" inputmode="numeric"></div>
+      <div><label>ภาระงานน้อย เมื่อต่ำกว่า (%)</label><input name="low_pct" value="{{ st.low_pct }}" inputmode="numeric"></div>
+    </div>
+    <button class="ap-btn ap-main" type="submit" data-no-floating-save style="margin-top:10px">บันทึกน้ำหนัก</button>
+  </form>
+</details>
+
+{% if d.unmatched %}
+<details class="card wl-fold">
+  <summary><b>ชื่อกรรมการที่จับคู่กับทะเบียนบุคลากรไม่ได้ {{ d.unmatched|length }} ชื่อ</b> <small class="muted">พิมพ์ชื่อไม่ตรง หรือเป็นบุคคลภายนอก งานเหล่านี้ยังไม่ถูกนับ</small></summary>
+  <ul class="wl-um">{% for n, items in d.unmatched.items() %}<li><b>{{ n }}</b> <small class="muted">{{ items|length }} งาน เช่น {{ items[0] }}</small></li>{% endfor %}</ul>
+  <p class="muted" style="font-size:13px">แก้ได้โดยพิมพ์ชื่อในเรื่องจัดซื้อหรืองานอาหารกลางวันให้ตรงกับทะเบียนบุคลากร</p>
+</details>
+{% endif %}
+</div>
+<style>
+.wl-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.wl-st{border-radius:16px;padding:14px 16px;color:#fff;box-shadow:0 4px 14px rgba(30,40,90,.12)}
+.wl-st small{display:block;opacity:.9;font-size:13px}.wl-st b{font-size:28px;line-height:1.2;margin-right:4px}.wl-st span{font-size:12.5px;opacity:.9}
+.s1{background:linear-gradient(135deg,#6366f1,#7c3aed)}.s2{background:linear-gradient(135deg,#0ea5e9,#2563eb)}
+.s3{background:linear-gradient(135deg,#f97316,#ef4444)}.s4{background:linear-gradient(135deg,#38bdf8,#0891b2)}
+.wl-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.wl-legend{display:flex;gap:6px;font-size:12px}.wl-legend span{padding:2px 9px;border-radius:99px}
+.wl-legend .lv-high{background:#ffedd5;color:#c2410c}.wl-legend .lv-ok{background:#dcfce7;color:#166534}.wl-legend .lv-low{background:#e0f2fe;color:#0369a1}
+.wl-tip{font-size:13px;margin:6px 0 10px}
+.wl-table a{color:#1e1b4b;text-decoration:none}.wl-pos{display:block;font-size:12px}
+.wl-bar{display:inline-block;width:110px;height:8px;border-radius:9px;background:#e2e8f0;overflow:hidden;vertical-align:middle;margin-right:6px}
+.wl-bar i{display:block;height:100%;background:linear-gradient(90deg,#4ade80,#059669)}
+tr.lv-high .wl-bar i{background:linear-gradient(90deg,#fb923c,#ef4444)}tr.lv-low .wl-bar i{background:linear-gradient(90deg,#7dd3fc,#0284c7)}
+tr.lv-high td:first-child{box-shadow:inset 3px 0 0 #f97316}tr.lv-low td:first-child{box-shadow:inset 3px 0 0 #0ea5e9}
+.wl-score{font-size:16px}
+.wl-fold summary{cursor:pointer}.wl-fold[open] summary{margin-bottom:10px}
+.wl-form{display:grid;grid-template-columns:1fr 120px;gap:10px;margin-bottom:8px}
+.wl-pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:4px 12px;max-height:260px;overflow:auto;padding:8px;border-radius:12px;background:#f8fafc}
+.wl-pick label{display:flex;gap:6px;align-items:center;margin:0;font-size:14px}.wl-pick input{width:16px;height:16px}
+.wl-wgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.wl-wgrid label{font-size:13px;color:#64748b}
+@media(max-width:700px){
+  .wl-stats{grid-template-columns:1fr 1fr}.wl-wgrid{grid-template-columns:1fr 1fr}.wl-form{grid-template-columns:1fr 90px}
+  .wl-table,.wl-table tbody{display:block}.wl-table thead{display:none}
+  .wl-table tr{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 8px;padding:10px;margin-bottom:10px;border-radius:14px;background:#fff;box-shadow:0 1px 6px rgba(30,40,90,.08)}
+  .wl-table td{display:block;border:0;padding:0;font-size:13px}
+  .wl-table td::before{content:attr(data-label);display:block;color:#94a3b8;font-size:11px}
+  .wl-table td:first-child,.wl-table td:last-child{grid-column:1/-1}.wl-table td:first-child::before{display:none}
+}
+</style>
+{% endblock %}
