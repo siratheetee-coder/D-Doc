@@ -177,12 +177,36 @@ def _director_office(school) -> str:
     return head_title(school)
 
 
-def _body_paragraphs(doc, body: str):
+def _body_paragraphs(doc, body: str, indent=1.25):
     """แตกเนื้อหาเป็นย่อหน้า (เว้นบรรทัด = ย่อหน้าใหม่) จัดชิดขอบแบบไทย เยื้องบรรทัดแรก"""
     for line in (body or "").split("\n"):
         line = line.strip()
         if line:
-            _p(doc, line, align="justify", indent=1.25, after=2)
+            _p(doc, line, align="justify", indent=indent, after=2)
+
+
+# ---- ระยะแบบหนังสือราชการ (หนังสือภายนอก/คำสั่ง/หนังสือรับรอง) ----
+GOV_INDENT = 2.5   # ย่อหน้า และระยะเยื้องขวาของบล็อกลงชื่อ
+
+
+def _gov_page(doc):
+    """ขอบซ้าย 3 ขวา 2 ซม. ขอบบนแคบให้ครุฑ (3 ซม.) อยู่ใกล้ขอบบน แบบหนังสือราชการตัวอย่าง"""
+    for sec in doc.sections:
+        sec.left_margin, sec.right_margin = Cm(3.0), Cm(2.0)
+        sec.top_margin, sec.bottom_margin = Cm(1.5), Cm(2.0)
+
+
+def _shift(p, cm=GOV_INDENT):
+    """จัดกึ่งกลางแต่เยื้องขวา (ใส่ย่อหน้าบรรทัดแรกให้บรรทัดที่จัดกลาง) แบบคำลงท้าย/ลงชื่อในหนังสือราชการ"""
+    p.paragraph_format.first_line_indent = Cm(cm)
+    return p
+
+
+def _shift_table(tbl, cm=GOV_INDENT):
+    for row in tbl.rows:
+        for c in row.cells:
+            for p in c.paragraphs:
+                _shift(p, cm)
 
 
 def render_memo(memo, school) -> str:
@@ -221,20 +245,21 @@ def render_order(order, school) -> str:
     """สร้างไฟล์ .docx คำสั่งโรงเรียน คืนค่าที่อยู่ไฟล์"""
     doc = Document(); set_a4(doc)
     _font(doc)
-    _krut_center(doc, height_cm=1.8)
+    _gov_page(doc)
+    _krut_center(doc, height_cm=3.0)
     _p(doc, "คำสั่ง" + (school.name or ""), align="center", bold=True, size=18, after=0)
     _p(doc, "ที่ " + (order.order_no or ""), align="center", bold=True, after=0)
     _p(doc, "เรื่อง " + (order.subject or ""), align="center", bold=True, after=0)
     _p(doc, "─────────────────────", align="center", after=6)
 
-    _body_paragraphs(doc, order.body)
+    _body_paragraphs(doc, order.body, indent=GOV_INDENT)
 
     _p(doc, "", after=6)
-    _p(doc, "สั่ง ณ วันที่ " + thai_date_official(order.date), align="center", after=12)
-    sign_p = _p(doc, "(ลงชื่อ).........................................", align="center")
+    _shift(_p(doc, "สั่ง ณ วันที่ " + thai_date_official(order.date), align="center", after=12))
+    sign_p = _shift(_p(doc, "(ลงชื่อ).........................................", align="center"))
     _sign_by(sign_p, school.director_name, school, _ap("order", order.id))
-    _p(doc, f"( {school.director_name or ''} )", align="center")
-    _p(doc, _director_office(school), align="center")
+    _shift(_p(doc, f"( {school.director_name or ''} )", align="center"))
+    _shift(_p(doc, _director_office(school), align="center"))
 
     fname = _safe(f"คำสั่ง_{order.order_no or order.id}_{order.subject}") + ".docx"
     return _save_doc(doc, fname)
@@ -247,32 +272,39 @@ def render_official_letter(letter, school) -> str:
     """สร้างไฟล์ .docx หนังสือราชการภายนอก (ครุฑกลาง + ขอแสดงความนับถือ) คืนค่าที่อยู่ไฟล์"""
     doc = Document(); set_a4(doc)
     _font(doc)
-    _krut_center(doc, height_cm=2.0)
+    _gov_page(doc)
 
-    # บรรทัด "ที่ ..." (ซ้าย) + ชื่อ/ที่อยู่ส่วนราชการ (ขวา) แบบตารางไร้เส้น
+    # ครุฑ 3 ซม. กลาง แล้วบรรทัด ที่ (ซ้าย) กับส่วนราชการ (ขวา) เริ่มระดับเดียวกันใต้ครุฑ
+    # บล็อกส่วนราชการชิดซ้ายในตัวเอง ทุกบรรทัดเริ่มแนวเดียวกัน ยาวลงด้านล่างได้
+    _krut_center(doc, height_cm=3.0)
     t = doc.add_table(rows=1, cols=2)
     _no_borders(t)
     t.autofit = False
-    t.columns[0].width = Cm(7.5)
-    t.columns[1].width = Cm(8.0)
-    _set_cell(t.rows[0].cells[0], "ที่  " + (letter.doc_no or _BLANK), align="left", size=16)
-    right = (school.name or "") + (("\n" + school.address) if school.address else "")
-    _set_cell(t.rows[0].cells[1], right, align="right", size=16)
+    left, rightc = t.rows[0].cells
+    left.width, rightc.width = Cm(10.0), Cm(6.0)
+    _set_cell(left, "ที่  " + (letter.doc_no or _BLANK), align="left", size=16)
+    lines = [school.name or ""] + [x for x in (school.address or "").split(chr(10)) if x.strip()]
+    _set_cell(rightc, lines[0], align="left", size=16)
+    for x in lines[1:]:
+        p = rightc.add_paragraph(); r = p.add_run(x.strip()); r.font.size = Pt(16)
+    for p in rightc.paragraphs:
+        p.paragraph_format.space_after = Pt(0)
 
     _p(doc, "วันที่ " + thai_date_official(letter.date), align="center", after=4)
-    _p_runs(doc, [("เรื่อง  ", True), (letter.subject or _BLANK, False)])
-    _p_runs(doc, [("เรียน  ", True), (letter.to or _BLANK, False)])
+    # หัวเรื่องในตัวอย่างหนังสือราชการไม่เป็นตัวหนา
+    _p_runs(doc, [("เรื่อง  ", False), (letter.subject or _BLANK, False)])
+    _p_runs(doc, [("เรียน  ", False), (letter.to or _BLANK, False)])
     if (letter.ref or "").strip():
-        _p_runs(doc, [("อ้างถึง  ", True), (letter.ref, False)])
+        _p_runs(doc, [("อ้างถึง  ", False), (letter.ref, False)])
     if (letter.enclosure or "").strip():
-        _p_runs(doc, [("สิ่งที่ส่งมาด้วย  ", True), (letter.enclosure, False)])
+        _p_runs(doc, [("สิ่งที่ส่งมาด้วย  ", False), (letter.enclosure, False)])
 
     _p(doc, "", after=4)
-    _body_paragraphs(doc, letter.body)
+    _body_paragraphs(doc, letter.body, indent=GOV_INDENT)
 
-    # คำลงท้าย + ลงนาม (จัดกึ่งกลางครึ่งขวา)
+    # คำลงท้าย + ลงนาม: กึ่งกลางแต่เยื้องขวาตามย่อหน้า
     _p(doc, "", after=8)
-    _p(doc, letter.closing or "ขอแสดงความนับถือ", align="center", after=10)
+    _shift(_p(doc, letter.closing or "ขอแสดงความนับถือ", align="center", after=10))
     signer = (letter.signer_name or school.director_name or "")
     position = (letter.signer_position or _director_office(school))
     tbl = _sign_table(doc, [[
@@ -280,6 +312,7 @@ def render_official_letter(letter, school) -> str:
         (f"( {signer} )", "center"),
         (position, "center"),
     ]])
+    _shift_table(tbl)
     _sign_by(tbl.rows[0].cells[0].paragraphs[0], signer, school, _ap("letter", letter.id))
 
     # ส่วนราชการเจ้าของเรื่อง + เบอร์โทร -> ตรึงไว้ท้ายหน้า (footer)
