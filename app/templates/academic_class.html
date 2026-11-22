@@ -35,6 +35,7 @@
       <a class="btn soft" href="/academic/attendance?cid={{ c.id }}"><svg class="icon"><use href="#ic-clock"/></svg> เวลาเรียน</a>
       <a class="btn soft" href="#print-docs"><svg class="icon"><use href="#ic-file"/></svg>
         พิมพ์{{ "สมุดพกนักเรียน" if is_kinder else " ปพ.5 / ปพ.6" }}</a>
+      <a class="btn soft" href="/academic/student-accounts?cid={{ c.id }}"><svg class="icon"><use href="#ic-users"/></svg> ไอดีนักเรียน / บัตร</a>
       {% endif %}
     </div>
   </div>

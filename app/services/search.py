@@ -68,7 +68,7 @@ PAGES = [
     ('แผนการสอน', '/academic/lesson-plans', 'academic', 'แผน'),
     ('นิเทศภายใน', '/academic/supervision', 'academic', 'นิเทศ'),
     ('บัญชีครู', '/academic/teacher-accounts', 'academic', 'ไอดีครู'),
-    ('บัญชีนักเรียน', '/academic/student-accounts', 'academic', 'ไอดีนักเรียน บัตรล็อกอิน เผยแพร่คะแนน'),
+    ('ไอดีนักเรียน', '/academic/student-accounts', 'academic', 'บัญชีนักเรียน ผู้ปกครอง บัตรล็อกอิน รหัสผ่านนักเรียน เผยแพร่คะแนน'),
     ('งานบริหารทั่วไป', '/general', None, ''),
     ('บันทึกการเข้าแถว', '/general/assembly', None, 'เข้าแถว เช็คชื่อ มาเรียน ครูประจำชั้น'),
     ('คะแนนความประพฤติ', '/general/behavior', None, 'ความประพฤติ หักคะแนน ตัดคะแนน ทัณฑ์บน เชิญผู้ปกครอง กิจการนักเรียน'),

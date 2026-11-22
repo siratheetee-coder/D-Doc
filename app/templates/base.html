@@ -216,6 +216,7 @@
         {% endif %}
         <a href="/academic/attendance" class="{{ 'active' if path.startswith('/academic/attendance') }}"><svg class="icon"><use href="#ic-clock"/></svg> เวลาเรียน</a>
         <a href="/academic/timetable" class="{{ 'active' if path.startswith('/academic/timetable') }}"><svg class="icon"><use href="#ic-calendar"/></svg> ตารางเรียน</a>
+        <a href="/academic/student-accounts" class="{{ 'active' if path.startswith('/academic/student-accounts') }}"><svg class="icon"><use href="#ic-users"/></svg> ไอดีนักเรียน</a>
         <a href="/academic/grades" class="{{ 'active' if path.startswith('/academic/grades') }}"><svg class="icon"><use href="#ic-edit"/></svg> กรอกคะแนน ปพ.5</a>
         <a href="/academic/eval" class="{{ 'active' if path.startswith('/academic/eval') }}"><svg class="icon"><use href="#ic-check"/></svg> ประเมิน ปพ.6</a>
         <a href="/academic/pp7" class="{{ 'active' if path.startswith('/academic/pp7') or (path.startswith('/academic/student/') and path.endswith('/pp7')) }}"><svg class="icon"><use href="#ic-file"/></svg> ใบรับรอง ปพ.7</a>
