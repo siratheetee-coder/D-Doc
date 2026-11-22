@@ -21,6 +21,19 @@ THAI_FONT = "TH Sarabun New"
 _BLANK = "................................"
 
 
+_TYPE_TH = {"teacher": "ครู", "admin": "ผู้บริหาร", "director": "ผู้บริหาร", "staff": "บุคลากร"}
+
+
+def _type_pos(person):
+    """ประเภท/ตำแหน่ง: แปลค่าภาษาอังกฤษเป็นไทย และไม่ซ้ำเมื่อประเภทกับตำแหน่งเป็นคำเดียวกัน"""
+    t = (person.person_type or "").strip()
+    t = _TYPE_TH.get(t.lower(), t)
+    pos = (person.position or "").strip()
+    if not t or t == pos:
+        return pos or t or "-"
+    return f"{t} / {pos}" if pos else t
+
+
 def _safe(text: str) -> str:
     from app.services.filenames import fit_name
     return fit_name(_safe_chars(text))
@@ -315,7 +328,7 @@ def render_kp7(school, person) -> str:
     # ข้อมูลส่วนตัว
     info = [
         ("ชื่อ-นามสกุล", person.name or _BLANK),
-        ("ประเภท/ตำแหน่ง", f"{person.person_type or '-'} · {person.position or '-'}"),
+        ("ประเภท/ตำแหน่ง", _type_pos(person)),
         ("วิทยฐานะ/ระดับ", person.rank or "-"),
         ("เลขประจำตัวประชาชน", person.id_card or "-"),
         ("วันเดือนปีเกิด", thai_date(person.birthdate) if person.birthdate else "-"),

@@ -863,7 +863,7 @@ def render_travel_official(school, person, record, db=None, approver=None, appro
         pass
     if approver is not None:
         try:                                                    # ติ๊ก 'อนุญาต' (p27)
-            P[27].runs[2].text = "  ✓  อนุญาต"
+            _tick_box_before(P[27], 2)   # run 2 = "    อนุญาต" ติ๊กในกล่อง (run 1 เป็น w:sym) ไม่ใช่ข้างกล่อง
         except Exception:
             pass
         try:                                                    # แปะลายเซ็น ผอ. หลัง 'ลงชื่อ' (p29)

@@ -117,7 +117,7 @@
           <a class="btn sm soft" href="/me/travel/{{ tr.id }}/form.docx"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์บันทึก</a>
           {% if tr.attachment_name %}<a class="btn sm gray" href="/me/travel/{{ tr.id }}/file" target="_blank" rel="noopener">📎 ใบไปราชการ</a>{% endif %}
           {% if tr.doc_attachment_name %}<a class="btn sm gray" href="/me/travel/{{ tr.id }}/doc" target="_blank" rel="noopener">📎 เอกสารประกอบ</a>{% endif %}
-          <form method="post" action="/me/travel/{{ tr.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบคำขอไปราชการนี้?');"><button class="btn sm gray" type="submit" style="color:#dc2626;"><svg class="icon"><use href="#ic-trash"/></svg></button></form>
+          {% if tr.status in ('pending', 'rejected') %}<form method="post" action="/me/travel/{{ tr.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบคำขอไปราชการนี้?');"><button class="btn sm gray" type="submit" style="color:#dc2626;"><svg class="icon"><use href="#ic-trash"/></svg></button></form>{% endif %}
         </td>
       </tr>
     {% endfor %}

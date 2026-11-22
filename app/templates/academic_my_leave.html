@@ -107,7 +107,7 @@
         <div class="lvc-acts">
           <a class="btn sm gray" href="/me/leave/{{ lv.id }}/form.docx"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์ใบลา</a>
           {% if lv.attachment_name %}<a class="btn sm gray" href="/me/leave/{{ lv.id }}/file" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-folder"/></svg> ไฟล์แนบ</a>{% endif %}
-          <form method="post" action="/me/leave/{{ lv.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบคำขอลานี้?');"><button class="btn sm gray" type="submit" style="color:#dc2626;"><svg class="icon"><use href="#ic-trash"/></svg> ลบ</button></form>
+          {% if lv.status in ('pending', 'rejected') %}<form method="post" action="/me/leave/{{ lv.id }}/delete" style="display:inline; margin:0;" onsubmit="return confirm('ลบคำขอลานี้?');"><button class="btn sm gray" type="submit" style="color:#dc2626;"><svg class="icon"><use href="#ic-trash"/></svg> ลบ</button></form>{% endif %}
         </div>
       </div>
       <div class="lvc-st">

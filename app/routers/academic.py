@@ -1466,6 +1466,9 @@ def my_leave_delete(lid: int, request: Request, db: Session = Depends(get_db)):
     """ครูลบคำขอลาของตัวเอง (ลบ record ในทะเบียนวันลาที่ผูกไว้ด้วย)"""
     from app.models import LeaveRequest, LeaveRecord
     lv = db.get(LeaveRequest, lid)
+    if lv and lv.person_id == request.session.get("person_id") and lv.status not in ("pending", "rejected"):
+        # ส่งต่อ ผอ. หรืออนุมัติแล้ว ลบเองไม่ได้ (กันวันลาในทะเบียนหาย) ให้แจ้งงานบุคคล
+        return RedirectResponse("/me/leave?err=ใบลานี้ผ่านการตรวจแล้ว ลบเองไม่ได้ แจ้งงานบุคคลหากต้องการยกเลิก", status_code=303)
     if lv and lv.person_id == request.session.get("person_id"):
         if lv.record_id:
             rec = db.get(LeaveRecord, lv.record_id)
@@ -1481,6 +1484,8 @@ def my_travel_delete(tid: int, request: Request, db: Session = Depends(get_db)):
     """ครูลบคำขอไปราชการของตัวเอง"""
     from app.models import TravelRequest, TravelRecord
     tr = db.get(TravelRequest, tid)
+    if tr and tr.person_id == request.session.get("person_id") and tr.status not in ("pending", "rejected"):
+        return RedirectResponse("/me/travel?err=คำขอนี้ผ่านการตรวจแล้ว ลบเองไม่ได้ แจ้งงานบุคคลหากต้องการยกเลิก", status_code=303)
     if tr and tr.person_id == request.session.get("person_id"):
         if tr.record_id:
             rec = db.get(TravelRecord, tr.record_id)
