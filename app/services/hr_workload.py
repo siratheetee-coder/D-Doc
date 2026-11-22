@@ -10,7 +10,7 @@ from datetime import datetime
 
 from app.models import (Person, AcadClass, AcadTeaching, AcadTimetable, SubstituteAssignment, Committee,
                         CommitteeMember, Procurement, LunchCommittee, LunchHireRound, FieldTrip,
-                        FieldTripStaff, StaffDuty, WorkloadSetting)
+                        FieldTripStaff, StaffDuty, WorkloadSetting, Project)
 
 PREFIXES = ("ว่าที่ร้อยตรีหญิง", "ว่าที่ร้อยตรี", "ว่าที่ ร.ต.", "นางสาว", "นาง", "นาย", "น.ส.", "ดร.", "ด.ร.")
 
@@ -48,7 +48,7 @@ def compute(db, year):
     people = [p for p in db.query(Person).filter(Person.active == True).all()  # noqa: E712
               if (p.person_type or "ครู") not in ("นักการ",)]
     rows = {p.id: {"p": p, "periods": 0, "subjects": set(), "classes": set(), "homeroom": [], "cohome": [],
-                   "sub": 0, "proc": [], "lunch": [], "trip": [], "duties": []} for p in people}
+                   "sub": 0, "proc": [], "lunch": [], "trip": [], "project": [], "duties": []} for p in people}
     by_name = {}
     for p in people:
         by_name.setdefault(norm_name(p.name), p.id)
@@ -97,6 +97,16 @@ def compute(db, year):
             rows[s.person_id]["trip"].append(label)
         else:
             match(s.name, label, "trip")
+    # ผู้รับผิดชอบโครงการ: ช่องเป็นข้อความอิสระ (อาจมีหลายชื่อหรือชื่อฝ่าย) หาชื่อบุคลากรที่อยู่ในข้อความ
+    # ปีของแผนอาจเป็นปีงบหรือปีการศึกษา ใช้เลขปีเดียวกัน ชื่อที่หาไม่เจอไม่นับเป็นชื่อตกหล่น (มักเป็นชื่อฝ่าย)
+    names = sorted(((k, pid) for k, pid in by_name.items() if len(k) >= 4), key=lambda x: -len(x[0]))
+    for pj in db.query(Project).filter(Project.plan_year == year).all():
+        txt = norm_name(pj.responsible)
+        hit = set()
+        for k, pid in names:
+            if k in txt and pid not in hit:
+                hit.add(pid)
+                rows[pid]["project"].append(f"ผู้รับผิดชอบโครงการ: {pj.name}")
     for d in db.query(StaffDuty).filter_by(year=year).all():
         if d.person_id in rows:
             rows[d.person_id]["duties"].append(d)
@@ -105,7 +115,8 @@ def compute(db, year):
         parts = [("คาบสอน", r["periods"] * st.w_period), ("ประจำชั้น", len(r["homeroom"]) * st.w_homeroom),
                  ("คู่ชั้น", len(r["cohome"]) * st.w_cohome), ("สอนแทน", r["sub"] * st.w_sub),
                  ("กรรมการจัดซื้อ", len(r["proc"]) * st.w_proc), ("กรรมการอาหาร", len(r["lunch"]) * st.w_lunch),
-                 ("ทัศนศึกษา", len(r["trip"]) * st.w_trip), ("หน้าที่อื่น", sum(d.weight or 0 for d in r["duties"]))]
+                 ("ทัศนศึกษา", len(r["trip"]) * st.w_trip),
+                 ("โครงการ", len(r["project"]) * (st.w_project if st.w_project is not None else 1.0)), ("หน้าที่อื่น", sum(d.weight or 0 for d in r["duties"]))]
         r["parts"] = parts
         r["score"] = round(sum(v for _, v in parts), 1)
         out.append(r)

@@ -875,7 +875,7 @@ async def workload_settings(request: Request, db: Session = Depends(get_db)):
     from app.services import hr_workload as wl
     f = await request.form()
     st = wl.setting(db)
-    for k in ("w_period", "w_homeroom", "w_cohome", "w_sub", "w_proc", "w_lunch", "w_trip"):
+    for k in ("w_period", "w_homeroom", "w_cohome", "w_sub", "w_proc", "w_lunch", "w_trip", "w_project"):
         try:
             setattr(st, k, max(0.0, min(50.0, float(f.get(k) or 0))))
         except ValueError:

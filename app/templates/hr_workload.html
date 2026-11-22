@@ -25,10 +25,10 @@
     <h2 class="ap-h2">ภาระงานรายคน <small class="muted">ค่าเฉลี่ย {{ d.avg }} คะแนน</small></h2>
     <div class="wl-legend"><span class="lv-high">สูง</span><span class="lv-ok">ปกติ</span><span class="lv-low">น้อย</span></div>
   </div>
-  <p class="muted wl-tip">คะแนนภาระงาน = คาบสอน x {{ st.w_period|round(1) }} + ประจำชั้น x {{ st.w_homeroom|round(1) }} + กรรมการ และหน้าที่อื่นตามน้ำหนัก กดชื่อเพื่อดูรายละเอียดและเพิ่มหน้าที่</p>
+  <p class="muted wl-tip">คะแนนภาระงาน = คาบสอน x {{ st.w_period|round(1) }} + ประจำชั้น x {{ st.w_homeroom|round(1) }} + กรรมการ โครงการ และหน้าที่อื่นตามน้ำหนัก กดชื่อเพื่อดูรายละเอียดและเพิ่มหน้าที่</p>
   <div class="table-wrap">
   <table class="wl-table">
-    <thead><tr><th>ชื่อ</th><th class="center">คาบ/สัปดาห์</th><th class="center">วิชา/ห้อง</th><th class="center">ประจำชั้น</th><th class="center">สอนแทน</th><th class="center">กรรมการ</th><th class="center">หน้าที่อื่น</th><th style="min-width:170px">ภาระงานรวม</th></tr></thead>
+    <thead><tr><th>ชื่อ</th><th class="center">คาบ/สัปดาห์</th><th class="center">วิชา/ห้อง</th><th class="center">ประจำชั้น</th><th class="center">สอนแทน</th><th class="center">กรรมการ</th><th class="center">โครงการ</th><th class="center">หน้าที่อื่น</th><th style="min-width:170px">ภาระงานรวม</th></tr></thead>
     <tbody>
     {% for r in d.rows %}
     <tr class="lv-{{ r.level }}">
@@ -38,10 +38,11 @@
       <td class="center" data-label="ประจำชั้น">{{ (r.homeroom|length) + (r.cohome|length) or '-' }}</td>
       <td class="center" data-label="สอนแทน">{{ r.sub or '-' }}</td>
       <td class="center" data-label="กรรมการ">{{ (r.proc|length) + (r.lunch|length) + (r.trip|length) or '-' }}</td>
+      <td class="center" data-label="โครงการ">{{ r.project|length or '-' }}</td>
       <td class="center" data-label="หน้าที่อื่น">{{ r.duties|length or '-' }}</td>
       <td data-label="ภาระงานรวม"><div class="wl-bar"><i style="width:{{ [r.pct / 2, 100]|min }}%"></i></div><b class="wl-score">{{ r.score }}</b> <small class="muted">({{ r.pct }}%)</small></td>
     </tr>
-    {% else %}<tr><td colspan="8" class="muted">ยังไม่มีบุคลากรในทะเบียน</td></tr>{% endfor %}
+    {% else %}<tr><td colspan="9" class="muted">ยังไม่มีบุคลากรในทะเบียน</td></tr>{% endfor %}
     </tbody>
   </table>
   </div>
@@ -66,7 +67,7 @@
   <form method="post" action="/hr/workload/settings">
     <input type="hidden" name="year" value="{{ year }}">
     <div class="wl-wgrid">
-      {% for k, lab in [('w_period','คาบสอน 1 คาบ/สัปดาห์'),('w_homeroom','ครูประจำชั้น 1 ห้อง'),('w_cohome','ครูคู่ชั้น 1 ห้อง'),('w_sub','สอนแทน 1 คาบ'),('w_proc','กรรมการจัดซื้อ/ตรวจรับ 1 เรื่อง'),('w_lunch','กรรมการอาหารกลางวัน 1 ชุด'),('w_trip','ควบคุมทัศนศึกษา 1 ครั้ง')] %}
+      {% for k, lab in [('w_period','คาบสอน 1 คาบ/สัปดาห์'),('w_homeroom','ครูประจำชั้น 1 ห้อง'),('w_cohome','ครูคู่ชั้น 1 ห้อง'),('w_sub','สอนแทน 1 คาบ'),('w_proc','กรรมการจัดซื้อ/ตรวจรับ 1 เรื่อง'),('w_lunch','กรรมการอาหารกลางวัน 1 ชุด'),('w_trip','ควบคุมทัศนศึกษา 1 ครั้ง'),('w_project','ผู้รับผิดชอบโครงการ 1 โครงการ')] %}
       <div><label>{{ lab }}</label><input name="{{ k }}" value="{{ st[k] }}" inputmode="decimal"></div>{% endfor %}
       <div><label>ภาระงานสูง เมื่อเกิน (% ของค่าเฉลี่ย)</label><input name="high_pct" value="{{ st.high_pct }}" inputmode="numeric"></div>
       <div><label>ภาระงานน้อย เมื่อต่ำกว่า (%)</label><input name="low_pct" value="{{ st.low_pct }}" inputmode="numeric"></div>

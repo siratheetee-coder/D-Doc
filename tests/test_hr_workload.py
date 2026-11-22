@@ -13,7 +13,7 @@ def test_norm_name_strips_prefixes():
 def _setup():
     import app.tenancy as tn
     from app.models import (Person, AcadClass, AcadSubject, AcadTeaching, AcadPeriod, AcadTimetable,
-                            Procurement, Committee, CommitteeMember, StaffDuty)
+                            Procurement, Committee, CommitteeMember, StaffDuty, Project)
     from app.routers.academic import _acad_year
     with tn.session_for(next(iter(tn._engines))) as s:
         y = _acad_year(s)
@@ -29,6 +29,7 @@ def _setup():
         cm = Committee(procurement_id=pr.id, kind="inspect"); s.add(cm); s.flush()
         s.add(CommitteeMember(committee_id=cm.id, name="ภาระ มากมาย"))          # ไม่มีคำนำหน้า ต้องจับคู่ได้
         s.add(CommitteeMember(committee_id=cm.id, name="คนนอก ไม่อยู่ในทะเบียน"))
+        s.add(Project(name="โครงการรักการอ่าน", plan_year=y, responsible="นายภาระ มากมาย และฝ่ายวิชาการ"))
         s.add(StaffDuty(person_id=b.id, year=y, name="ครูเวร", weight=2))
         s.commit()
         return y, a.id, b.id
@@ -43,7 +44,8 @@ def test_compute_scores_and_unmatched(env):
     ra = next(r for r in d["rows"] if r["p"].id == a)
     rb = next(r for r in d["rows"] if r["p"].id == b)
     assert ra["periods"] == 4 and len(ra["homeroom"]) == 1 and len(ra["proc"]) == 1
-    assert ra["score"] == 4 * 1.0 + 3.0 + 0.5
+    assert ra["project"] == ["ผู้รับผิดชอบโครงการ: โครงการรักการอ่าน"]
+    assert ra["score"] == 4 * 1.0 + 3.0 + 0.5 + 1.0
     assert rb["score"] == 2 and [x.name for x in rb["duties"]] == ["ครูเวร"]
     assert "คนนอก ไม่อยู่ในทะเบียน" in d["unmatched"]
 

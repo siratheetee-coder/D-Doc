@@ -27,8 +27,8 @@
     {% if not r.periods and not r.homeroom and not r.cohome %}<p class="muted">ยังไม่มีข้อมูลการสอนในปีนี้</p>{% endif %}
   </div>
   <div class="card">
-    <h2 class="ap-h2">กรรมการ {{ (r.proc|length) + (r.lunch|length) + (r.trip|length) }} งาน</h2>
-    {% for x in r.proc + r.lunch + r.trip %}<p class="wp-line">{{ x }}</p>{% else %}<p class="muted">ยังไม่มีงานกรรมการในปีนี้</p>{% endfor %}
+    <h2 class="ap-h2">กรรมการและโครงการ {{ (r.proc|length) + (r.lunch|length) + (r.trip|length) + (r.project|length) }} งาน</h2>
+    {% for x in r.project + r.proc + r.lunch + r.trip %}<p class="wp-line">{{ x }}</p>{% else %}<p class="muted">ยังไม่มีงานกรรมการในปีนี้</p>{% endfor %}
   </div>
 </div>
 

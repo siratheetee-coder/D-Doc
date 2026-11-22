@@ -590,6 +590,7 @@ class WorkloadSetting(Base):
     w_proc = Column(Float, default=0.5)         # ต่อการเป็นกรรมการจัดซื้อ/ตรวจรับ 1 เรื่อง
     w_lunch = Column(Float, default=0.5)        # ต่อการเป็นกรรมการอาหารกลางวัน 1 ชุด
     w_trip = Column(Float, default=1.0)         # ต่อการควบคุมทัศนศึกษา 1 ครั้ง
+    w_project = Column(Float, default=1.0)      # ต่อการเป็นผู้รับผิดชอบโครงการ 1 โครงการ
     high_pct = Column(Integer, default=130)     # เกินค่าเฉลี่ยกี่ % = ภาระงานสูง
     low_pct = Column(Integer, default=70)       # ต่ำกว่าค่าเฉลี่ยกี่ % = ภาระงานน้อย
 

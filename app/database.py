@@ -346,6 +346,7 @@ MIGRATIONS = [
     ("acad_timetable", "locked", "BOOLEAN DEFAULT 0"),
     ("acad_timetable", "blocked", "BOOLEAN DEFAULT 0"),
     ("budget_request", "travel_request_id", "INTEGER"),
+    ("workload_setting", "w_project", "FLOAT DEFAULT 1.0"),
     # ---- ตารางกลาง StudentMeasure สร้างอัตโนมัติผ่าน create_all (ไม่ต้อง migrate คอลัมน์) ----
 ]
 
