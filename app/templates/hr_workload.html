@@ -25,7 +25,7 @@
     <h2 class="ap-h2">ภาระงานรายคน <small class="muted">ค่าเฉลี่ย {{ d.avg }} คะแนน</small></h2>
     <div class="wl-legend"><span class="lv-high">สูง</span><span class="lv-ok">ปกติ</span><span class="lv-low">น้อย</span></div>
   </div>
-  <p class="muted wl-tip">คะแนนภาระงาน = คาบสอน x {{ st.w_period|round(1) }} + ประจำชั้น x {{ st.w_homeroom|round(1) }} + กรรมการ โครงการ และหน้าที่อื่นตามน้ำหนัก กดชื่อเพื่อดูรายละเอียดและเพิ่มหน้าที่</p>
+  <p class="muted wl-tip">คะแนนภาระงาน = คาบสอน x {{ st.w_period|round(1) }} + ประจำชั้น x {{ st.w_homeroom|round(1) }} + กรรมการ โครงการ ({{ d.project_label }}) และหน้าที่อื่นตามน้ำหนัก กดชื่อเพื่อดูรายละเอียดและเพิ่มหน้าที่</p>
   <div class="table-wrap">
   <table class="wl-table">
     <thead><tr><th>ชื่อ</th><th class="center">คาบ/สัปดาห์</th><th class="center">วิชา/ห้อง</th><th class="center">ประจำชั้น</th><th class="center">สอนแทน</th><th class="center">กรรมการ</th><th class="center">โครงการ</th><th class="center">หน้าที่อื่น</th><th style="min-width:170px">ภาระงานรวม</th></tr></thead>

@@ -35,6 +35,15 @@ def _setup():
         return y, a.id, b.id
 
 
+def test_project_year_follows_running_fiscal_year(env):
+    import app.tenancy as tn
+    from app.services.hr_workload import project_list
+    with tn.session_for(next(iter(tn._engines))) as s:
+        assert project_list(s, 2570, datetime(2027, 6, 1))[1] == "ปีงบประมาณ 2570"   # เทอม 1 ยังปีงบเดิม
+        assert project_list(s, 2570, datetime(2027, 11, 1))[1] == "ปีงบประมาณ 2571"  # ต.ค. เปลี่ยนปีงบ
+        assert project_list(s, 2568, datetime(2027, 6, 1))[1] == "ปีงบประมาณ 2569"   # ปีย้อนหลัง
+
+
 def test_compute_scores_and_unmatched(env):
     import app.tenancy as tn
     from app.services import hr_workload as wl
