@@ -1,4 +1,4 @@
-"""ตารางสอนรายครู: โรงเรียนแยกคาบประถม/มัธยม แสดงเป็นคนละตาราง เฉพาะช่วงชั้นที่ครูสอน"""
+"""ตารางสอนรายครู: โรงเรียนแยกคาบประถม/มัธยม รวมเป็นตารางเดียว คาบเวลาเดียวกันอยู่คอลัมน์เดียว"""
 from tests.test_subsidy import env  # noqa: F401
 from tests.test_access_shared_pages import _account
 
@@ -21,4 +21,7 @@ def test_teacher_timetable_split_by_section(env):
         p = ts.periods(s, y, "primary")[0]
         s.add(AcadTimetable(class_id=k.id, day=1, period_id=p.id, subject_id=sb.id)); s.commit()
     html = _account("ครูตารางแยก", "academic").get("/academic/timetable/teacher").text
-    assert "ประถมศึกษา" in html and "มัธยมศึกษา" not in html
+    import re
+    head = html[html.index("<thead>"):html.index("</thead>")]
+    assert head.count("08:30-09:30") == 1            # คาบ 1 ประถม+มัธยม เวลาเดียวกัน = คอลัมน์เดียว
+    assert "ภาษาอังกฤษ" in html and "ประถม" not in head and "มัธยม" not in head

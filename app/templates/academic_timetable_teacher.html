@@ -42,7 +42,6 @@
   <p class="muted" style="margin:8px 0 0;">ยังไม่ได้ตั้งโครงคาบเรียน</p>
   {% else %}
   {% for glabel, gp in groups %}
-  {% if glabel %}<h3 class="tt-sec">{{ glabel }}</h3>{% endif %}
   <div class="table-wrap">
   <table class="tt">
     <thead><tr>
@@ -57,12 +56,12 @@
       <tr>
         <td style="font-weight:600; white-space:nowrap; background:#faf8ff;">{{ dname }}</td>
         {% for p in gp %}
-          {% set lst = tgrid.get(dnum, {}).get(p.id, []) %}
+          {% set ns = namespace(lst=[], clash=false) %}{% for pid_ in p.ids %}{% set ns.lst = ns.lst + tgrid.get(dnum, {}).get(pid_, []) %}{% if (dnum, pid_) in clash_slots %}{% set ns.clash = true %}{% endif %}{% endfor %}{% set lst = ns.lst %}
           {% if p.is_break %}
           <td class="center muted" style="background:#f8fafc; font-size:12px;">พัก</td>
           {% else %}
-          <td class="center tt-t {{ 'clash' if (dnum,p.id) in clash_slots }}" style="font-size:12.5px;"
-              data-k="{% for e in lst %}{{ e.class }}|{{ e.subject }};{% endfor %}" data-sec="{{ p.school_section }}">
+          <td class="center tt-t {{ 'clash' if ns.clash }}" style="font-size:12.5px;"
+              data-k="{% for e in lst %}{{ e.class }}|{{ e.subject }};{% endfor %}">
             {% for e in lst %}<div><b>{{ e.subject }}</b><div class="muted" style="font-size:11px;">{{ e.class }}</div></div>{% endfor %}
             {% if not lst %}<span class="muted"> </span>{% endif %}
           </td>

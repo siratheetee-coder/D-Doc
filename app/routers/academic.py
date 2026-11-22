@@ -3997,16 +3997,24 @@ def timetable_teacher_page(request: Request, db: Session = Depends(get_db),
                 if len(lst) > 1 or any(other!=p_id and overlaps(db.get(AcadPeriod,p_id),db.get(AcadPeriod,other)) for other in byp):
                     clash_slots.add((d,p_id))
                     clashes.append({"day": dict(TT_DAYS).get(d, d), "n": len(lst)})
-    # ประถม/มัธยมแยกโครงคาบ: แสดงเป็นคนละตาราง เฉพาะช่วงชั้นที่ครูคนนี้มีสอน (ไม่มีสอนเลย = แสดงทุกช่วงชั้น)
-    sep = timetable_separated(db, y)
-    if sep:
-        used = {p.school_section for p in periods
-                if any(p.id in byp and byp[p.id] for byp in tgrid.values())}
-        groups = [(lab, [p for p in periods if p.school_section == key])
-                  for key, lab in (("primary", "ประถมศึกษา"), ("secondary", "มัธยมศึกษา"))
-                  if (key in used or not used) and any(p.school_section == key for p in periods)]
-    else:
-        groups = [("", periods)]
+    # ประถม/มัธยมแยกโครงคาบ: รวมเป็นตารางเดียว คาบที่เวลาตรงกันอยู่คอลัมน์เดียวกัน เวลาต่างกันแยกคอลัมน์ เรียงตามเวลา
+    from app.services.timetable_sections import interval as _iv
+    cols = {}
+    for p in periods:
+        key = (p.time_label or "").strip() or f"#{p.seq}:{p.name}"
+        col = cols.setdefault(key, {"name": p.name, "time_label": p.time_label, "ids": [], "breaks": [], "seq": p.seq})
+        col["ids"].append(p.id)
+        col["breaks"].append(bool(p.is_break))
+        if not p.is_break:
+            col["name"] = p.name
+    merged = []
+    for c in cols.values():
+        r = _iv(c["time_label"])
+        c["is_break"] = all(c["breaks"])
+        c["start"] = r[0] if r else 9999 + (c["seq"] or 0)
+        merged.append(c)
+    merged.sort(key=lambda c: (c["start"], c["seq"] or 0))
+    groups = [("", merged)]
     return templates.TemplateResponse("academic_timetable_teacher.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "days": TT_DAYS, "periods": periods, "groups": groups, "teachers": teachers, "person": person,
