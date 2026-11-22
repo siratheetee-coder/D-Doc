@@ -48,7 +48,8 @@ def _safe_chars(text: str) -> str:
 def _p(doc, text="", *, align="left", bold=False, size=16, after=6, indent=0.0):
     p = doc.add_paragraph()
     p.alignment = {"left": WD_ALIGN_PARAGRAPH.LEFT, "center": WD_ALIGN_PARAGRAPH.CENTER,
-                   "right": WD_ALIGN_PARAGRAPH.RIGHT, "justify": WD_ALIGN_PARAGRAPH.JUSTIFY}[align]
+                   "right": WD_ALIGN_PARAGRAPH.RIGHT, "justify": WD_ALIGN_PARAGRAPH.JUSTIFY,
+                   "thai": WD_ALIGN_PARAGRAPH.THAI_JUSTIFY}[align]
     p.paragraph_format.space_after = Pt(after)
     if indent:
         p.paragraph_format.first_line_indent = Cm(indent)
@@ -163,8 +164,9 @@ def render_certificate(school, person) -> str:
     t = doc.add_table(rows=1, cols=3)
     t.autofit = False
     left, mid, right = t.rows[0].cells
-    left.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-    right.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+    # แบบที่ 10 ท้ายระเบียบงานสารบรรณ (ข้อ 24): เลขที่ (ซ้าย) กับส่วนราชการ (ขวา) อยู่ระดับเดียวกันที่ฐานครุฑ
+    left.vertical_alignment = WD_ALIGN_VERTICAL.BOTTOM
+    right.vertical_alignment = WD_ALIGN_VERTICAL.BOTTOM
     _hdr_cell(left, [f"ที่  {prefix} ............/............".replace("  ", " ").strip()])
     mid.text = ""
     mp = mid.paragraphs[0]
@@ -195,10 +197,11 @@ def render_certificate(school, person) -> str:
             + "เริ่มรับราชการ ตั้งแต่วันที่ "
             + (thai_date(person.start_date) if person.start_date else "........................................")
             + " จนถึงปัจจุบันจริง")
-    _p(doc, body, align="justify", size=16, after=6, indent=1.25)
+    # thai = กระจายแบบไทย (ไม่ยืดช่องว่างระหว่างคำจนห่าง)
+    _p(doc, body, align="thai", size=16, after=6, indent=1.25)
     _p(doc, "หนังสือรับรองฉบับนี้ออกให้เพื่อนำไป"
             "................................................................ เท่านั้น",
-       align="justify", size=16, after=14, indent=1.25)
+       align="thai", size=16, after=14, indent=1.25)
 
     now = _d.datetime.now()
     _p(doc, f"ให้ไว้  ณ  วันที่ {now.day} เดือน{_THAI_MONTHS[now.month]} พ.ศ. {now.year + 543}",
