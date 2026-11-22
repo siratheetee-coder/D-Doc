@@ -523,7 +523,8 @@
       display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
     .toast { background: #0e7a44; color: #fff; padding: 11px 20px; border-radius: 999px; font-weight: 700;
       font-size: 15px; box-shadow: 0 10px 28px rgba(14,122,68,.38); display: flex; align-items: center; gap: 8px;
-      opacity: 0; transform: translateY(-18px); transition: opacity .25s ease, transform .25s ease; max-width: 92vw; }
+      opacity: 0; transform: translateY(-18px); transition: opacity .25s ease, transform .25s ease; max-width: min(92vw, 460px); line-height: 1.4; }
+    .toast:has(br), .toast.long { border-radius: 16px; }
     .toast.show { opacity: 1; transform: none; }
     .toast.warn { background: #b45309; box-shadow: 0 10px 28px rgba(180,83,9,.38); }
     @media (prefers-reduced-motion: reduce) { .toast { transition: opacity .2s ease; transform: none; } }

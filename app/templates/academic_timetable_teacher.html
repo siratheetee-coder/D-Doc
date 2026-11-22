@@ -41,20 +41,22 @@
   {% if not periods %}
   <p class="muted" style="margin:8px 0 0;">ยังไม่ได้ตั้งโครงคาบเรียน</p>
   {% else %}
+  {% for glabel, gp in groups %}
+  {% if glabel %}<h3 class="tt-sec">{{ glabel }}</h3>{% endif %}
   <div class="table-wrap">
   <table class="tt">
     <thead><tr>
       <th style="min-width:70px;">วัน \ คาบ</th>
-      {% for p in periods %}
+      {% for p in gp %}
       <th style="{{ 'background:#f1f5f9;' if p.is_break }} min-width:{{ '60px' if p.is_break else '120px' }};">
-        {% if separated %}<div>{{ 'มัธยม' if p.school_section=='secondary' else 'ประถม' }}</div>{% endif %}{{ p.name }}{% if p.time_label %}<div class="muted" style="font-size:11px; font-weight:400;">{{ p.time_label }}</div>{% endif %}</th>
+        {{ p.name }}{% if p.time_label %}<div class="muted" style="font-size:11px; font-weight:400;">{{ p.time_label }}</div>{% endif %}</th>
       {% endfor %}
     </tr></thead>
     <tbody>
     {% for dnum, dname in days %}
       <tr>
         <td style="font-weight:600; white-space:nowrap; background:#faf8ff;">{{ dname }}</td>
-        {% for p in periods %}
+        {% for p in gp %}
           {% set lst = tgrid.get(dnum, {}).get(p.id, []) %}
           {% if p.is_break %}
           <td class="center muted" style="background:#f8fafc; font-size:12px;">พัก</td>
@@ -71,6 +73,7 @@
     </tbody>
   </table>
   </div>
+  {% endfor %}
   {% endif %}
 </div>
 {% elif not is_teacher %}
@@ -78,6 +81,7 @@
 {% endif %}
 
 <style>
+  .tt-sec{margin:16px 0 6px;font-size:16px;color:#4338ca}
   table.tt th, table.tt td { border:1px solid #e5e7eb; padding:6px 8px; text-align:center; vertical-align:middle; }
   table.tt th { background:#f5f3ff; font-size:13px; }
   table.tt td.clash { background:#fee2e2; }

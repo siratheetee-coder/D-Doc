@@ -43,17 +43,17 @@
   {% if students %}
   {% set can_roster = can_edit_roster|default(true) %}
   {% if can_roster %}<div style="margin:0 0 8px;"><button class="btn sm" type="button" onclick="saveAllRows(this)"><svg class="icon"><use href="#ic-save"/></svg> บันทึกทั้งหมด</button></div>{% endif %}
-  <div class="table-wrap">
-  <table>
+  <div class="table-wrap roster-wrap">
+  <table class="roster">
     <thead><tr><th>เลขที่</th><th>เลขประจำตัว</th><th>ชื่อ-นามสกุล</th><th>เพศ</th>{% if can_roster %}<th></th>{% endif %}</tr></thead>
     <tbody>
     {% for s in students %}
       <tr data-sid="{{ s.id }}">
         {% if can_roster %}
         <td><form method="post" action="/academic/student/{{ s.id }}/update" id="stf{{ s.id }}"></form>
-          <input form="stf{{ s.id }}" name="seq" value="{{ s.seq or '' }}" style="width:60px;"></td>
-        <td><input form="stf{{ s.id }}" name="student_no" value="{{ s.student_no }}" style="width:100px;"></td>
-        <td><input form="stf{{ s.id }}" name="name" value="{{ s.name }}"></td>
+          <input form="stf{{ s.id }}" name="seq" value="{{ s.seq or '' }}" aria-label="เลขที่" inputmode="numeric" style="width:60px;"></td>
+        <td><input form="stf{{ s.id }}" name="student_no" value="{{ s.student_no }}" placeholder="เลขประจำตัว" aria-label="เลขประจำตัว" style="width:100px;"></td>
+        <td><input form="stf{{ s.id }}" name="name" value="{{ s.name }}" aria-label="ชื่อ-นามสกุล"></td>
         <td><select form="stf{{ s.id }}" name="sex" style="width:90px;">
           <option value="" {{ 'selected' if not s.sex }}>-</option>
           <option value="M" {{ 'selected' if s.sex=='M' }}>ชาย</option>
@@ -236,4 +236,18 @@
     location.reload();
   }
 </script>
+<style>
+/* มือถือ: รายชื่อนักเรียนเป็นการ์ดคนละใบ ชื่อเต็มบรรทัด ไม่ต้องเลื่อนซ้ายขวา */
+@media(max-width:640px){
+  .roster-wrap{overflow:visible}
+  .roster,.roster tbody{display:block;width:100%}
+  .roster thead{display:none}
+  .roster tr{display:grid;grid-template-columns:64px 1fr 104px;grid-template-areas:"seq name name" "no no sex" "act act act";gap:6px 8px;padding:10px;margin:0 0 10px;border-radius:14px;background:linear-gradient(135deg,#fff,#f8fafc);box-shadow:0 1px 6px rgba(30,40,90,.08)}
+  .roster td{display:block;padding:0;border:0}
+  .roster td:nth-child(1){grid-area:seq}.roster td:nth-child(2){grid-area:no}.roster td:nth-child(3){grid-area:name}
+  .roster td:nth-child(4){grid-area:sex}.roster td:nth-child(5){grid-area:act;display:flex;gap:8px;justify-content:flex-end}
+  .roster input,.roster select{width:100%!important;box-sizing:border-box}
+  .roster td:nth-child(2) input::placeholder{color:#94a3b8}
+}
+</style>
 {% endblock %}

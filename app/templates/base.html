@@ -907,7 +907,7 @@
         document.querySelectorAll('.content .alert:not(.warn):not(.danger):not(.info)').forEach(function(a){
           if(a.querySelector('ul,ol,table,form,a,button')) return;
           var txt = (a.textContent||'').trim().replace(/^[✔✓•\s]+/, '');
-          if(!txt) return;
+          if(!txt || txt.length > 90) return;      // ข้อความยาว = คำอธิบาย ไม่ใช่แจ้งบันทึกแล้ว ให้อยู่ในหน้า
           showToast(txt);
           a.remove();
         });

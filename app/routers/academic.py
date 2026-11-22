@@ -3997,9 +3997,19 @@ def timetable_teacher_page(request: Request, db: Session = Depends(get_db),
                 if len(lst) > 1 or any(other!=p_id and overlaps(db.get(AcadPeriod,p_id),db.get(AcadPeriod,other)) for other in byp):
                     clash_slots.add((d,p_id))
                     clashes.append({"day": dict(TT_DAYS).get(d, d), "n": len(lst)})
+    # ประถม/มัธยมแยกโครงคาบ: แสดงเป็นคนละตาราง เฉพาะช่วงชั้นที่ครูคนนี้มีสอน (ไม่มีสอนเลย = แสดงทุกช่วงชั้น)
+    sep = timetable_separated(db, y)
+    if sep:
+        used = {p.school_section for p in periods
+                if any(p.id in byp and byp[p.id] for byp in tgrid.values())}
+        groups = [(lab, [p for p in periods if p.school_section == key])
+                  for key, lab in (("primary", "ประถมศึกษา"), ("secondary", "มัธยมศึกษา"))
+                  if (key in used or not used) and any(p.school_section == key for p in periods)]
+    else:
+        groups = [("", periods)]
     return templates.TemplateResponse("academic_timetable_teacher.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
-        "days": TT_DAYS, "periods": periods, "teachers": teachers, "person": person,
+        "days": TT_DAYS, "periods": periods, "groups": groups, "teachers": teachers, "person": person,
         "tgrid": tgrid, "clashes": clashes, "is_teacher": sc.is_teacher,
         "clash_slots":clash_slots, "separated":timetable_separated(db,y),
     })
