@@ -58,7 +58,24 @@ def _p(doc, text="", *, align="left", bold=False, size=16, after=6, indent=0.0):
     r.font.size = Pt(size)
     r.font.name = THAI_FONT
     r._element.rPr.rFonts.set(qn("w:cs"), THAI_FONT)
+    _th_lang(r)
     return p
+
+
+def _th_lang(r):
+    """ระบุภาษาไทยให้ run ไม่งั้น Word ตัดคำไทยไม่ได้ (บรรทัดกระจายตัวอักษรห่าง ๆ เมื่อจัดแบบไทย)"""
+    from docx.oxml import OxmlElement
+    rpr = r._element.get_or_add_rPr()
+    lang = rpr.find(qn("w:lang"))
+    if lang is None:
+        lang = OxmlElement("w:lang"); rpr.append(lang)
+    lang.set(qn("w:val"), "th-TH"); lang.set(qn("w:bidi"), "th-TH")
+    r._element.rPr.rFonts.set(qn("w:hint"), "cs")
+    if rpr.find(qn("w:cs")) is None:               # บอก Word ว่าเป็นอักษรซับซ้อน (ไทย) ตัดคำไทยได้
+        rpr.append(OxmlElement("w:cs"))
+    sz = rpr.find(qn("w:sz"))
+    if sz is not None and rpr.find(qn("w:szCs")) is None:
+        e = OxmlElement("w:szCs"); e.set(qn("w:val"), sz.get(qn("w:val"))); rpr.append(e)
 
 
 def _doc():
@@ -148,7 +165,9 @@ def render_certificate(school, person) -> str:
     from docx.enum.table import WD_ALIGN_VERTICAL
 
     doc = _doc()
-    doc.sections[0].right_margin = Cm(1.5)   # ขอบขวาแคบลง -> ตารางหัวกระดาษยืดไปทางขวาได้
+    # ระยะตามแบบหนังสือราชการ: ซ้าย 3 ขวา 2 ครุฑสูง 3 ซม. อยู่ห่างขอบบนราว 1.5 ซม. ย่อหน้า 2.5 ซม.
+    sec = doc.sections[0]
+    sec.left_margin, sec.right_margin, sec.top_margin = Cm(3.0), Cm(2.0), Cm(1.5)
     # ---- หัวกระดาษแถวเดียว: ที่ (ซ้าย) | ครุฑ (กลาง) | ชื่อ+ที่อยู่โรงเรียน (ขวา) ----
     addr = [school.name or ""]
     if (getattr(school, "address", "") or "").strip():
@@ -174,10 +193,12 @@ def render_certificate(school, person) -> str:
     mp.paragraph_format.space_after = Pt(0)
     krut = _krut_path()
     if krut:
-        mp.add_run().add_picture(str(krut), height=Cm(2.0))
+        mp.add_run().add_picture(str(krut), height=Cm(3.0))
     _hdr_cell(right, addr, size=13.5)
+    for rp in right.paragraphs:                 # บล็อกส่วนราชการเริ่มเยื้องขวา แบบหนังสือราชการตัวอย่าง
+        rp.paragraph_format.left_indent = Cm(1.3)
     # ซ้าย+กลางกว้างขึ้น -> บล็อกที่อยู่เลื่อนไปทางขวา และตารางยืดไปจนสุดขอบขวา (รวม 17 ซม.)
-    left.width = Cm(7.0); mid.width = Cm(3.2); right.width = Cm(6.8)
+    left.width = Cm(6.4); mid.width = Cm(3.2); right.width = Cm(6.4)   # รวม 16 ซม. = ความกว้างหน้าหลังหักขอบ
     _p(doc, "", after=12)
 
     name = person.name or _BLANK
@@ -198,10 +219,10 @@ def render_certificate(school, person) -> str:
             + (thai_date(person.start_date) if person.start_date else "........................................")
             + " จนถึงปัจจุบันจริง")
     # thai = กระจายแบบไทย (ไม่ยืดช่องว่างระหว่างคำจนห่าง)
-    _p(doc, body, align="thai", size=16, after=6, indent=1.25)
+    _p(doc, body, align="thai", size=16, after=6, indent=2.5)
     _p(doc, "หนังสือรับรองฉบับนี้ออกให้เพื่อนำไป"
             "................................................................ เท่านั้น",
-       align="thai", size=16, after=14, indent=1.25)
+       align="thai", size=16, after=14, indent=2.5)
 
     now = _d.datetime.now()
     _p(doc, f"ให้ไว้  ณ  วันที่ {now.day} เดือน{_THAI_MONTHS[now.month]} พ.ศ. {now.year + 543}",
@@ -211,10 +232,11 @@ def render_certificate(school, person) -> str:
 
     # ---- ลงนาม ผอ. (วางลายเซ็นจริงถ้ามี) ----
     director = (getattr(school, "director_name", "") or "").strip()
-    sign_p = _p(doc, "(ลงชื่อ)..............................................", align="center", after=0)
+    # กึ่งกลางแต่เยื้องขวาตามย่อหน้า 2.5 ซม. แบบเดียวกับหนังสือราชการตัวอย่าง
+    sign_p = _p(doc, "(ลงชื่อ)..............................................", align="center", after=0, indent=2.5)
     _float_signature(sign_p, director)
-    _p(doc, f"( {director or _BLANK} )", align="center", after=0)
-    _p(doc, _director_pos(school), align="center", after=2)
+    _p(doc, f"( {director or _BLANK} )", align="center", after=0, indent=2.5)
+    _p(doc, _director_pos(school), align="center", after=2, indent=2.5)
 
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"หนังสือรับรองบุคลากร_{name}") + ".docx")
