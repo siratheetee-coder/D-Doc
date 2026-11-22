@@ -52,3 +52,33 @@ def enable(db,year):
     if not config:config=AcadTimetableConfig(year=year);db.add(config)
     config.separated=True
     db.flush()
+
+
+def merged_columns(periods):
+    """คาบประถม+มัธยมรวมเป็นคอลัมน์เดียวเมื่อเวลาตรงกัน (ตารางสอนรายครู) เรียงตามเวลาเริ่ม
+    คืน list ของ SimpleNamespace(id, ids, name, time_label, is_break, seq)"""
+    from types import SimpleNamespace
+    cols = {}
+    for p in periods:
+        key = (p.time_label or "").strip() or f"#{p.seq}:{p.name}"
+        c = cols.setdefault(key, SimpleNamespace(id=p.id, ids=[], name=p.name, time_label=p.time_label,
+                                                 is_break=True, seq=p.seq or 0))
+        c.ids.append(p.id)
+        if not p.is_break:
+            c.is_break = False
+            c.name = p.name
+    def start(c):
+        r = interval(c.time_label)
+        return (r[0] if r else 9999 + c.seq, c.seq)
+    out = []
+    for c in sorted(cols.values(), key=start):
+        prev = out[-1] if out else None
+        a, b = (interval(prev.time_label) if prev else None), interval(c.time_label)
+        # คาบพักของประถม/มัธยมที่เวลาเหลื่อมกัน (เช่น พักเที่ยง 11:30 กับ 12:00) รวมเป็นคอลัมน์พักเดียว
+        if prev and prev.is_break and c.is_break and a and b and b[0] <= a[1]:
+            prev.ids += c.ids
+            if c.time_label and c.time_label not in prev.time_label:
+                prev.time_label = f"{prev.time_label} / {c.time_label}"
+            continue
+        out.append(c)
+    return out

@@ -3998,23 +3998,8 @@ def timetable_teacher_page(request: Request, db: Session = Depends(get_db),
                     clash_slots.add((d,p_id))
                     clashes.append({"day": dict(TT_DAYS).get(d, d), "n": len(lst)})
     # ประถม/มัธยมแยกโครงคาบ: รวมเป็นตารางเดียว คาบที่เวลาตรงกันอยู่คอลัมน์เดียวกัน เวลาต่างกันแยกคอลัมน์ เรียงตามเวลา
-    from app.services.timetable_sections import interval as _iv
-    cols = {}
-    for p in periods:
-        key = (p.time_label or "").strip() or f"#{p.seq}:{p.name}"
-        col = cols.setdefault(key, {"name": p.name, "time_label": p.time_label, "ids": [], "breaks": [], "seq": p.seq})
-        col["ids"].append(p.id)
-        col["breaks"].append(bool(p.is_break))
-        if not p.is_break:
-            col["name"] = p.name
-    merged = []
-    for c in cols.values():
-        r = _iv(c["time_label"])
-        c["is_break"] = all(c["breaks"])
-        c["start"] = r[0] if r else 9999 + (c["seq"] or 0)
-        merged.append(c)
-    merged.sort(key=lambda c: (c["start"], c["seq"] or 0))
-    groups = [("", merged)]
+    from app.services.timetable_sections import merged_columns
+    groups = [("", merged_columns(periods))]
     return templates.TemplateResponse("academic_timetable_teacher.html", {
         "request": request, "school": get_school(db), "year": y, "years": _years(db, y),
         "days": TT_DAYS, "periods": periods, "groups": groups, "teachers": teachers, "person": person,

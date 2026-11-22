@@ -2576,7 +2576,7 @@ def render_timetable_teacher(school, person, db, year) -> str:
                 (r.subject.name if r.subject else "", _class_label(c), r.subject_id))
 
     def cell(dnum, p):
-        lst = grid.get((dnum, p.id), [])
+        lst = [x for pid in getattr(p, "ids", [p.id]) for x in grid.get((dnum, pid), [])]
         lines = []
         for nm, cl, _sid in lst:
             lines.append((nm, 14, False))
@@ -2589,14 +2589,9 @@ def render_timetable_teacher(school, person, db, year) -> str:
     _p(doc, "ตารางสอน", align="center", bold=True, size=18, after=0)
     _p(doc, school.name or "", align="center", bold=True, size=18, after=1)
     _p(doc, f"ครู {person.name}   ปีการศึกษา {year}", align="center", size=16, after=4)
-    from app.services.timetable_sections import separated
-    if separated(db,year):
-        for i,(section,label) in enumerate([('primary','ประถม'),('secondary','มัธยม')]):
-            if i:doc.add_page_break()
-            _p(doc,label+' · ครู '+person.name,align='center',bold=True,size=18)
-            _tt_grid_doc(doc,[p for p in periods if p.school_section==section],cell)
-    else:
-        _tt_grid_doc(doc, periods, cell)
+    # ประถม/มัธยมแยกโครงคาบ: รวมเป็นตารางเดียวแบบเดียวกับหน้าเว็บ (คาบเวลาเดียวกัน = คอลัมน์เดียว)
+    from app.services.timetable_sections import merged_columns
+    _tt_grid_doc(doc, merged_columns(periods), cell)
     out_dir = get_data_dir() / "documents"; out_dir.mkdir(exist_ok=True)
     out = out_dir / (_safe(f"ตารางสอน_{person.name}_{year}") + ".docx")
     doc.save(str(out))
