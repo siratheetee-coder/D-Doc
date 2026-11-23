@@ -466,7 +466,9 @@ def render_disburse_lunch_doc(inst, school, wht_rate=0.01, penalty=0.0, period_l
     fin = (school.finance_officer_name or "").strip() or _BLANK
     fund = (prog.funding_org or "").strip() or "องค์กรปกครองส่วนท้องถิ่น"
     amt = round(float(inst.amount or 0), 2)
-    wht = round(amt * float(wht_rate or 0), 2)
+    from app.services.lunch_meals import vat_split
+    vat, base = vat_split(rnd, amt)
+    wht = round(base * float(wht_rate or 0), 2)
     fine = round(float(penalty or 0), 2)
     net = round(amt - wht - fine, 2)
     A, W, N = _money(amt), _money(wht), _money(net)
@@ -485,8 +487,8 @@ def render_disburse_lunch_doc(inst, school, wht_rate=0.01, penalty=0.0, period_l
             "เห็นควรเบิกจ่ายให้แก่ผู้รับจ้าง โดยมีรายละเอียด ดังนี้", align="justify", indent=1.25, after=4)
     from docx.enum.table import WD_TABLE_ALIGNMENT
     mt = doc.add_table(rows=0, cols=2); mt.style = "Table Grid"; mt.autofit = False
-    _money_rows = [("จำนวนเงินขอเบิก", A), ("ภาษีมูลค่าเพิ่ม (ถ้ามี)", "-"),
-                   ("มูลค่าสินค้า", "-"), ("หักภาษี ณ ที่จ่าย", W),
+    _money_rows = [("จำนวนเงินขอเบิก", A), ("ภาษีมูลค่าเพิ่ม (ถ้ามี)", _money(vat) if vat else "-"),
+                   ("มูลค่าก่อนภาษีมูลค่าเพิ่ม", _money(base) if vat else "-"), ("หักภาษี ณ ที่จ่าย", W),
                    ("ค่าปรับ (ถ้ามี)", _money(fine) if fine else "-"), ("คงเหลือจ่ายจริง", N)]
     for k, (label, v) in enumerate(_money_rows):
         cells = mt.add_row().cells
@@ -531,7 +533,7 @@ def render_disburse_lunch_doc(inst, school, wht_rate=0.01, penalty=0.0, period_l
     from app.services.finance_forms_doc import write_wht_4235
     doc.add_page_break()
     write_wht_4235(doc, school, SimpleNamespace(
-        amount=amt, vat=0, wht=wht, fine=0, payee=(vendor.name if vendor else ""),
+        amount=amt, vat=vat, wht=wht, fine=0, payee=(vendor.name if vendor else ""),
         date=inst.inspect_date or inst.end_date, memo_no=""),
         payee_tax_id=((vendor.tax_id or "").strip() if vendor else ""),
         payee_address=((vendor.address or "").strip() if vendor else ""),

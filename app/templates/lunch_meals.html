@@ -77,7 +77,7 @@
   <p class="ml-round">รอบนี้จ่ายเงินครั้งเดียวทั้งรอบ ภาษีและยอดจ่ายสุทธิคิดรวมทุกงวดที่
     <a href="/lunch/round/{{ r.id }}/plan#installments">หน้ารอบจัดจ้าง (จ่ายเงินทั้งรอบ)</a></p>
     {% else %}
-    <div><span>หักภาษี ณ ที่จ่าย ร้อยละ {{ "%g"|format(wht_rate * 100) }}</span><b>{{ "{:,.2f}".format(s.wht) }}</b></div>
+    <div><span>หักภาษี ณ ที่จ่าย ร้อยละ {{ "%g"|format(wht_rate * 100) }}{{ " (ของมูลค่าก่อน VAT)" if s.vat }}</span><b>{{ "{:,.2f}".format(s.wht) }}</b></div>
     <div class="ml-net"><span>จ่ายสุทธิ</span><b>{{ "{:,.2f}".format(s.net) }}</b><small>{{ bahttext(s.net) }}</small></div>
   </div>
     {% endif %}

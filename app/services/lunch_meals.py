@@ -49,6 +49,15 @@ def save_day(db, prog, day, per_class: dict) -> None:
             db.add(LunchMealCount(program_id=prog.id, date=dt, class_id=cid, count=n))
 
 
+def vat_split(rnd, amount):
+    """(VAT, มูลค่าก่อน VAT) ผู้รับจ้างจด VAT = ราคารวม VAT 7% ถอดออกก่อนคิดภาษีหัก ณ ที่จ่าย"""
+    amount = float(amount or 0)
+    if getattr(rnd, "vat_include", False):
+        base = round(amount / 1.07, 2)
+        return round(amount - base, 2), base
+    return 0.0, amount
+
+
 def summary(db, inst) -> dict:
     """สรุปงวด: วันทำการ / บันทึกแล้ว / ยอดนักเรียนรวม / ค่าจ้างตามยอด / ค่าปรับ / ภาษี / จ่ายสุทธิ"""
     prog = inst.round.program
@@ -63,9 +72,10 @@ def summary(db, inst) -> dict:
     # มูลค่าอาหารต่อวันของงวด ใช้คิดค่าปรับรายวัน
     per_day = (amount / len(days)) if days else 0.0
     penalty = round((inst.penalty_days or 0) * PENALTY_RATE * per_day, 2)
-    wht = round(amount * WHT_RATE, 2)
+    vat, base = vat_split(inst.round, amount)
+    wht = round(base * WHT_RATE, 2)
     return {
-        "days": days, "counts": got, "recorded": recorded, "complete": complete,
+        "vat": vat, "days": days, "counts": got, "recorded": recorded, "complete": complete,
         "meals": meals, "rate": rate, "value": value, "amount": amount,
         "penalty": penalty, "wht": wht, "net": round(amount - wht - penalty, 2),
         "eligible": int(prog.total_students or 0),
@@ -100,9 +110,10 @@ def round_pay(db, rnd) -> dict:
     rows = [(i, summary(db, i)) for i in insts]
     amount = round(sum(float(i.amount or 0) for i in insts), 2)
     penalty = round(sum(s["penalty"] for _, s in rows), 2)
-    wht = round(amount * WHT_RATE, 2)
+    vat, base = vat_split(rnd, amount)
+    wht = round(base * WHT_RATE, 2)
     return {
-        "rows": rows, "amount": amount, "penalty": penalty, "wht": wht,
+        "vat": vat, "rows": rows, "amount": amount, "penalty": penalty, "wht": wht,
         "net": round(amount - wht - penalty, 2),
         "meals": sum(s["meals"] for _, s in rows),
         "inspected": sum(1 for i in insts if (i.status or "") in DONE_INSPECT),

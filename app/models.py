@@ -1693,6 +1693,7 @@ class LunchHireRound(Base):
     doc_nos = Column(Text, default="")               # JSON เลขที่/วันที่ราย "ฉบับเอกสาร" {kind:{no,date}} -> ทะเบียนกลาง
     status = Column(String, default="ร่าง")          # ร่าง / จ้างแล้ว / จ่ายแล้ว
     note = Column(String, default="")
+    vat_include = Column(Boolean, default=False)  # ผู้รับจ้างจด VAT ราคารวม VAT 7% -> ถอด VAT ก่อนคิดภาษีหัก ณ ที่จ่าย
     pay_mode = Column(String, default="installment")  # installment=จ่ายทุกงวด / round=ส่งมอบตรวจรับรายงวด จ่ายครั้งเดียวทั้งรอบ
     paid_date = Column(DateTime, nullable=True)   # วันที่จ่ายจริงตอนปิดรอบ (แยกจากวันสิ้นสุดรอบ)
     loan_id = Column(Integer, ForeignKey("money_loan.id"), nullable=True)  # สัญญายืมเงินซื้อวัตถุดิบ (แม่ครัว/ซื้อวัตถุดิบ) ในทะเบียนคุมเงินยืม

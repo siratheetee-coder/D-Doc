@@ -1872,6 +1872,17 @@ def installment_disburse_doc(iid: int, db: Session = Depends(get_db)):
     return serve_generated(render_stamped(db, "inst-disburse", inst, get_school(db)), _DOCX_MIME)
 
 
+@router.post("/lunch/round/{rid}/vat")
+def round_vat(rid: int, db: Session = Depends(get_db), vat_include: str = Form("")):
+    """ผู้รับจ้างจด VAT หรือไม่ ใช้ถอด VAT ก่อนคิดภาษีหัก ณ ที่จ่าย"""
+    rnd = db.get(LunchHireRound, rid)
+    if not rnd:
+        return RedirectResponse("/lunch", status_code=303)
+    rnd.vat_include = bool(vat_include)
+    db.commit()
+    return RedirectResponse(f"/lunch/round/{rid}/plan#installments", status_code=303)
+
+
 @router.post("/lunch/round/{rid}/pay-mode")
 def round_pay_mode(rid: int, db: Session = Depends(get_db), pay_mode: str = Form("installment")):
     """เลือกวิธีจ่ายเงินของรอบจ้างเหมา: จ่ายทุกงวด / จ่ายครั้งเดียวทั้งรอบ (งวดใช้ส่งมอบ-ตรวจรับ)"""

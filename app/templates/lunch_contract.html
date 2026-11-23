@@ -205,6 +205,9 @@
       <label class="{{ '' if RP else 'on' }}"><input type="radio" name="pay_mode" value="installment" {{ '' if RP else 'checked' }} onchange="this.form.submit()"> จ่ายทุกงวด</label>
       <label class="{{ 'on' if RP else '' }}"><input type="radio" name="pay_mode" value="round" {{ 'checked' if RP }} onchange="this.form.submit()"> จ่ายครั้งเดียวทั้งรอบ</label>
     </form>
+    <form method="post" action="/lunch/round/{{ r.id }}/vat" class="iq-paymode">
+      <label class="{{ 'on' if r.vat_include else '' }}"><input type="checkbox" name="vat_include" value="1" {{ 'checked' if r.vat_include }} onchange="this.form.submit()"> ผู้รับจ้างจด VAT (ราคารวม VAT 7%)</label>
+    </form>
     {% endif %}
   </div>
   {% if request.query_params.get('err') %}<div class="alert warn">{{ request.query_params.get('err') }}</div>{% endif %}
@@ -227,7 +230,7 @@
     <div class="rp-grid">
       <div><small>ค่าจ้างรวมทุกงวด</small><b>{{ "{:,.2f}".format(round_pay.amount) }}</b></div>
       <div><small>ค่าปรับรวม</small><b>{{ "{:,.2f}".format(round_pay.penalty) }}</b></div>
-      <div><small>หักภาษี ณ ที่จ่าย ร้อยละ 1</small><b>{{ "{:,.2f}".format(round_pay.wht) }}</b></div>
+      <div><small>หักภาษี ณ ที่จ่าย ร้อยละ 1{{ ' (ของมูลค่าก่อน VAT)' if r.vat_include }}</small><b>{{ "{:,.2f}".format(round_pay.wht) }}</b></div>
       <div class="rp-net"><small>จ่ายสุทธิ</small><b>{{ "{:,.2f}".format(round_pay.net) }}</b></div>
     </div>
     <div class="iq-act">
