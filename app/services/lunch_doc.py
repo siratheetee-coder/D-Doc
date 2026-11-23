@@ -798,7 +798,7 @@ def render_committee_order_doc(rnd, school, doc=None) -> str:
         if not first:
             doc.add_page_break()
         first = False
-        _krut_center(doc)
+        _krut_center(doc, height_cm=3.0)
         _p(doc, f"คำสั่ง{sname}", align="center", bold=True, size=18, after=0)
         _p(doc, f"ที่ {cmd_no or ('....../' + str(prog.year))}",
            align="center", bold=True, after=0)
@@ -808,7 +808,7 @@ def render_committee_order_doc(rnd, school, doc=None) -> str:
         _p(doc, f"ด้วย{sname} จะดำเนินการ{work}ให้บริการแก่นักเรียน "
                 "เพื่อให้การดำเนินการดังกล่าวเป็นไปด้วยความเรียบร้อย บังเกิดผลดีแก่ทางราชการ "
                 "จึงอาศัยอำนาจตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ "
-                "พ.ศ. ๒๕๖๐ แต่งตั้งบุคคลต่อไปนี้เป็นคณะกรรมการ", align="justify", indent=1.25, after=4)
+                "พ.ศ. ๒๕๖๐ แต่งตั้งบุคคลต่อไปนี้เป็นคณะกรรมการ", align="justify", indent=2.5, after=4)
         if members:
             for i, m in enumerate(members, 1):
                 _p(doc, f"{i}. {m.name}        ตำแหน่ง {m.position}        {m.role}",
@@ -818,12 +818,12 @@ def render_committee_order_doc(rnd, school, doc=None) -> str:
                 _p(doc, f"{i}. ...........................................        ตำแหน่ง ..................        "
                         f"{'ประธานกรรมการ' if i == 1 else 'กรรมการ'}", indent=1.5, after=0)
         _p(doc, f"ให้คณะกรรมการที่ได้รับแต่งตั้ง {duty} และปฏิบัติหน้าที่ให้ถูกต้องตามระเบียบ"
-                "ของทางราชการอย่างเคร่งครัด", align="justify", indent=1.25, before=4)
-        _p(doc, "ทั้งนี้ ตั้งแต่บัดนี้เป็นต้นไป", bold=True, indent=1.25, after=6)
-        _p(doc, f"สั่ง ณ วันที่ {_dnum(cmd_date)}", align="center", after=14)
-        _p(doc, "(ลงชื่อ)...........................................", align="center", after=0)
-        _p(doc, f"( {director} )", align="center", after=0)
-        _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
+                "ของทางราชการอย่างเคร่งครัด", align="justify", indent=2.5, before=4)
+        _p(doc, "ทั้งนี้ ตั้งแต่บัดนี้เป็นต้นไป", bold=True, indent=2.5, after=6)
+        _p(doc, f"สั่ง ณ วันที่ {_dnum(cmd_date)}", align="center", indent=2.5, after=14)
+        _p(doc, "(ลงชื่อ)...........................................", align="center", indent=2.5, after=0)
+        _p(doc, f"( {director} )", align="center", indent=2.5, after=0)
+        _p(doc, f"ผู้อำนวยการ{sname}", align="center", indent=2.5, after=0)
 
     return _finish(doc, own, f"คำสั่งแต่งตั้งกรรมการ_รอบที่{rnd.seq}_ปี{prog.year}")
 
@@ -950,7 +950,7 @@ def render_winner_doc(rnd, school, doc=None) -> str:
     period = (f"ระหว่างวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)} "
               f"จำนวน {rnd.days or ''} วัน")
     dr = f"ประจำวันที่ {_dnum(rnd.start_date)} ถึงวันที่ {_dnum(rnd.end_date)} ({rnd.days or ''} วันทำการ)"
-    _krut_center(doc)
+    _krut_center(doc, height_cm=3.0)
     _p(doc, f"ประกาศ{sname}", align="center", bold=True, size=18, after=0)
     _p(doc, "เรื่อง ประกาศผู้ชนะการเสนอราคา สำหรับการจ้างประกอบอาหารกลางวัน (ปรุงสำเร็จ)",
        align="center", bold=True, after=0)
@@ -958,15 +958,15 @@ def render_winner_doc(rnd, school, doc=None) -> str:
     _p(doc, "โดยวิธีเฉพาะเจาะจง", align="center", after=0)
     _p(doc, "-------------------------------", align="center", after=6)
     _p(doc, f"ตามที่{sname} โดย{director} ได้มีโครงการจ้างประกอบอาหารกลางวัน (ปรุงสำเร็จ) "
-            f"{dr} โดยวิธีเฉพาะเจาะจง นั้น", align="justify", indent=1.25)
+            f"{dr} โดยวิธีเฉพาะเจาะจง นั้น", align="justify", indent=2.5)
     _p(doc, f"โครงการจ้างเหมาประกอบอาหารกลางวัน (ปรุงสำเร็จ) {dr} ผู้ได้รับการคัดเลือก ได้แก่ {vname} "
             f"โดยเสนอราคาเป็นเงินทั้งสิ้น {_money(total)} บาท ({bahttext(total)}) รวมภาษีมูลค่าเพิ่ม "
             "และภาษีอื่น ค่าขนส่ง ค่าจดทะเบียน และค่าใช้จ่ายอื่น ๆ ทั้งปวง",
-       align="justify", indent=1.25, after=10)
-    _p(doc, f"ประกาศ ณ วันที่ {_dnum(_doc_dt(rnd, 'winner', 'date') or rnd.order_date)}", align="center", after=14)
-    _p(doc, "(ลงชื่อ)...........................................", align="center", after=0)
-    _p(doc, f"( {director} )", align="center", after=0)
-    _p(doc, f"ผู้อำนวยการ{sname}", align="center", after=0)
+       align="justify", indent=2.5, after=10)
+    _p(doc, f"ประกาศ ณ วันที่ {_dnum(_doc_dt(rnd, 'winner', 'date') or rnd.order_date)}", align="center", indent=2.5, after=14)
+    _p(doc, "(ลงชื่อ)...........................................", align="center", indent=2.5, after=0)
+    _p(doc, f"( {director} )", align="center", indent=2.5, after=0)
+    _p(doc, f"ผู้อำนวยการ{sname}", align="center", indent=2.5, after=0)
     return _finish(doc, own, f"ประกาศผู้ชนะ_รอบที่{rnd.seq}_ปี{prog.year}")
 
 

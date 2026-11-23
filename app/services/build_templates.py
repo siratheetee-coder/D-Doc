@@ -832,7 +832,7 @@ def build_purchase_command():
     """แม่แบบ: คำสั่งแต่งตั้งคณะกรรมการซื้อหรือจ้าง (ครุฑกึ่งกลาง) - ใช้เมื่อกรอกรายชื่อ กก.ไว้เท่านั้น"""
     doc = Document(); set_a4(doc)
     _font(doc)
-    _krut_center(doc)
+    _krut_center(doc, height_cm=3.0)
     _p(doc, "คำสั่ง{{ school_name }}", align="center", bold=True, size=18, after=0)
     _p(doc, "ที่ {{ purchase_cmd_no }}", align="center", bold=True, after=0)
     _p(doc, "เรื่อง แต่งตั้งคณะกรรมการ{{ proc_type }}{{ subject }} โดยวิธี{{ method }}",
@@ -841,18 +841,18 @@ def build_purchase_command():
     _p(doc,
        "ด้วย{{ school_name }} มีความประสงค์จะ{{ proc_type }}{{ subject }} โดยวิธี{{ method }} "
        "วงเงิน {{ total_amount }} บาท ({{ total_baht }}) และเพื่อให้เป็นไปตามระเบียบกระทรวงการคลัง"
-       "ว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560", align="justify", indent=1.25)
+       "ว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560", align="justify", indent=2.5)
     _p(doc, "จึงขอแต่งตั้งรายชื่อต่อไปนี้ เป็นคณะกรรมการ{{ proc_type }} โดยวิธี{{ method }} ดังนี้",
-       indent=1.25)
+       indent=2.5)
     _member_table(doc, "purchase_members")
-    _p(doc, "อำนาจและหน้าที่", bold=True, indent=1.25)
+    _p(doc, "อำนาจและหน้าที่", bold=True, indent=2.5)
     _p(doc, "เจรจาตกลงราคากับผู้ประกอบการ พิจารณาคัดเลือกข้อเสนอ และรายงานผลการพิจารณา"
             "ต่อหัวหน้าหน่วยงานของรัฐ ตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้าง"
-            "และการบริหารพัสดุภาครัฐ พ.ศ. 2560 ข้อ 79", align="justify", indent=1.25)
+            "และการบริหารพัสดุภาครัฐ พ.ศ. 2560 ข้อ 79", align="justify", indent=2.5)
     _p(doc, "ทั้งนี้ ตั้งแต่บัดนี้เป็นต้นไป", bold=True, indent=2.5, after=6)
-    _p(doc, "สั่ง ณ วันที่ {{ purchase_cmd_date_official }}", align="center", after=24)
-    _p(doc, "( {{ director_name }} )", align="center")
-    _p(doc, "{{ director_office }}", align="center")
+    _p(doc, "สั่ง ณ วันที่ {{ purchase_cmd_date_official }}", align="center", indent=2.5, after=24)
+    _p(doc, "( {{ director_name }} )", align="center", indent=2.5)
+    _p(doc, "{{ director_office }}", align="center", indent=2.5)
     TEMPLATES_DIR.mkdir(exist_ok=True)
     out = TEMPLATES_DIR / "คำสั่งแต่งตั้งกรรมการซื้อจ้าง.docx"
     doc.save(str(out))
@@ -868,7 +868,7 @@ def build_spec_command():
     """
     doc = Document(); set_a4(doc)
     _font(doc)
-    _krut_center(doc)
+    _krut_center(doc, height_cm=3.0)
     _p(doc, "คำสั่ง{{ school_name }}", align="center", bold=True, size=18, after=0)
     _p(doc, "ที่ {{ spec_cmd_no }}", align="center", bold=True, after=0)
     _p(doc, "เรื่อง แต่งตั้งคณะกรรมการจัดทำขอบเขตของงานหรือรายละเอียดคุณลักษณะเฉพาะ",
@@ -877,23 +877,23 @@ def build_spec_command():
     _p(doc,
        "ด้วย {{ school_name }} จะดำเนินการ{{ proc_type }}{{ subject }} จำนวน {{ item_count }} รายการ "
        "วงเงิน {{ total_amount }} บาท ({{ total_baht }}) โดยวิธี{{ method }} {{ method_law }}",
-       align="justify", indent=1.25)
+       align="justify", indent=2.5)
     _p(doc,
        "อาศัยอำนาจตามมาตรา 61 มาตรา 100 แห่งพระราชบัญญัติการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ "
        "พ.ศ. 2560 และข้อ 21 ข้อ 25 แห่งระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้าง"
        "และการบริหารพัสดุภาครัฐ พ.ศ. 2560 ซึ่งได้รับมอบอำนาจจากเลขาธิการคณะกรรมการการศึกษา"
        "ขั้นพื้นฐาน {{ delegation_ref }} เรื่อง มอบอำนาจเกี่ยวกับการจัดซื้อจัดจ้างและการบริหารพัสดุ"
        "ภาครัฐ จึงแต่งตั้งคณะกรรมการจัดทำขอบเขตของงานหรือรายละเอียดคุณลักษณะเฉพาะ ดังนี้",
-       align="justify", indent=1.25)
+       align="justify", indent=2.5)
     _p(doc, "คณะกรรมการจัดทำขอบเขตของงานหรือรายละเอียดคุณลักษณะเฉพาะ", bold=True, underline=True,
-       indent=1.25, after=2)
+       indent=2.5, after=2)
     _member_table(doc, "spec_members")
     _p(doc, "ให้คณะกรรมการจัดทำขอบเขตของงานหรือรายละเอียดคุณลักษณะเฉพาะที่ได้รับแต่งตั้ง "
-            "ดำเนินการให้เป็นไปตามระเบียบที่เกี่ยวข้องต่อไป", align="justify", indent=1.25)
-    _p(doc, "สั่ง ณ วันที่ {{ spec_cmd_date_official }}", align="center", before=6, after=SIGN_GAP)
-    _p(doc, "(ลงชื่อ).................................................", align="center")
-    _p(doc, "( {{ director_name }} )", align="center")
-    _p(doc, "{{ director_office }}", align="center")
+            "ดำเนินการให้เป็นไปตามระเบียบที่เกี่ยวข้องต่อไป", align="justify", indent=2.5)
+    _p(doc, "สั่ง ณ วันที่ {{ spec_cmd_date_official }}", align="center", indent=2.5, before=6, after=SIGN_GAP)
+    _p(doc, "(ลงชื่อ).................................................", align="center", indent=2.5)
+    _p(doc, "( {{ director_name }} )", align="center", indent=2.5)
+    _p(doc, "{{ director_office }}", align="center", indent=2.5)
     TEMPLATES_DIR.mkdir(exist_ok=True)
     out = TEMPLATES_DIR / "คำสั่งแต่งตั้งกรรมการคุณลักษณะ.docx"
     doc.save(str(out))
@@ -904,7 +904,7 @@ def build_inspect_command():
     """แม่แบบ: คำสั่งแต่งตั้งผู้ตรวจรับ (ครุฑกึ่งกลาง)"""
     doc = Document(); set_a4(doc)
     _font(doc)
-    _krut_center(doc)
+    _krut_center(doc, height_cm=3.0)
     _p(doc, "คำสั่ง{{ school_name }}", align="center", bold=True, size=18, after=0)
     _p(doc, "ที่ {{ command_no }}", align="center", bold=True, after=0)
     _p(doc, "เรื่อง แต่งตั้งผู้ตรวจรับ{{ obj_word }} {{ subject }} โดยวิธี{{ method }}",
@@ -914,17 +914,17 @@ def build_inspect_command():
     _p(doc,
        "ด้วย{{ school_name }} มีความประสงค์จัด{{ proc_type }}{{ subject }} โดยวิธี{{ method }} "
        "และเพื่อให้เป็นไปตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ "
-       "พ.ศ. 2560", align="justify", indent=1.25)
+       "พ.ศ. 2560", align="justify", indent=2.5)
     _p(doc, "จึงขอแต่งตั้งรายชื่อต่อไปนี้ เป็นคณะกรรมการตรวจรับ{{ obj_word }} โดยวิธี{{ method }} ดังนี้",
-       indent=1.25)
+       indent=2.5)
     _member_table(doc, "inspect_members")
-    _p(doc, "อำนาจและหน้าที่", bold=True, indent=1.25)
+    _p(doc, "อำนาจและหน้าที่", bold=True, indent=2.5)
     _p(doc, "ทำการตรวจรับ{{ obj_word }}ให้เป็นไปตามเงื่อนไขของสัญญาหรือข้อตกลงนั้น",
-       align="justify", indent=1.25)
+       align="justify", indent=2.5)
     _p(doc, "ทั้งนี้ ตั้งแต่บัดนี้เป็นต้นไป", bold=True, indent=2.5, after=6)
-    _p(doc, "สั่ง ณ วันที่ {{ command_date_official }}", align="center", after=24)
-    _p(doc, "( {{ director_name }} )", align="center")
-    _p(doc, "{{ director_office }}", align="center")
+    _p(doc, "สั่ง ณ วันที่ {{ command_date_official }}", align="center", indent=2.5, after=24)
+    _p(doc, "( {{ director_name }} )", align="center", indent=2.5)
+    _p(doc, "{{ director_office }}", align="center", indent=2.5)
 
     TEMPLATES_DIR.mkdir(exist_ok=True)
     out = TEMPLATES_DIR / "คำสั่งแต่งตั้ง.docx"
@@ -972,7 +972,7 @@ def build_winner_announcement():
     """แม่แบบ: ประกาศผู้ชนะการเสนอราคา (ครุฑกึ่งกลาง ตามแบบประกาศราชการ)"""
     doc = Document(); set_a4(doc)
     _font(doc)
-    _krut_center(doc)
+    _krut_center(doc, height_cm=3.0)
     _p(doc, "ประกาศ{{ school_name }}", align="center", bold=True, size=18, after=0)
     _p(doc, "ที่ {{ winner_no }}", align="center", after=0)
     _p(doc, "เรื่อง ประกาศผู้ชนะการเสนอราคา {{ proc_type }}{{ subject }} โดยวิธี{{ method }}",
@@ -980,17 +980,17 @@ def build_winner_announcement():
     _p(doc, "─────────────────────", align="center", after=6)
     _p(doc,
        "ตามที่{{ school_name }} ได้{{ proc_type }}{{ subject }} โดยวิธี{{ method }} "
-       "การประกาศผู้ได้รับการคัดเลือกโดยวิธี{{ method }} นั้น", align="justify", indent=1.25)
+       "การประกาศผู้ได้รับการคัดเลือกโดยวิธี{{ method }} นั้น", align="justify", indent=2.5)
     _p(doc,
        "{{ proc_type }}{{ subject }} จำนวน {{ item_count }} รายการ ผู้เสนอราคาที่ชนะการเสนอราคา "
        "ได้แก่ {{ vendor_name }} โดยเสนอราคาต่ำสุด เป็นจำนวนเงินทั้งสิ้น {{ total_amount }} บาท "
-       "({{ total_baht }})", align="justify", indent=1.25)
+       "({{ total_baht }})", align="justify", indent=2.5)
     _p(doc, "รวมภาษีมูลค่าเพิ่มและภาษีอื่น ค่าขนส่ง ค่าจดทะเบียน และค่าใช้จ่ายอื่น ๆ ทั้งปวง",
-       align="justify", indent=1.25, after=8)
-    _p(doc, "ประกาศ ณ วันที่ {{ winner_date_thai }}", align="center", after=12)
-    _p(doc, "(ลงชื่อ).........................................", align="center")
-    _p(doc, "( {{ director_name }} )", align="center")
-    _p(doc, "{{ director_office }}", align="center")
+       align="justify", indent=2.5, after=8)
+    _p(doc, "ประกาศ ณ วันที่ {{ winner_date_thai }}", align="center", indent=2.5, after=12)
+    _p(doc, "(ลงชื่อ).........................................", align="center", indent=2.5)
+    _p(doc, "( {{ director_name }} )", align="center", indent=2.5)
+    _p(doc, "{{ director_office }}", align="center", indent=2.5)
     TEMPLATES_DIR.mkdir(exist_ok=True)
     out = TEMPLATES_DIR / "ประกาศผู้ชนะ.docx"
     doc.save(str(out))
