@@ -456,7 +456,8 @@ def _member_table(doc, list_name, *, prefix="", member_var="m", indent=0.4):
     _set_cell(op[0], "{%%tr for %s in %s %%}" % (member_var, list_name))
     setw(op)
     # เลขลำดับกรรมการเป็น 1. 2. 3. (มีจุดท้าย) - ไม่ใช้รูปแบบ 2.1 2.2
-    num_text = prefix + "{{ loop.index }}" + ("" if prefix else ".")
+    # มีคนเดียวไม่ต้องใส่เลขลำดับ
+    num_text = (prefix + "{{ loop.index }}") if prefix else "{{ (loop.index ~ '.') if loop.length > 1 else '' }}"
     d = table.add_row().cells
     _set_cell(d[0], num_text, align="left", size=16)
     _set_cell(d[1], "{{ %s.name }}" % member_var, size=16)
@@ -915,7 +916,7 @@ def build_inspect_command():
        "ด้วย{{ school_name }} มีความประสงค์จัด{{ proc_type }}{{ subject }} โดยวิธี{{ method }} "
        "และเพื่อให้เป็นไปตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ "
        "พ.ศ. 2560", align="justify", indent=2.5)
-    _p(doc, "จึงขอแต่งตั้งรายชื่อต่อไปนี้ เป็นคณะกรรมการตรวจรับ{{ obj_word }} โดยวิธี{{ method }} ดังนี้",
+    _p(doc, "จึงขอแต่งตั้งรายชื่อต่อไปนี้ เป็น{{ committee_word }} โดยวิธี{{ method }} ดังนี้",
        indent=2.5)
     _member_table(doc, "inspect_members")
     _p(doc, "อำนาจและหน้าที่", bold=True, indent=2.5)
