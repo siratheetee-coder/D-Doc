@@ -798,6 +798,10 @@ def render_committee_order_doc(rnd, school, doc=None) -> str:
         if not first:
             doc.add_page_break()
         first = False
+        # แต่งตั้งคนเดียว: ไม่ใช่คณะกรรมการ และไม่ใส่เลขลำดับ
+        one = len(members) == 1
+        if one:
+            subject = subject.replace("คณะกรรมการ", "ผู้")
         _krut_center(doc, height_cm=3.0)
         _p(doc, f"คำสั่ง{sname}", align="center", bold=True, size=18, after=0)
         _p(doc, f"ที่ {cmd_no or ('....../' + str(prog.year))}",
@@ -808,16 +812,16 @@ def render_committee_order_doc(rnd, school, doc=None) -> str:
         _p(doc, f"ด้วย{sname} จะดำเนินการ{work}ให้บริการแก่นักเรียน "
                 "เพื่อให้การดำเนินการดังกล่าวเป็นไปด้วยความเรียบร้อย บังเกิดผลดีแก่ทางราชการ "
                 "จึงอาศัยอำนาจตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ "
-                "พ.ศ. ๒๕๖๐ แต่งตั้งบุคคลต่อไปนี้เป็นคณะกรรมการ", align="justify", indent=2.5, after=4)
+                "พ.ศ. ๒๕๖๐ แต่งตั้งบุคคลต่อไปนี้" + ("" if one else "เป็นคณะกรรมการ"), align="justify", indent=2.5, after=4)
         if members:
             for i, m in enumerate(members, 1):
-                _p(doc, f"{i}. {m.name}        ตำแหน่ง {m.position}        {m.role}",
+                _p(doc, f"{'' if one else str(i) + '. '}{m.name}        ตำแหน่ง {m.position}        {m.role}",
                    indent=1.5, after=0)
         else:
             for i in range(1, 4):
                 _p(doc, f"{i}. ...........................................        ตำแหน่ง ..................        "
                         f"{'ประธานกรรมการ' if i == 1 else 'กรรมการ'}", indent=1.5, after=0)
-        _p(doc, f"ให้คณะกรรมการที่ได้รับแต่งตั้ง {duty} และปฏิบัติหน้าที่ให้ถูกต้องตามระเบียบ"
+        _p(doc, f"ให้{'ผู้' if one else 'คณะกรรมการ'}ที่ได้รับแต่งตั้ง {duty} และปฏิบัติหน้าที่ให้ถูกต้องตามระเบียบ"
                 "ของทางราชการอย่างเคร่งครัด", align="justify", indent=2.5, before=4)
         _p(doc, "ทั้งนี้ ตั้งแต่บัดนี้เป็นต้นไป", bold=True, indent=2.5, after=6)
         _p(doc, f"สั่ง ณ วันที่ {_dnum(cmd_date)}", align="center", indent=2.5, after=14)
