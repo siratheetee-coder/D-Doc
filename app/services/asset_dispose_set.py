@@ -27,6 +27,7 @@ from docx.shared import Cm
 from app.database import get_data_dir
 from app.services.doc_page import set_a4, tidy, strip_tail
 from app.thai_utils import thai_date, bahttext
+from app.services.office_doc import _shift_table
 from app.services.build_templates import (
     _font, _krut_and_title, _krut_center, _p, _p_runs, _sign_table, _set_cell, _hr,
     _repeat_header_row, _no_split_row, _no_borders, _fixed_cols,
@@ -172,15 +173,15 @@ def _memo_header(doc, school, subject, doc_no, date_txt, *, to=None, encl=None):
 
 def _letter_header(doc, school, doc_no, date_txt, subject, to, encl=None):
     """หัวหนังสือราชการภายนอก (ครุฑกลาง + ที่ ซ้าย / ที่อยู่ ขวา)"""
-    _krut_center(doc, height_cm=2.0)
+    _krut_center(doc, height_cm=3.0)
     t = doc.add_table(rows=1, cols=2)
     _no_borders(t); t.autofit = False
-    widths = [Cm(8.0), Cm(8.5)]
+    widths = [Cm(10.0), Cm(6.5)]
     _fixed_cols(t, widths)
     _set_cell(t.rows[0].cells[0], "ที่  " + (doc_no or _BLANK), align="left", size=16)
     addr = (getattr(school, "address", "") or "").strip()
     _set_cell(t.rows[0].cells[1], _sname(school) + (("\n" + addr) if addr else ""),
-              align="right", size=16)
+              align="left", size=16)
     for c, w in zip(t.rows[0].cells, widths):
         c.width = w
     _p(doc, date_txt, align="center", before=4, after=6)
@@ -368,7 +369,7 @@ def render_fact_order(school, dp, doc=None):
     doc = doc or _new()
     if not own:
         _break(doc)
-    _krut_center(doc)
+    _krut_center(doc, height_cm=3.0)
     _p(doc, f"คำสั่ง{_sname(school)}", align="center", bold=True, size=18, after=0)
     _p(doc, f"ที่ {dp.fact_order_no or _BLANK}", align="center", bold=True, after=0)
     _p(doc, "เรื่อง แต่งตั้งคณะกรรมการสอบหาข้อเท็จจริง",
@@ -376,21 +377,22 @@ def render_fact_order(school, dp, doc=None):
     _p(doc, "-----------------------------------", align="center", after=6)
     _p(doc, "ตามที่คณะกรรมการตรวจสอบพัสดุประจำปี ได้ตรวจสอบพัสดุปรากฏว่ามีพัสดุชำรุด "
             f"เสื่อมสภาพ หรือหมดความจำเป็นต้องใช้ในหน่วยงานของรัฐ จำนวน {len(_items(dp))} รายการ",
-       align="justify", indent=1.25, after=2)
+       align="justify", indent=2.5, after=2)
     _p(doc, f"อาศัยอำนาจตามความในข้อ 214 แห่ง{_REG} {_DELEG} "
             "จึงแต่งตั้งบุคคลผู้มีรายนามต่อไปนี้เป็นคณะกรรมการสอบหาข้อเท็จจริง "
-            "เพื่อประกอบการพิจารณาจำหน่ายพัสดุ", align="justify", indent=1.25, after=2)
+            "เพื่อประกอบการพิจารณาจำหน่ายพัสดุ", align="justify", indent=2.5, after=2)
     _member_lines(doc, _members(dp, "fact"))
     _p(doc, "ให้คณะกรรมการที่ได้รับการแต่งตั้งตามคำสั่งนี้ ปฏิบัติหน้าที่ให้บังเกิดผลดีต่อ"
             f"ทางราชการอย่างสูงสุดโดยเคร่งครัด แล้วรายงานผลให้ทราบภายใน {dp.fact_days or 7} "
-            "วันทำการ", align="justify", indent=1.25, after=2)
-    _p(doc, f"ทั้งนี้ ตั้งแต่วันที่ {_d(dp.fact_order_date)} เป็นต้นไป", indent=1.25, after=1)
-    _p(doc, f"สั่ง ณ วันที่ {_d(dp.fact_order_date)}", indent=1.25, after=12)
+            "วันทำการ", align="justify", indent=2.5, after=2)
+    _p(doc, f"ทั้งนี้ ตั้งแต่วันที่ {_d(dp.fact_order_date)} เป็นต้นไป", indent=2.5, after=1)
+    _p(doc, f"สั่ง ณ วันที่ {_d(dp.fact_order_date)}", align="center", indent=2.5, after=12)
     _sign_table(doc, [[
         ("ลงชื่อ ......................................", "center"),
         (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
         (_director_line(school), "center"),
     ]])
+    _shift_table(doc.tables[-1])
     return _save(doc, f"คำสั่งแต่งตั้งกรรมการสอบหาข้อเท็จจริง_ปีงบ{dp.year}") if own else doc
 
 
@@ -540,7 +542,7 @@ def render_committee_order(school, dp, doc=None):
     doc = doc or _new()
     if not own:
         _break(doc)
-    _krut_center(doc)
+    _krut_center(doc, height_cm=3.0)
     _p(doc, f"คำสั่ง{_sname(school)}", align="center", bold=True, size=18, after=0)
     _p(doc, f"ที่ {dp.order_no or _BLANK}", align="center", bold=True, after=0)
     _p(doc, "เรื่อง แต่งตั้งคณะกรรมการประเมินราคากลาง คณะกรรมการดำเนินการขาย "
@@ -549,7 +551,7 @@ def render_committee_order(school, dp, doc=None):
     _p(doc, f"ด้วย{_sname(school)} มีความประสงค์จะทำการจำหน่ายพัสดุที่ชำรุด เสื่อมสภาพ "
             "หรือหมดความจำเป็น หรือหากใช้ในหน่วยงานของรัฐต่อไปจะสิ้นเปลืองค่าใช้จ่ายมาก "
             f"ตามที่ได้รับอนุมัติจากผู้มีอำนาจ {_DELEG} ดังนี้",
-       align="justify", indent=1.25, after=2)
+       align="justify", indent=2.5, after=2)
     for label, act in [("ขายพัสดุ", "ขาย"), ("ทำลายพัสดุ", "ทำลาย"),
                        ("โอนพัสดุ", "โอน"), ("แปรสภาพพัสดุ", "แปรสภาพ")]:
         n = len(_items(dp, act))
@@ -557,19 +559,20 @@ def render_committee_order(school, dp, doc=None):
             _p(doc, f"{label}\tจำนวน {n} รายการ", indent=2.0, after=1)
     _p(doc, "ฉะนั้น เพื่อให้การดำเนินการจำหน่ายพัสดุดำเนินการเป็นไปด้วยความเรียบร้อย ถูกต้อง "
             "และเป็นประโยชน์ต่อทางราชการอย่างสูงสุด จึงแต่งตั้งบุคคลต่อไปนี้เป็นคณะกรรมการ"
-            "ดำเนินการ", align="justify", indent=1.25, before=2, after=2)
+            "ดำเนินการ", align="justify", indent=2.5, before=2, after=2)
     _committee_block(doc, dp, "price", "คณะกรรมการประเมินราคากลาง")
     _committee_block(doc, dp, "sale", "คณะกรรมการดำเนินการขาย")
     _committee_block(doc, dp, "destroy", "คณะกรรมการทำลาย")
     _p(doc, "ให้คณะกรรมการที่ได้รับแต่งตั้งตามคำสั่งนี้ ปฏิบัติหน้าที่ให้บังเกิดผลดี"
-            "ต่อทางราชการอย่างสูงสุดโดยเคร่งครัด", align="justify", indent=1.25,
+            "ต่อทางราชการอย่างสูงสุดโดยเคร่งครัด", align="justify", indent=2.5,
        before=2, after=2)
-    _p(doc, f"สั่ง ณ วันที่ {_d(dp.order_date)}", indent=1.25, after=12)
+    _p(doc, f"สั่ง ณ วันที่ {_d(dp.order_date)}", align="center", indent=2.5, after=12)
     _sign_table(doc, [[
         ("ลงชื่อ ......................................", "center"),
         (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
         (_director_line(school), "center"),
     ]])
+    _shift_table(doc.tables[-1])
     return _save(doc, f"คำสั่งแต่งตั้งกรรมการจำหน่ายพัสดุ_ปีงบ{dp.year}") if own else doc
 
 
@@ -588,19 +591,20 @@ def render_invite_quote(school, dp, doc=None):
     _p(doc, f"ด้วย{_sname(school)} มีความประสงค์จะจำหน่ายพัสดุที่ชำรุด เสื่อมสภาพ หรือหมด"
             f"ความจำเป็นต้องใช้ในหน่วยงานของรัฐ จำนวน {len(rows)} รายการ โดยการขายด้วยวิธี"
             f"เฉพาะเจาะจง ตาม{_REG} ข้อ 215 (1) รายละเอียดตามสิ่งที่ส่งมาด้วยพร้อมนี้",
-       align="justify", indent=1.25, after=2)
+       align="justify", indent=2.5, after=2)
     _p(doc, f"จึงขอเชิญ {(dp.invite_to or '').strip() or _BLANK} เข้าร่วมเสนอราคากับ"
             f"{_sname(school)} ในวันที่ {_d(dp.quote_open)} "
             f"ระหว่างเวลา {(dp.quote_time or '').strip() or _BLANK}",
-       align="justify", indent=1.25, after=2)
+       align="justify", indent=2.5, after=2)
     _p(doc, "จึงเรียนมาเพื่อทราบและเข้าร่วมเสนอราคาตามวัน เวลา และสถานที่ดังกล่าวต่อไป",
-       align="justify", indent=1.25, after=8)
-    _p(doc, "ขอแสดงความนับถือ", align="center", after=12)
+       align="justify", indent=2.5, after=8)
+    _p(doc, "ขอแสดงความนับถือ", align="center", indent=2.5, after=12)
     _sign_table(doc, [[
         ("", "center"),
         (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
         (_director_line(school), "center"),
     ]])
+    _shift_table(doc.tables[-1])
     _p(doc, "กลุ่มบริหารงบประมาณ", size=14, before=8, after=0)
     _p(doc, f"โทร. {(dp.contact_phone or getattr(school, 'phone', '') or '').strip() or _BLANK}",
        size=14, after=6)
@@ -775,7 +779,7 @@ def render_auction_order(school, dp, doc=None):
     doc = doc or _new()
     if not own:
         _break(doc)
-    _krut_center(doc)
+    _krut_center(doc, height_cm=3.0)
     _p(doc, f"คำสั่ง{_sname(school)}", align="center", bold=True, size=18, after=0)
     _p(doc, f"ที่ {dp.auction_order_no or _BLANK}", align="center", bold=True, after=0)
     _p(doc, "เรื่อง แต่งตั้งคณะกรรมการขายพัสดุโดยวิธีทอดตลาด",
@@ -786,16 +790,17 @@ def render_auction_order(school, dp, doc=None):
             "จะทำการประมูลด้วยวาจาในการขายพัสดุโดยวิธีทอดตลาด "
             f"จำนวน {len(rows)} รายการ (รายละเอียดตามบัญชีแนบท้ายคำสั่งนี้) "
             f"ตาม{_REG} ข้อ 215 (1) จึงแต่งตั้งคณะกรรมการขายพัสดุโดยวิธีทอดตลาด ดังนี้",
-       align="justify", indent=1.25, after=2)
+       align="justify", indent=2.5, after=2)
     _member_lines(doc, _members(dp, "auction") or _members(dp, "sale"))
     _p(doc, "ให้คณะกรรมการที่ได้รับแต่งตั้งตามคำสั่งนี้ ปฏิบัติหน้าที่โดยเคร่งครัด",
-       align="justify", indent=1.25, before=2, after=2)
-    _p(doc, f"สั่ง ณ วันที่ {_d(dp.auction_order_date)}", indent=1.25, after=12)
+       align="justify", indent=2.5, before=2, after=2)
+    _p(doc, f"สั่ง ณ วันที่ {_d(dp.auction_order_date)}", align="center", indent=2.5, after=12)
     _sign_table(doc, [[
         ("ลงชื่อ ......................................", "center"),
         (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
         (_director_line(school), "center"),
     ]])
+    _shift_table(doc.tables[-1])
     return _save(doc, f"คำสั่งแต่งตั้งกรรมการขายทอดตลาด_ปีงบ{dp.year}") if own else doc
 
 
@@ -805,7 +810,7 @@ def render_auction_notice(school, dp, doc=None):
     doc = doc or _new()
     if not own:
         _break(doc)
-    _krut_center(doc)
+    _krut_center(doc, height_cm=3.0)
     _p(doc, f"ประกาศ{_sname(school)}", align="center", bold=True, size=18, after=0)
     _p(doc, "เรื่อง การขายพัสดุโดยวิธีทอดตลาด", align="center", bold=True, size=17, after=0)
     _p(doc, "-----------------------------------", align="center", after=6)
@@ -816,8 +821,8 @@ def render_auction_notice(school, dp, doc=None):
             f"ในวันที่ {_d(dp.view_date)} เวลา {(dp.view_time or '').strip() or _BLANK} "
             f"และกำหนดขายทอดตลาดในวันที่ {_d(dp.auction_date)} "
             f"เวลา {(dp.auction_time or '').strip() or _BLANK} ณ {place}",
-       align="justify", indent=1.25, after=2)
-    _p(doc, "เงื่อนไขการขายทอดตลาด มีดังนี้", bold=True, indent=1.25, after=1)
+       align="justify", indent=2.5, after=2)
+    _p(doc, "เงื่อนไขการขายทอดตลาด มีดังนี้", bold=True, indent=2.5, after=1)
     conds = [
         "การขายทอดตลาดจะขายโดยวิธีประมูลด้วยวาจา",
         "ผู้ประมูลราคาได้จะต้องจ่ายเงินสดทันที กรณีที่พัสดุมีราคาประมูลเกินกว่า 2,000.- บาท "
@@ -839,13 +844,14 @@ def render_auction_notice(school, dp, doc=None):
     phone = (dp.contact_phone or getattr(school, "phone", "") or "").strip() or _BLANK
     _p(doc, f"ผู้สนใจติดต่อสอบถามรายละเอียดได้ที่ {_sname(school)} "
             f"โทรศัพท์หมายเลข {phone} ตั้งแต่บัดนี้เป็นต้นไป",
-       align="justify", indent=1.25, before=2, after=2)
-    _p(doc, f"ประกาศ ณ วันที่ {_d(dp.notice_date)}", align="center", after=12)
+       align="justify", indent=2.5, before=2, after=2)
+    _p(doc, f"ประกาศ ณ วันที่ {_d(dp.notice_date)}", align="center", indent=2.5, after=12)
     _sign_table(doc, [[
         ("ลงชื่อ ......................................", "center"),
         (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
         (_director_line(school), "center"),
     ]])
+    _shift_table(doc.tables[-1])
     return _save(doc, f"ประกาศขายทอดตลาด_ปีงบ{dp.year}") if own else doc
 
 
@@ -1116,20 +1122,21 @@ def render_sao_letter(school, dp, doc=None):
             f"เมื่อวันที่ {_d(dp.written_off_date)} เรียบร้อยแล้ว "
             f"จึงขอรายงานให้ทราบตามระเบียบฯ ข้อ 218 "
             "ดังสำเนาเอกสารที่ได้ส่งมาพร้อมหนังสือนี้",
-       align="justify", indent=1.25, after=2)
-    _p(doc, "จึงเรียนมาเพื่อโปรดทราบ", align="justify", indent=1.25, after=8)
-    _p(doc, "ขอแสดงความนับถือ", align="center", after=12)
+       align="justify", indent=2.5, after=2)
+    _p(doc, "จึงเรียนมาเพื่อโปรดทราบ", align="justify", indent=2.5, after=8)
+    _p(doc, "ขอแสดงความนับถือ", align="center", indent=2.5, after=12)
     _sign_table(doc, [[
         ("", "center"),
         (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
         (_director_line(school), "center"),
     ]])
+    _shift_table(doc.tables[-1])
     _p(doc, "งานการเงินและพัสดุ", size=14, before=8, after=0)
     _p(doc, f"โทร. {(dp.contact_phone or getattr(school, 'phone', '') or '').strip() or _BLANK}",
        size=14, after=6)
     _p(doc, "หมายเหตุ  สิ่งที่ส่งมาด้วย ประกอบด้วย", bold=True, size=14, after=1)
     for i, txt in enumerate(_SAO_ENCL, 1):
-        _p(doc, f"{i}. {txt}", align="justify", indent=1.25, size=14, after=1)
+        _p(doc, f"{i}. {txt}", align="justify", indent=2.5, size=14, after=1)
     return _save(doc, f"หนังสือแจ้ง สตง. การจำหน่ายพัสดุ_ปีงบ{dp.year}") if own else doc
 
 
@@ -1211,14 +1218,15 @@ def render_area_letter(school, dp, doc=None):
             f"เมื่อวันที่ {_d(dp.written_off_date)} เรียบร้อยแล้ว "
             f"ซึ่งได้จัดส่งสำเนารายงานพร้อมเอกสารที่เกี่ยวข้องให้{sao} "
             "เพื่อทราบตามระเบียบดังกล่าวแล้ว รายละเอียดตามสิ่งที่ส่งมาด้วยพร้อมนี้",
-       align="justify", indent=1.25, after=2)
-    _p(doc, "จึงเรียนมาเพื่อโปรดทราบ", align="justify", indent=1.25, after=8)
-    _p(doc, "ขอแสดงความนับถือ", align="center", after=12)
+       align="justify", indent=2.5, after=2)
+    _p(doc, "จึงเรียนมาเพื่อโปรดทราบ", align="justify", indent=2.5, after=8)
+    _p(doc, "ขอแสดงความนับถือ", align="center", indent=2.5, after=12)
     _sign_table(doc, [[
         ("", "center"),
         (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
         (_director_line(school), "center"),
     ]])
+    _shift_table(doc.tables[-1])
     _p(doc, "งานการเงินและพัสดุ", size=14, before=8, after=0)
     _p(doc, f"โทร. {(dp.contact_phone or getattr(school, 'phone', '') or '').strip() or _BLANK}",
        size=14, after=6)
@@ -1242,16 +1250,17 @@ def render_mof_letter(school, dp, doc=None):
             f"({bahttext(total)}) และได้จำหน่ายพัสดุดังกล่าวเป็นสูญ ตามระเบียบฯ ข้อ 217 (1) "
             f"พร้อมทั้งลงจ่ายพัสดุออกจากบัญชีหรือทะเบียนพัสดุ "
             f"เมื่อวันที่ {_d(dp.written_off_date)} เรียบร้อยแล้ว",
-       align="justify", indent=1.25, after=2)
+       align="justify", indent=2.5, after=2)
     _p(doc, f"จึงขอรายงานให้ทราบตาม{_REG} ข้อ 218 รายละเอียดตามสิ่งที่ส่งมาด้วยพร้อมนี้",
-       align="justify", indent=1.25, after=2)
-    _p(doc, "จึงเรียนมาเพื่อโปรดทราบ", align="justify", indent=1.25, after=8)
-    _p(doc, "ขอแสดงความนับถือ", align="center", after=12)
+       align="justify", indent=2.5, after=2)
+    _p(doc, "จึงเรียนมาเพื่อโปรดทราบ", align="justify", indent=2.5, after=8)
+    _p(doc, "ขอแสดงความนับถือ", align="center", indent=2.5, after=12)
     _sign_table(doc, [[
         ("", "center"),
         (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
         (_director_line(school), "center"),
     ]])
+    _shift_table(doc.tables[-1])
     _p(doc, "งานการเงินและพัสดุ", size=14, before=8, after=0)
     _p(doc, f"โทร. {(dp.contact_phone or getattr(school, 'phone', '') or '').strip() or _BLANK}",
        size=14, after=6)
@@ -1274,18 +1283,19 @@ def render_remit_letter(school, dp, doc=None):
     _p(doc, f"ด้วย{_sname(school)} ได้ดำเนินการจำหน่ายพัสดุประจำปีงบประมาณ พ.ศ. {dp.year} "
             f"ตาม{_REG} ข้อ 215 (1) เสร็จเรียบร้อยแล้ว "
             f"จึงขอนำเงินส่งเป็นเงินรายได้{kind} จำนวน {total:,.2f} บาท "
-            f"({bahttext(total)})", align="justify", indent=1.25, after=2)
+            f"({bahttext(total)})", align="justify", indent=2.5, after=2)
     if kind == "สถานศึกษา":
         _p(doc, "ทั้งนี้ พัสดุที่จำหน่ายดังกล่าวได้มาด้วยเงินรายได้สถานศึกษาหรือเงินบริจาค "
                 "จึงนำเงินที่ได้จากการจำหน่ายเข้าเป็นเงินรายได้สถานศึกษา",
-           align="justify", indent=1.25, after=2)
-    _p(doc, "จึงเรียนมาเพื่อโปรดทราบและดำเนินการต่อไป", align="justify", indent=1.25, after=8)
-    _p(doc, "ขอแสดงความนับถือ", align="center", after=12)
+           align="justify", indent=2.5, after=2)
+    _p(doc, "จึงเรียนมาเพื่อโปรดทราบและดำเนินการต่อไป", align="justify", indent=2.5, after=8)
+    _p(doc, "ขอแสดงความนับถือ", align="center", indent=2.5, after=12)
     _sign_table(doc, [[
         ("", "center"),
         (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
         (_director_line(school), "center"),
     ]])
+    _shift_table(doc.tables[-1])
     _p(doc, "งานงบประมาณ", size=14, before=8, after=0)
     _p(doc, f"โทร. {(dp.contact_phone or getattr(school, 'phone', '') or '').strip() or _BLANK}",
        size=14, after=6)

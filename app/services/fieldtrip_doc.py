@@ -730,7 +730,7 @@ def render_trip_order(trip, order, school) -> str:
     from app.services.fieldtrip import staff_people
     from app.thai_utils import thai_date_official
     doc = _new_doc()
-    _krut_center(doc, height_cm=1.8)
+    _krut_center(doc, height_cm=3.0)
     _p(doc, "คำสั่ง" + (school.name or ""), align="center", bold=True, size=18, after=0)
     _p(doc, "ที่ " + (order.order_no or ""), align="center", bold=True, after=0)
     _p(doc, "เรื่อง " + (order.subject or ""), align="center", bold=True, after=0)
@@ -755,9 +755,9 @@ def render_trip_order(trip, order, school) -> str:
             + " อย่างเคร่งครัด โดยคำนึงถึงความปลอดภัยของนักเรียนเป็นอันดับแรก", align="justify", indent=2.5,
        before=4, after=2)
     _p(doc, "ทั้งนี้ ตั้งแต่บัดนี้เป็นต้นไป", indent=2.5, after=6)
-    _p(doc, "สั่ง ณ วันที่ " + thai_date_official(order.date), align="center", after=12)
-    sign_p = _p(doc, "(ลงชื่อ).........................................", align="center")
+    _p(doc, "สั่ง ณ วันที่ " + thai_date_official(order.date), align="center", indent=2.5, after=12)
+    sign_p = _p(doc, "(ลงชื่อ).........................................", align="center", indent=2.5)
     _float_signature(sign_p, school.director_name)
-    _p(doc, f"( {school.director_name or ''} )", align="center")
-    _p(doc, _director_office(school), align="center")
+    _p(doc, f"( {school.director_name or ''} )", align="center", indent=2.5)
+    _p(doc, _director_office(school), align="center", indent=2.5)
     return _save_doc(doc, _safe(f"คำสั่ง_{order.order_no or order.id}_ผู้ควบคุมทัศนศึกษา") + ".docx")
