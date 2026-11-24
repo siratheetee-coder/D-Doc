@@ -1,0 +1,21 @@
+{# หน้าพิมพ์: แปลงตัวเลขเป็นเลขไทยเมื่อโรงเรียนเลือกไว้ (ไม่แตะช่องกรอกและสคริปต์) #}
+{% if thai_digits_on() %}
+<script>
+(function () {
+  var TH = "๐๑๒๓๔๕๖๗๘๙";
+  function run() {
+    var w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) {
+        var p = n.parentNode && n.parentNode.nodeName;
+        return (p === "SCRIPT" || p === "STYLE" || p === "TEXTAREA" || p === "OPTION") ? 2 : 1;
+      }
+    });
+    var n;
+    while ((n = w.nextNode())) {
+      if (/[0-9]/.test(n.nodeValue)) n.nodeValue = n.nodeValue.replace(/[0-9]/g, function (d) { return TH[+d]; });
+    }
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", run); else run();
+})();
+</script>
+{% endif %}

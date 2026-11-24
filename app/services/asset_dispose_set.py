@@ -260,6 +260,16 @@ def _member_lines(doc, members, *, n_blank=3):
             c.width = w
 
 
+def _keep_last_rows(doc):
+    """ตรึงตารางล่าสุดทุกแถวไว้กับย่อหน้าถัดไป (keep with next ในทุกย่อหน้าของเซลล์)"""
+    if not doc.tables:
+        return
+    for row in doc.tables[-1].rows:
+        for c in row.cells:
+            for q in c.paragraphs:
+                q.paragraph_format.keep_with_next = True
+
+
 def _committee_block(doc, dp, key, title):
     """หัวข้อชุดกรรมการ + รายชื่อ (ใช้ในบันทึกขอจำหน่าย/คำสั่งแต่งตั้งที่มี 3 ชุด)"""
     _p(doc, title, bold=True, indent=1.25, before=2, after=1)
@@ -570,7 +580,8 @@ def render_dispose_request(school, dp, doc=None):
     _committee_block(doc, dp, "price", "คณะกรรมการประเมินราคากลาง")
     _committee_block(doc, dp, "sale", "คณะกรรมการดำเนินการขาย")
     _committee_block(doc, dp, "destroy", "คณะกรรมการทำลาย")
-    _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณา", indent=1.25, before=2, after=10)
+    _keep_last_rows(doc)   # ถ้าต้องขึ้นหน้าใหม่ ให้รายชื่อชุดสุดท้ายตามไปด้วย ไม่ใช่มีแต่ลายเซ็น
+    _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณา", indent=1.25, before=2, after=4).paragraph_format.keep_with_next = True
     _officer_sign(doc, school)
     _director_sign(doc, school, lines=["- ชอบ", "- ดำเนินการ"], date=True)
     return _save(doc, f"ขอจำหน่ายพัสดุ_ปีงบ{dp.year}") if own else doc
@@ -1159,20 +1170,21 @@ def render_sao_letter(school, dp, doc=None):
             f"จึงขอรายงานให้ทราบตามระเบียบฯ ข้อ 218 "
             "ดังสำเนาเอกสารที่ได้ส่งมาพร้อมหนังสือนี้",
        align="justify", indent=2.5, after=2)
-    _p(doc, "จึงเรียนมาเพื่อโปรดทราบ", align="justify", indent=2.5, after=8)
-    _p(doc, "ขอแสดงความนับถือ", align="center", indent=2.5, after=12)
-    _sign_table(doc, [[
+    _p(doc, "จึงเรียนมาเพื่อโปรดทราบ", align="justify", indent=2.5, after=4)
+    _p(doc, "ขอแสดงความนับถือ", align="center", indent=2.5, after=6)
+    _sign_table(doc, gap=False, columns=[[
         ("", "center"),
         (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
         (_director_line(school), "center"),
     ]])
     _shift_table(doc.tables[-1])
-    _p(doc, "งานการเงินและพัสดุ", size=14, before=4, after=0)
+    _p(doc, "งานการเงินและพัสดุ", size=14, before=0, after=0)
     _p(doc, f"โทร. {(dp.contact_phone or getattr(school, 'phone', '') or '').strip() or _BLANK}",
-       size=14, after=6)
-    _p(doc, "หมายเหตุ  สิ่งที่ส่งมาด้วย ประกอบด้วย", bold=True, size=14, after=1)
+       size=14, after=2)
+    _p(doc, "หมายเหตุ  สิ่งที่ส่งมาด้วย ประกอบด้วย", bold=True, size=14, after=0)
     for i, txt in enumerate(_SAO_ENCL, 1):
-        _p(doc, f"{i}. {txt}", align="justify", indent=1.25, size=14, after=0)
+        q = _p(doc, f"{i}. {txt}", align="justify", indent=1.25, size=14, after=0)
+        q.paragraph_format.line_spacing = Pt(18)   # รายการยาว บรรทัดชิดขึ้นให้จบในหน้าเดียว
     return _save(doc, f"หนังสือแจ้ง สตง. การจำหน่ายพัสดุ_ปีงบ{dp.year}") if own else doc
 
 

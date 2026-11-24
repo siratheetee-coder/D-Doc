@@ -73,5 +73,6 @@
     <div>ลงชื่อ ........................................ ผู้จัดทำ<br>( {{ school.finance_officer_name or school.officer_name or '........................................' }} )<br>เจ้าหน้าที่การเงินและบัญชี</div>
     <div>ลงชื่อ ........................................ ผู้ตรวจสอบ<br>( {{ school.director_name or '........................................' }} )<br>{{ school.director_position or 'ผู้อำนวยการโรงเรียน' }}</div>
   </div>
+{% include '_thai_digits.html' %}
 </body>
 </html>

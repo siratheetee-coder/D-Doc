@@ -36,3 +36,15 @@ def test_fit_tables_shrinks_to_text_width():
     from docx.oxml.ns import qn
     total = sum(int(c.get(qn("w:w"))) for c in t._element.find(qn("w:tblGrid")).findall(qn("w:gridCol"))) / 567
     assert total <= 16.01
+
+
+def test_print_pages_include_thai_digits_snippet():
+    from pathlib import Path
+    for f in ("finance_cashbook_print", "finance_ebudget_print", "general_arrival_print",
+              "general_assembly_print", "lunch_menu_print", "textbook_berk_print", "student_cards"):
+        assert "_thai_digits.html" in Path(f"app/templates/{f}.html").read_text(encoding="utf8"), f
+
+
+def test_thai_digits_global_off_without_school():
+    from app.templating import templates
+    assert templates.env.globals["thai_digits_on"]() is False

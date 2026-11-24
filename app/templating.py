@@ -157,3 +157,21 @@ def denied_prefixes(session) -> list:
 
 
 templates.env.globals["denied_prefixes"] = denied_prefixes
+
+
+def _thai_digits_on() -> bool:
+    """โรงเรียนที่ล็อกอินเลือกใช้เลขไทย (ใช้กับหน้าพิมพ์ HTML ไฟล์ Word แปลงใน serve_generated)"""
+    try:
+        from app.tenancy import current_school_id, session_for
+        from app import models as m
+        sid = current_school_id.get()
+        if not sid:
+            return False
+        with session_for(sid) as s:
+            sc = s.query(m.School).first()
+            return bool(sc and getattr(sc, "thai_digits", False))
+    except Exception:
+        return False
+
+
+templates.env.globals["thai_digits_on"] = _thai_digits_on
