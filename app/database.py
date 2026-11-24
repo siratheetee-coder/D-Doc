@@ -327,6 +327,7 @@ MIGRATIONS = [
     ("acad_score", "grade_manual", "BOOLEAN DEFAULT 0"),
     ("acad_period", "school_section", "VARCHAR NOT NULL DEFAULT 'primary'"),
     ("school", "tax_id", "VARCHAR DEFAULT ''"),
+    ("school", "thai_digits", "BOOLEAN DEFAULT 0"),
     ("finance_txn", "project_id", "INTEGER"),
     ("procurement", "quotation_no", "VARCHAR DEFAULT ''"),
     ("procurement", "winner_no", "VARCHAR DEFAULT ''"),

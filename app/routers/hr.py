@@ -42,13 +42,15 @@ def _cur_year() -> int:
 
 # ==================== หน้าหลัก ====================
 @router.get("/hr", response_class=HTMLResponse)
-def hr_home(request: Request, db: Session = Depends(get_db)):
+def hr_home(request: Request, db: Session = Depends(get_db), year: int | None = None):
     from app.services.dashboard_tasks import hr_tasks
-    year = _cur_year()
+    year = year or _cur_year()
+    years = sorted({_cur_year(), year} | {r[0] for r in db.query(LeaveRecord.year).distinct() if r[0]}
+                   | {r[0] for r in db.query(TravelRecord.year).distinct() if r[0]}, reverse=True)
     persons = db.query(Person).filter(Person.active == True).all()  # noqa: E712
     leaves_year = db.query(LeaveRecord).filter(LeaveRecord.year == year).all()
     return templates.TemplateResponse("hr_home.html", {
-        "request": request, "school": get_school(db), "year": year,
+        "request": request, "school": get_school(db), "year": year, "years": years,
         "task_cards": hr_tasks(db),
         "n_staff": len(persons), "n_leaves": len(leaves_year),
         "days_leaves": sum(l.days or 0 for l in leaves_year),

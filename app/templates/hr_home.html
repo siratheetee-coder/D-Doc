@@ -7,6 +7,9 @@
     <span class="hero-title">งานบุคคล</span>
     <div class="hero-meta">{{ school.name or "" }} ปี พ.ศ. {{ year }}</div>
   </div>
+  <form method="get" style="margin:0;">
+    <select name="year" onchange="submitReplace(this.form)" aria-label="เลือกปี">{% for y in years %}<option value="{{ y }}" {{ 'selected' if y==year }}>ปี {{ y }}</option>{% endfor %}</select>
+  </form>
 </div>
 {# รายการเริ่มต้นงาน (app/services/module_setup.py) ติ๊กเองจากข้อมูลจริง ครบแล้วหาย #}
 {% if setup %}{% set setup_key = 'hr' %}{% set setup_title = 'เริ่มต้นงานบุคคล' %}{% include '_setup_checklist.html' %}{% endif %}
@@ -33,7 +36,7 @@
     <p class="nc-desc">ข้อมูลครู/บุคลากร ตำแหน่ง วิทยฐานะ วันบรรจุ ออกหนังสือรับรอง (การเป็นบุคลากร/เงินเดือน)</p>
     <span class="nc-go">เปิดทะเบียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
-  <a class="nav-card" href="/hr/leave">
+  <a class="nav-card" href="/hr/leave?year={{ year }}">
     <div class="nc-head">
       <span class="nc-ic"><svg class="icon"><use href="#ic-calendar"/></svg></span>
       <h3>ทะเบียนวันลา</h3>
@@ -41,7 +44,7 @@
     <p class="nc-desc">บันทึกการลา (ป่วย/กิจ/พักผ่อน ฯลฯ) คำนวณวันลาคงเหลืออัตโนมัติ ออกใบลา</p>
     <span class="nc-go">เปิดทะเบียน <svg class="icon"><use href="#ic-arrow-right"/></svg></span>
   </a>
-  <a class="nav-card" href="/hr/travel">
+  <a class="nav-card" href="/hr/travel?year={{ year }}">
     <div class="nc-head">
       <span class="nc-ic"><svg class="icon"><use href="#ic-send"/></svg></span>
       <h3>ทะเบียนไปราชการ</h3>

@@ -479,6 +479,7 @@ def settings_save(
     project_year_mode: str = Form("budget"),
     attendance_by_subject: str = Form(""),
     approval_on: str = Form(""),
+    thai_digits: str = Form(""),
 ):
     s = get_school(db)
     s.name, s.address, s.district, s.province = name, address, district, province
@@ -496,6 +497,7 @@ def settings_save(
     s.project_year_mode = "academic" if project_year_mode == "academic" else "budget"
     s.attendance_by_subject = bool(attendance_by_subject)
     s.approval_on = bool(approval_on)
+    s.thai_digits = bool(thai_digits)
     s.doc_prefix, s.doc_set_threshold = doc_prefix, _to_float(doc_set_threshold, 5000.0)
     s.delegation_cmd_no = (delegation_cmd_no or "").strip()
     s.delegation_cmd_date = parse_be_date(delegation_cmd_date) if delegation_cmd_date.strip() else None
@@ -994,6 +996,9 @@ def serve_generated(path, media_type: str | None = None, *,
     p = Path(path)
     data = p.read_bytes()
     name = download_name or p.name
+    if name.lower().endswith(".docx"):
+        from app.services.thai_digits import maybe_thai_digits
+        data = maybe_thai_digits(data)
     disp = "inline" if inline else "attachment"
     dispo = f"{disp}; filename*=utf-8''{quote(name)}"
     return Response(content=data, media_type=media_type or "application/octet-stream",

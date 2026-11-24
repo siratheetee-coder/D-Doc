@@ -489,13 +489,17 @@ def render_project_report(rep, school, doc=None) -> str:
         _num_list(doc, expected, f"{i}.")
 
     if survey_rows:
-        _p(doc, "แบบประเมินความพึงพอใจ", align="center", bold=True, size=18, before=10, after=4)
-        _p(doc, "คำชี้แจง  โปรดใส่เครื่องหมาย (/) ตามรายการที่เป็นจริงหรือเห็นว่าเหมาะสม",
-           indent=1.25, after=3)
-        _p(doc, "เกณฑ์การประเมิน", bold=True, indent=1.25, after=3)
+        # หัวข้อ คำชี้แจง และเกณฑ์ ไปด้วยกันทั้งก้อน ไม่ให้หัวข้อค้างท้ายหน้าลำพัง
+        _keep = [_p(doc, "แบบประเมินความพึงพอใจ", align="center", bold=True, size=18, before=10, after=4),
+                 _p(doc, "คำชี้แจง  โปรดใส่เครื่องหมาย (/) ตามรายการที่เป็นจริงหรือเห็นว่าเหมาะสม",
+                    indent=1.25, after=3),
+                 _p(doc, "เกณฑ์การประเมิน", bold=True, indent=1.25, after=3)]
         for lv, word, rng in [(4, "ดีเยี่ยม", "สูงกว่า 81%"), (3, "ดี", "61 - 80%"),
                               (2, "พอใช้", "41 - 60%"), (1, "ปรับปรุง", "ต่ำกว่า 40%")]:
-            _p(doc, f"ระดับ {lv} หมายถึง  {word}  ประเมินอยู่ในระดับ {rng}", indent=2.0, after=2)
+            _keep.append(_p(doc, f"ระดับ {lv} หมายถึง  {word}  ประเมินอยู่ในระดับ {rng}", indent=2.0, after=2))
+        for q in _keep[:-1]:
+            if q is not None:
+                q.paragraph_format.keep_with_next = True
 
     if survey_rows or obj_rows:
         i = head("สรุปผลการประเมิน")

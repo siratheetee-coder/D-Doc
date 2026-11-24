@@ -76,6 +76,9 @@
   <div class="sf-sec"><span class="sf-n">3</span> หนังสือราชการและเกณฑ์</div>
   <div class="sf-grid c3">
     <div><label>อักษรนำเลขหนังสือ</label><input name="doc_prefix" value="{{ school.doc_prefix }}" placeholder="เช่น ศธ"></div>
+    <div><label>ตัวเลขในเอกสาร Word</label>
+      <label class="sf-check" style="display:flex; gap:8px; align-items:center; padding:10px 12px; border-radius:12px; background:linear-gradient(120deg,#f5f3ff,#eef2ff); cursor:pointer; margin:0;">
+        <input type="checkbox" name="thai_digits" value="1" {{ 'checked' if school.thai_digits }} style="width:auto; margin:0;"> ใช้เลขไทย (๑ ๒ ๓)</label></div>
     <div><label>คำสั่งมอบอำนาจ ที่ {{ tip('คำสั่งมอบอำนาจจัดซื้อจัดจ้างของต้นสังกัด เช่น สพฐ. ที่ 1340/2560 อ้างในคำสั่งแต่งตั้งคณะกรรมการ') }}</label>
       <input name="delegation_cmd_no" value="{{ school.delegation_cmd_no or '' }}" placeholder="เช่น 1340/2566"></div>
     <div><label>ลงวันที่ (คำสั่งมอบอำนาจ)</label>

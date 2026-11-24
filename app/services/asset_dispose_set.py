@@ -22,7 +22,7 @@ asset_dispose_set.py - ชุดเอกสารจำหน่ายพัส
 import json
 
 from docx import Document
-from docx.shared import Cm
+from docx.shared import Cm, Pt
 
 from app.database import get_data_dir
 from app.services.doc_page import set_a4, tidy, strip_tail
@@ -95,7 +95,33 @@ def _safe_chars(text: str) -> str:
     return text.strip()[:80]
 
 
+_TEXT_W = 16.0   # พื้นที่พิมพ์หน้าตั้ง A4 เมื่อขอบซ้าย 3 ขวา 2 ซม.
+
+
+def _fit_tables(doc) -> None:
+    """ย่อตารางหน้าตั้งที่กว้างเกินพื้นที่พิมพ์ (เดิมออกแบบไว้ 16.5 ซม.) ให้พอดี 16 ซม. ตามสัดส่วน"""
+    from docx.oxml.ns import qn
+    for t in doc.tables:
+        grid = t._element.find(qn("w:tblGrid"))
+        if grid is None:
+            continue
+        cols = grid.findall(qn("w:gridCol"))
+        tr = t._element.find(qn("w:tr"))
+        row_w = 0
+        if tr is not None:
+            row_w = sum(int(x.get(qn("w:w")) or 0) for x in tr.iter(qn("w:tcW"))
+                        if x.get(qn("w:type")) in (None, "dxa"))
+        total = max(sum(int(c.get(qn("w:w")) or 0) for c in cols), row_w) / 567.0
+        if not (_TEXT_W < total <= 17.0):
+            continue
+        k = _TEXT_W / total
+        for el in list(cols) + list(t._element.iter(qn("w:tcW"))) + list(t._element.iter(qn("w:tblW"))):
+            if el.tag == qn("w:gridCol") or el.get(qn("w:type")) in (None, "dxa"):
+                el.set(qn("w:w"), str(int(int(el.get(qn("w:w")) or 0) * k)))
+
+
 def _save(doc, name: str) -> str:
+    _fit_tables(doc)
     tidy(doc)
     out_dir = get_data_dir() / "documents"
     out_dir.mkdir(exist_ok=True)
@@ -106,6 +132,8 @@ def _save(doc, name: str) -> str:
 
 def _new():
     doc = Document(); set_a4(doc); _font(doc)
+    for sec in doc.sections:            # ขอบขวา 2 ซม. แบบหนังสือราชการ
+        sec.right_margin = Cm(2.0)
     return doc
 
 
@@ -118,7 +146,7 @@ def _portrait_section(doc):
     sec.orientation = WD_ORIENT.PORTRAIT
     sec.page_width, sec.page_height = A4_W, A4_H
     sec.top_margin, sec.bottom_margin = MARGIN_TOP, MARGIN_BOTTOM
-    sec.left_margin, sec.right_margin = MARGIN_LEFT, MARGIN_RIGHT
+    sec.left_margin, sec.right_margin = MARGIN_LEFT, Cm(2.0)
     return sec
 
 
@@ -176,12 +204,18 @@ def _letter_header(doc, school, doc_no, date_txt, subject, to, encl=None):
     _krut_center(doc, height_cm=3.0)
     t = doc.add_table(rows=1, cols=2)
     _no_borders(t); t.autofit = False
-    widths = [Cm(10.0), Cm(6.5)]
+    widths = [Cm(10.0), Cm(6.0)]
     _fixed_cols(t, widths)
     _set_cell(t.rows[0].cells[0], "ที่  " + (doc_no or _BLANK), align="left", size=16)
-    addr = (getattr(school, "address", "") or "").strip()
-    _set_cell(t.rows[0].cells[1], _sname(school) + (("\n" + addr) if addr else ""),
-              align="left", size=16)
+    # ส่วนราชการ: บรรทัดละย่อหน้า ชิดซ้ายแนวเดียวกัน แบบหนังสือภายนอกใน office_doc
+    rc = t.rows[0].cells[1]
+    addr = (getattr(school, "address", "") or "").replace("\r", "")
+    lines = [_sname(school)] + [x.strip() for x in addr.split("\n") if x.strip()]
+    _set_cell(rc, lines[0], align="left", size=16)
+    for x in lines[1:]:
+        r = rc.add_paragraph().add_run(x); r.font.size = Pt(16)
+    for q in rc.paragraphs:
+        q.paragraph_format.space_after = Pt(0)
     for c, w in zip(t.rows[0].cells, widths):
         c.width = w
     _p(doc, date_txt, align="center", before=4, after=6)
@@ -238,24 +272,32 @@ def _sign_committee(doc, dp, key, *, n=3):
     mem = _members(dp, key)[:n]
     while len(mem) < n:
         mem.append({"name": "", "role": roles[min(len(mem), 2)]})
-    for i, m in enumerate(mem):
+    def col(i, m):
         name = (m.get("name") or "").strip()
         role = (m.get("role") or roles[min(i, 2)]).strip()
-        _sign_table(doc, [[
-            (f"ลงชื่อ ...................................... {role}", "center"),
-            (f"( {name} )" if name else f"( {_BLANK} )", "center"),
-        ]], after=2, keep=(i == 0))
+        return [(f"ลงชื่อ .............................. {role}", "center"),
+                (f"( {name} )" if name else f"( {_BLANK} )", "center")]
+    # ประธานกลาง แล้วกรรมการเรียงคู่ซ้าย-ขวา ประหยัดพื้นที่ ไม่ให้ลายเซ็นตกไปหน้าใหม่
+    _sign_table(doc, [col(0, mem[0])], after=2, gap=False)
+    rest = [col(i, m) for i, m in enumerate(mem[1:], 1)]
+    for j in range(0, len(rest), 2):
+        _sign_table(doc, rest[j:j + 2], after=2, gap=False, keep=True)
 
 
-def _director_sign(doc, school, *, lines=()):
-    for txt in lines:
-        _p(doc, txt, indent=1.25, after=1)
-    _p(doc, "", after=8)
-    _sign_table(doc, [[
-        ("ลงชื่อ ......................................", "center"),
-        (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
-        (_director_line(school), "center"),
-    ]])
+def _director_sign(doc, school, *, lines=(), date=False):
+    """คำสั่งการ ผอ. + ลงนาม (date=True ใส่บรรทัดวันที่ไว้ในบล็อกเดียวกัน ไม่หลุดไปหน้าใหม่ลำพัง)"""
+    _p(doc, "", after=2).paragraph_format.keep_with_next = True
+    rows = [("ลงชื่อ ......................................", "center"),
+            (f"( {(school.director_name or '').strip() or _BLANK} )", "center"),
+            (_director_line(school), "center")]
+    if date:
+        rows.append(("วันที่ ........./............./..................", "center"))
+    if lines:
+        # คำสั่งการอยู่ซ้าย ลงนามอยู่ขวา แถวเดียวกัน กินที่น้อย ไม่ตกไปหน้าใหม่
+        t = _sign_table(doc, [[(x, "left") for x in lines], rows], gap=False)
+        _fixed_cols(t, [Cm(7.5), Cm(8.5)])
+    else:
+        _sign_table(doc, [rows], gap=False)
 
 
 def _officer_sign(doc, school, *, head=False):
@@ -441,8 +483,7 @@ def render_fact_report(school, dp, doc=None):
        align="justify", indent=1.25, after=10)
     _sign_committee(doc, dp, "fact")
     _director_sign(doc, school,
-                   lines=["- ทราบ", "- มอบเจ้าหน้าที่ดำเนินการตามระเบียบฯ ต่อไป"])
-    _p(doc, "วันที่ ........./............./..................", align="center", after=2)
+                   lines=["- ทราบ", "- มอบเจ้าหน้าที่ดำเนินการตามระเบียบฯ ต่อไป"], date=True)
     return _save(doc, f"รายงานผลการสอบหาข้อเท็จจริง_ปีงบ{dp.year}") if own else doc
 
 
@@ -531,8 +572,7 @@ def render_dispose_request(school, dp, doc=None):
     _committee_block(doc, dp, "destroy", "คณะกรรมการทำลาย")
     _p(doc, "จึงเรียนมาเพื่อโปรดพิจารณา", indent=1.25, before=2, after=10)
     _officer_sign(doc, school)
-    _director_sign(doc, school, lines=["- ชอบ", "- ดำเนินการ"])
-    _p(doc, "วันที่ ........./............./..................", align="center", after=2)
+    _director_sign(doc, school, lines=["- ชอบ", "- ดำเนินการ"], date=True)
     return _save(doc, f"ขอจำหน่ายพัสดุ_ปีงบ{dp.year}") if own else doc
 
 
@@ -703,8 +743,7 @@ def render_price_report(school, dp, doc=None):
     _sign_committee(doc, dp, "price")
     _director_sign(doc, school, lines=[
         "- ทราบ",
-        "- มอบหัวหน้าเจ้าหน้าที่ แล้วให้มอบคณะกรรมการดำเนินการขายในเวลาพิจารณาการขาย"])
-    _p(doc, "วันที่ ........./............./..................", align="center", after=2)
+        "- มอบหัวหน้าเจ้าหน้าที่ แล้วให้มอบคณะกรรมการดำเนินการขายในเวลาพิจารณาการขาย"], date=True)
     return _save(doc, f"ประเมินราคากลางพัสดุ_ปีงบ{dp.year}") if own else doc
 
 
@@ -767,8 +806,7 @@ def render_sale_report(school, dp, doc=None):
     _director_sign(doc, school,
                    lines=["- อนุมัติ", "- ลงจ่ายออกจากบัญชีหรือทะเบียนพัสดุ",
                           f"- นำเงินส่งเป็นเงินรายได้{(dp.revenue_kind or 'แผ่นดิน').strip()}",
-                          "- รายงาน สตง. ตามระเบียบฯ"])
-    _p(doc, "วันที่ ........./............./..................", align="center", after=2)
+                          "- รายงาน สตง. ตามระเบียบฯ"], date=True)
     return _save(doc, f"รายงานผลการขายพัสดุ_ปีงบ{dp.year}") if own else doc
 
 
@@ -997,8 +1035,7 @@ def render_auction_report(school, dp, doc=None):
     _director_sign(doc, school, lines=[
         "- อนุมัติ", "- ลงจ่ายออกจากบัญชีหรือทะเบียนพัสดุ",
         f"- นำเงินส่งเป็นเงินรายได้{(dp.revenue_kind or 'แผ่นดิน').strip()}",
-        "- รายงาน สตง. ตามระเบียบฯ"])
-    _p(doc, "วันที่ ........./............./..................", align="center", after=2)
+        "- รายงาน สตง. ตามระเบียบฯ"], date=True)
     return _save(doc, f"รายงานผลการขายทอดตลาด_ปีงบ{dp.year}") if own else doc
 
 
@@ -1083,8 +1120,7 @@ def render_destroy_report(school, dp, doc=None):
     _p(doc, "- ดำเนินการตามระเบียบฯ ต่อไป", indent=1.25, after=8)
     _officer_sign(doc, school)
     _director_sign(doc, school, lines=[
-        "- อนุมัติ", "- ลงจ่ายออกจากบัญชีหรือทะเบียนพัสดุ", "- รายงาน สตง. ตามระเบียบฯ"])
-    _p(doc, "วันที่ ........./............./..................", align="center", after=2)
+        "- อนุมัติ", "- ลงจ่ายออกจากบัญชีหรือทะเบียนพัสดุ", "- รายงาน สตง. ตามระเบียบฯ"], date=True)
     return _save(doc, f"รายงานผลการทำลายพัสดุ_ปีงบ{dp.year}") if own else doc
 
 
@@ -1131,12 +1167,12 @@ def render_sao_letter(school, dp, doc=None):
         (_director_line(school), "center"),
     ]])
     _shift_table(doc.tables[-1])
-    _p(doc, "งานการเงินและพัสดุ", size=14, before=8, after=0)
+    _p(doc, "งานการเงินและพัสดุ", size=14, before=4, after=0)
     _p(doc, f"โทร. {(dp.contact_phone or getattr(school, 'phone', '') or '').strip() or _BLANK}",
        size=14, after=6)
     _p(doc, "หมายเหตุ  สิ่งที่ส่งมาด้วย ประกอบด้วย", bold=True, size=14, after=1)
     for i, txt in enumerate(_SAO_ENCL, 1):
-        _p(doc, f"{i}. {txt}", align="justify", indent=2.5, size=14, after=1)
+        _p(doc, f"{i}. {txt}", align="justify", indent=1.25, size=14, after=0)
     return _save(doc, f"หนังสือแจ้ง สตง. การจำหน่ายพัสดุ_ปีงบ{dp.year}") if own else doc
 
 
@@ -1193,8 +1229,7 @@ def render_writeoff_memo(school, dp, doc=None):
                   "- รายงาน สตง. และปลัดกระทรวงการคลัง ตามระเบียบฯ ข้อ 218"]
     else:
         lines += ["- ให้เสนอกระทรวงการคลังพิจารณาอนุมัติ"]
-    _director_sign(doc, school, lines=lines)
-    _p(doc, "วันที่ ........./............./..................", align="center", after=2)
+    _director_sign(doc, school, lines=lines, date=True)
     return _save(doc, f"ขออนุมัติจำหน่ายพัสดุเป็นสูญ_ปีงบ{dp.year}") if own else doc
 
 
@@ -1227,7 +1262,7 @@ def render_area_letter(school, dp, doc=None):
         (_director_line(school), "center"),
     ]])
     _shift_table(doc.tables[-1])
-    _p(doc, "งานการเงินและพัสดุ", size=14, before=8, after=0)
+    _p(doc, "งานการเงินและพัสดุ", size=14, before=4, after=0)
     _p(doc, f"โทร. {(dp.contact_phone or getattr(school, 'phone', '') or '').strip() or _BLANK}",
        size=14, after=6)
     return _save(doc, f"หนังสือแจ้งเขตพื้นที่ การจำหน่ายพัสดุ_ปีงบ{dp.year}") if own else doc
@@ -1261,7 +1296,7 @@ def render_mof_letter(school, dp, doc=None):
         (_director_line(school), "center"),
     ]])
     _shift_table(doc.tables[-1])
-    _p(doc, "งานการเงินและพัสดุ", size=14, before=8, after=0)
+    _p(doc, "งานการเงินและพัสดุ", size=14, before=4, after=0)
     _p(doc, f"โทร. {(dp.contact_phone or getattr(school, 'phone', '') or '').strip() or _BLANK}",
        size=14, after=6)
     return _save(doc, f"หนังสือแจ้งกระทรวงการคลัง จำหน่ายเป็นสูญ_ปีงบ{dp.year}") if own else doc

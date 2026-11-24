@@ -48,6 +48,7 @@ class School(Base):
     academic_head_email = Column(String, default="")   # อีเมลหัวหน้าฝ่ายวิชาการ (รับแจ้งส่งแผนการสอน)
     hr_head_email = Column(String, default="")          # อีเมลหัวหน้าฝ่ายบุคคล (รับแจ้งใบลา)
     director_email = Column(String, default="")         # อีเมล ผอ./รองผอ. (รับแจ้งเรื่องที่รอลงนาม)
+    thai_digits = Column(Boolean, default=False)        # เอกสาร Word ใช้เลขไทย (แปลงตอนดาวน์โหลด serve_generated)
     approval_on = Column(Boolean, default=False)        # ส่งเรื่องพัสดุ/การเงินให้ ผอ. อนุมัติในระบบ (services/approval.py)
     student_portal = Column(Boolean, default=False)     # เปิดบัญชีนักเรียน (ดูเวลาเรียน ตารางเรียน เกรดที่เผยแพร่)
 
