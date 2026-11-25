@@ -99,11 +99,17 @@
       <div class="stat"><span>ฝากเดือนนี้</span><b>{{ "{:,.2f}".format(sv.month_dep) }}</b> <span style="display:inline">บาท</span></div></div>
     {% if tab == 'savings' %}
     {% for g in sv.months %}{% set y, mo = g.ym.split('-') %}
-    <div style="margin-top:16px;border-radius:14px;background:#f8fafc;padding:12px 14px">
-      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;align-items:baseline"><b style="font-size:16px">{{ TM[mo|int] }} {{ y|int + 543 }}</b>
-        <span style="font-size:13px;color:#64748b">ฝาก <b style="color:#059669">{{ "{:,.2f}".format(g.dep) }}</b>{% if g.wd %} ถอน <b style="color:#c2410c">{{ "{:,.2f}".format(g.wd) }}</b>{% endif %} คงเหลือ <b style="color:#0f172a">{{ "{:,.2f}".format(g.end) }}</b></span></div>
-      {% for h in g.rows %}<div style="display:flex;justify-content:space-between;margin-top:6px;font-size:14px"><span style="color:#64748b">{{ h.t.date[8:10]|int }} {{ TM[mo|int] }}</span><b style="color:{{ '#059669' if h.t.kind == 'dep' else '#c2410c' }}">{{ 'ฝาก' if h.t.kind == 'dep' else 'ถอน' }} {{ "{:,.2f}".format(h.t.amount) }}</b></div>{% endfor %}
-    </div>{% endfor %}
+    <details class="svm" {{ 'open' if loop.first }}>
+      <summary><b>{{ TM[mo|int] }} {{ y|int + 543 }}</b><span class="svm-n">{{ g.rows|length }} รายการ</span>
+        <span class="svm-s">ฝาก <b style="color:#059669">{{ "{:,.2f}".format(g.dep) }}</b>{% if g.wd %} ถอน <b style="color:#c2410c">{{ "{:,.2f}".format(g.wd) }}</b>{% endif %} คงเหลือ <b style="color:#0f172a">{{ "{:,.2f}".format(g.end) }}</b></span></summary>
+      {% for h in g.rows %}<div class="svm-r" {{ 'hidden' if loop.index > 5 }}><span style="color:#64748b">{{ h.t.date[8:10]|int }} {{ TM[mo|int] }}</span><b style="color:{{ '#059669' if h.t.kind == 'dep' else '#c2410c' }}">{{ 'ฝาก' if h.t.kind == 'dep' else 'ถอน' }} {{ "{:,.2f}".format(h.t.amount) }}</b></div>{% endfor %}
+      {% if g.rows|length > 5 %}<button type="button" class="svm-more" onclick="this.parentNode.querySelectorAll('.svm-r[hidden]').forEach(function(r){r.hidden=false});this.remove()">ดูอีก {{ g.rows|length - 5 }} รายการ</button>{% endif %}
+    </details>{% endfor %}
+    <style>.svm{margin-top:12px;border-radius:14px;background:#f8fafc;padding:12px 14px}.svm summary{list-style:none;cursor:pointer;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}.svm summary::-webkit-details-marker{display:none}
+    .svm summary>b{font-size:16px}.svm summary>b::before{content:'›';display:inline-block;margin-right:6px;color:#6366f1;transition:transform .15s}.svm[open] summary>b::before{transform:rotate(90deg)}
+    .svm-n{font-size:12px;color:#64748b;background:#eef2ff;border-radius:999px;padding:1px 8px}.svm-s{flex-basis:100%;font-size:13px;color:#64748b}
+    .svm-r{display:flex;justify-content:space-between;margin-top:6px;font-size:14px}.svm-r[hidden]{display:none}
+    .svm-more{margin-top:10px;width:100%;border:0;border-radius:12px;padding:8px;background:#eef2ff;color:#4338ca;font:inherit;cursor:pointer}</style>
     {% else %}
     {% for h in sv.hist %}<p style="margin:8px 0 0;font-size:14px"><b style="color:{{ '#059669' if h.t.kind == 'dep' else '#c2410c' }}">{{ 'ฝาก' if h.t.kind == 'dep' else 'ถอน' }} {{ "{:,.2f}".format(h.t.amount) }}</b> <span style="color:#64748b">{{ h.t.date[8:10]|int }}/{{ h.t.date[5:7] }}/{{ h.t.date[:4]|int + 543 }}</span></p>{% endfor %}
     <a href="/student/savings" class="sv-more"><span class="sv-more-ic"><img src="/static/images/home3d/calendar.png" alt="" aria-hidden="true"></span><span class="sv-more-t"><b>ดูประวัติทั้งหมด</b><small>แยกรายเดือน ฝาก ถอน คงเหลือ</small></span><span class="sv-more-go" aria-hidden="true">›</span></a>
