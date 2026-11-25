@@ -48,6 +48,7 @@
   .g{display:inline-block;min-width:40px;text-align:center;padding:2px 10px;border-radius:99px;background:linear-gradient(135deg,#eef2ff,#e0e7ff);font-weight:600}
   .alert.danger{background:linear-gradient(135deg,#fef2f2,#fee2e2);color:#b91c1c}
   .alert{padding:12px 14px;border-radius:14px;background:linear-gradient(135deg,#fff7ed,#fef3c7)}
+.tts .tt-t{display:block;font-size:.82em;color:#64748b;font-weight:400;margin-top:2px}
 </style>
 </head>
 <body>
@@ -142,7 +143,7 @@
       {% for p in tt.periods %}{% set c = tt.cells.get((d, p.id)) %}
       <div class="ttrow {{ 'brk' if p.is_break }}">
         <div class="ttp"><b>{{ p.name }}</b>{% if p.time_label %}<span>{{ p.time_label }}</span>{% endif %}</div>
-        <div class="tts">{% if p.is_break %}พัก{% elif c and c.subject %}{{ c.subject.name }}{% elif c and c.note %}{{ c.note }}{% else %}<span class="muted">ว่าง</span>{% endif %}</div>
+        <div class="tts">{% if p.is_break %}พัก{% elif c and c.subject %}{{ c.subject.name }}{% if tt.teachers and tt.teachers.get(c.subject_id) %}<small class="tt-t">{{ tt.teachers[c.subject_id] }}</small>{% endif %}{% elif c and c.note %}{{ c.note }}{% else %}<span class="muted">ว่าง</span>{% endif %}</div>
       </div>
       {% endfor %}
     </div>

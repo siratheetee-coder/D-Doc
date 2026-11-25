@@ -81,7 +81,10 @@ def timetable(db, klass):
     periods = ts.periods(db, klass.year, level=klass.level)
     cells = {(c.day, c.period_id): c for c in db.query(AcadTimetable).filter_by(class_id=klass.id).all()}
     days = sorted({1, 2, 3, 4, 5} | {d for (d, _p) in cells})   # จันทร์-ศุกร์เสมอ + เสาร์/อาทิตย์ถ้ามีคาบ
-    return {"periods": periods, "cells": cells, "days": days}
+    from app.models import AcadTeaching
+    teachers = {t.subject_id: t.teacher.name for t in db.query(AcadTeaching).filter_by(class_id=klass.id).all()
+                if t.teacher and t.teacher.name}
+    return {"periods": periods, "cells": cells, "days": days, "teachers": teachers}
 
 
 def grades(db, row):
