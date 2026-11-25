@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}ธนาคารโรงเรียน{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/acad-page.css?v=1">
+<div class="ap-page">
+<div class="ap-head">
+  <img class="ap-art" src="/static/images/home3d/f_bank.png" width="64" height="64" alt="" aria-hidden="true">
+  <div class="ap-title"><h1>ธนาคารโรงเรียน</h1><p>เงินออมนักเรียน โรงเรียนเก็บเงินเอง ไม่ปนกับทะเบียนคุมเงินของโรงเรียน</p></div>
+  <div class="ap-acts">
+    <a class="ap-btn ap-soft" href="/general/savings/daily?date={{ day }}" target="_blank"><svg class="icon"><use href="#ic-file"/></svg> สรุปประจำวัน</a>
+    {% if is_staff %}<a class="ap-btn ap-soft" href="/general/savings/months"><svg class="icon"><use href="#ic-lock"/></svg> ปิดยอดรายเดือน</a>{% endif %}
+  </div>
+</div>
+
+{% if msg %}<div class="alert">{{ msg }}</div>{% endif %}
+
+{% if school_bal is not none %}
+<div class="sv-stats">
+  <div class="sv-stat"><span>เงินออมคงเหลือทั้งโรงเรียน</span><b>{{ "{:,.2f}".format(school_bal) }}</b></div>
+</div>
+{% endif %}
+
+<div class="card sv-tools">
+  <form method="get" action="/general/savings" class="sv-pick">
+    <div><label>ห้อง</label>
+      <select name="cid" onchange="this.form.submit()" aria-label="เลือกห้อง">
+        {% for k in classes %}<option value="{{ k.id }}" {{ 'selected' if c and k.id == c.id }}>{{ class_label(k) }}</option>{% endfor %}
+      </select></div>
+    <div><label>วันที่</label>
+      {# กดที่วันที่ = เปิดปฏิทินเลือกวัน  ‹ › = วันก่อน/วันถัดไป #}
+      <div class="sv-date">
+        <button type="button" class="sv-nav" data-step="-1" aria-label="วันก่อนหน้า">‹</button>
+        <label class="sv-cal"><svg class="icon"><use href="#ic-calendar"/></svg><span>{{ day_be }}</span>
+          <input type="date" name="date" value="{{ day }}" aria-label="เลือกวันที่" onchange="if(this.value)this.form.submit()"></label>
+        <button type="button" class="sv-nav" data-step="1" aria-label="วันถัดไป">›</button>
+      </div></div>
+  </form>
+</div>
+
+{% if c %}
+<form method="post" action="/general/savings/save" class="card" id="svForm">
+  <input type="hidden" name="date" value="{{ day }}">
+  <input type="hidden" name="back" value="/general/savings?cid={{ c.id }}&date={{ day }}">
+  <div class="sv-head">
+    <h2 class="ap-h2">ห้อง {{ class_label(c) }} <small class="muted">{{ rows|length }} คน วันที่ {{ day_be }}</small></h2>
+    <div class="sv-room">คงเหลือทั้งห้อง <b>{{ "{:,.2f}".format(room_bal) }}</b></div>
+  </div>
+  {% if locked %}<div class="alert">เดือนนี้ปิดยอดแล้ว ดูได้อย่างเดียว</div>{% endif %}
+  {% if missing %}<p class="muted">มีนักเรียน {{ missing }} คนที่ยังไม่ผูกทะเบียนนักเรียน</p>{% endif %}
+  {% if rows %}
+  <table class="sv-tbl stack-sm">
+    <thead><tr><th>เลขที่</th><th>ชื่อ</th><th class="r">คงเหลือ</th><th class="r">ฝากวันนี้</th><th class="r">ถอนวันนี้</th>{% if not locked %}<th>ฝาก</th><th>ถอน</th>{% endif %}</tr></thead>
+    <tbody>
+    {% for r in rows %}
+    <tr data-bal="{{ r.bal }}">
+      <td data-label="เลขที่">{{ r.seq }}</td>
+      <td data-label="ชื่อ"><a href="/general/savings/s/{{ r.sid }}">{{ r.name }}</a></td>
+      <td data-label="คงเหลือ" class="r sv-bal">{{ "{:,.2f}".format(r.bal) }}</td>
+      <td data-label="ฝากวันนี้" class="r sv-dep">{{ "{:,.2f}".format(r.dep) if r.dep else "-" }}</td>
+      <td data-label="ถอนวันนี้" class="r sv-wd">{{ "{:,.2f}".format(r.wd) if r.wd else "-" }}</td>
+      {% if not locked %}
+      <td data-label="ฝาก"><input class="sv-in" name="dep_{{ r.sid }}" inputmode="decimal" placeholder="0" aria-label="ฝาก {{ r.name }}"></td>
+      <td data-label="ถอน"><input class="sv-in sv-out" name="wd_{{ r.sid }}" inputmode="decimal" placeholder="0" aria-label="ถอน {{ r.name }}"></td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot><tr><th colspan="2">รวม</th><th class="r" id="svTotBal">{{ "{:,.2f}".format(room_bal) }}</th><th class="r">{{ "{:,.2f}".format(room_dep) }}</th><th class="r">{{ "{:,.2f}".format(room_wd) }}</th>{% if not locked %}<th class="r" id="svNewDep">0.00</th><th class="r" id="svNewWd">0.00</th>{% endif %}</tr></tfoot>
+  </table>
+  {% if not locked %}
+  <div class="sv-foot">
+    <input name="note" placeholder="หมายเหตุ (ถ้ามี)" aria-label="หมายเหตุ">
+    <span id="svWarn" class="sv-warn" hidden></span>
+    <button class="ap-btn ap-main" id="svSave" data-no-floating-save>บันทึก</button>
+  </div>
+  <p class="muted sv-tip">บันทึกแล้วแก้ไขไม่ได้ ถ้าผิดให้กดชื่อนักเรียนแล้วยกเลิกรายการ จากนั้นบันทึกใหม่</p>
+  {% endif %}
+  {% else %}<p class="muted">ห้องนี้ยังไม่มีนักเรียน</p>{% endif %}
+</form>
+{% else %}
+<div class="card"><p class="muted" style="margin:0;">{{ 'ยังไม่มีห้องเรียนในปีการศึกษานี้' if is_staff else 'ท่านยังไม่ได้เป็นครูประจำชั้นห้องใด' }}</p></div>
+{% endif %}
+</div>
+
+<style>
+.sv-stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.sv-stat{flex:1;min-width:200px;padding:14px 18px;border-radius:18px;background:linear-gradient(135deg,#ecfdf5,#d1fae5);box-shadow:0 2px 12px rgba(5,150,105,.12)}
+.sv-stat span{display:block;font-size:13px;color:#047857}.sv-stat b{font-size:26px;color:#065f46}
+.sv-pick{display:flex;gap:12px;flex-wrap:wrap;margin:0}
+.sv-pick > div{min-width:180px}.sv-pick label{font-size:13px;color:#64748b}
+.sv-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.sv-room{padding:6px 14px;border-radius:12px;background:linear-gradient(135deg,#eef2ff,#e0e7ff);color:#3730a3}
+.sv-tbl{width:100%;border-collapse:collapse}
+.sv-tbl th,.sv-tbl td{padding:7px 8px;border-bottom:1px solid #f1f5f9;text-align:left}
+.sv-tbl .r{text-align:right;white-space:nowrap}
+.sv-tbl a{color:#1e293b;font-weight:600;text-decoration:none}
+.sv-in{width:100px;text-align:right;border:0;border-radius:10px;padding:7px 9px;background:linear-gradient(135deg,#f0fdf4,#ecfdf5)}
+.sv-out{background:linear-gradient(135deg,#fff7ed,#fef2f2)}
+.sv-in.bad{outline:2px solid #ef4444}
+.sv-foot{display:flex;gap:10px;align-items:center;justify-content:flex-end;flex-wrap:wrap;margin-top:12px}
+.sv-foot input{flex:1;min-width:180px;max-width:360px}
+.sv-warn{color:#b91c1c;font-weight:600}
+.sv-tip{font-size:13px;margin:8px 0 0}
+.sv-tbl tfoot th{border-bottom:0}
+.sv-date{display:flex;align-items:center;gap:6px}
+.sv-cal{position:relative;display:inline-flex;align-items:center;gap:8px;margin:0;padding:9px 16px;border-radius:12px;font-size:15px;font-weight:700;color:#1e1b4b;cursor:pointer;background:linear-gradient(135deg,#eef2ff,#e0e7ff)}
+.sv-cal .icon{width:18px;height:18px;color:#4f46e5}
+.sv-cal input{position:absolute;inset:0;width:100%!important;height:100%;opacity:0;cursor:pointer;border:0;padding:0}
+.sv-cal input::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:100%;height:100%;cursor:pointer}
+.sv-nav{border:0;border-radius:10px;width:38px;height:40px;font:inherit;font-size:22px;font-weight:700;color:#4338ca;background:#fff;box-shadow:0 1px 3px rgba(15,23,42,.1);cursor:pointer}
+@media(max-width:640px){.sv-in{width:100%}.sv-cal{flex:1;justify-content:center}}
+</style>
+<script>
+document.querySelectorAll('.sv-nav').forEach(function(b){
+  b.addEventListener('click', function(){
+    var inp = document.querySelector('.sv-cal input'), d = new Date(inp.value + 'T00:00:00');
+    d.setDate(d.getDate() + parseInt(b.dataset.step, 10));
+    inp.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    inp.form.submit();
+  });
+});
+document.querySelectorAll('.sv-cal').forEach(function(l){
+  l.addEventListener('click', function(e){ var i = l.querySelector('input'); if (i.showPicker) { try { i.showPicker(); e.preventDefault(); } catch (_) {} } });
+});
+(function(){
+  var f = document.getElementById('svForm'); if (!f) return;
+  function num(v){ v = (v || '').replace(/,/g, '').trim(); if (!v) return 0; var n = Number(v); return (isFinite(n) && n >= 0) ? n : NaN; }
+  function fmt(n){ return n.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
+  function calc(){
+    var dep = 0, wd = 0, bad = 0, tot = 0;
+    f.querySelectorAll('tbody tr').forEach(function(tr){
+      var b = Number(tr.dataset.bal) || 0, i = tr.querySelectorAll('.sv-in');
+      if (!i.length) { tot += b; return; }
+      var d = num(i[0].value), w = num(i[1].value);
+      i[0].classList.toggle('bad', isNaN(d)); i[1].classList.toggle('bad', isNaN(w));
+      if (isNaN(d) || isNaN(w)) { bad++; tot += b; return; }
+      var nb = b + d - w;
+      if (nb < -0.001) { bad++; i[1].classList.add('bad'); }
+      tr.querySelector('.sv-bal').textContent = fmt(nb);
+      dep += d; wd += w; tot += nb;
+    });
+    var a = document.getElementById('svNewDep'); if (a) a.textContent = fmt(dep);
+    a = document.getElementById('svNewWd'); if (a) a.textContent = fmt(wd);
+    document.getElementById('svTotBal').textContent = fmt(tot);
+    var warn = document.getElementById('svWarn');
+    if (warn) { warn.hidden = !bad; warn.textContent = bad ? 'มี ' + bad + ' ช่องที่ผิด (ตัวเลขไม่ถูกหรือถอนเกินยอด)' : ''; }
+    var s = document.getElementById('svSave'); if (s) s.disabled = !!bad;
+  }
+  f.addEventListener('input', function(e){ if (e.target.classList.contains('sv-in')) calc(); });
+  f.addEventListener('submit', function(e){
+    calc(); if (document.getElementById('svSave').disabled) { e.preventDefault(); return; }
+    var any = [].some.call(f.querySelectorAll('.sv-in'), function(x){ return num(x.value) > 0; });
+    if (!any) { e.preventDefault(); alert('ยังไม่ได้กรอกจำนวนเงิน'); return; }
+    if (!confirm('ยืนยันบันทึก ฝากรวม ' + document.getElementById('svNewDep').textContent + ' บาท ถอนรวม ' + document.getElementById('svNewWd').textContent + ' บาท')) e.preventDefault();
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}ปิดยอดเงินออมรายเดือน{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/acad-page.css?v=1">
+<div class="ap-page">
+<div class="ap-head">
+  <img class="ap-art" src="/static/images/home3d/f_bank.png" width="64" height="64" alt="" aria-hidden="true">
+  <div class="ap-title"><h1>ปิดยอดรายเดือน</h1><p>เดือนที่ปิดแล้ว บันทึกหรือยกเลิกรายการย้อนหลังไม่ได้ เปิดคืนได้เฉพาะไอดีหลัก</p></div>
+  <div class="ap-acts"><a class="ap-btn ap-soft" href="/general/savings"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a></div>
+</div>
+{% if msg %}<div class="alert">{{ msg }}</div>{% endif %}
+<div class="card">
+  <table class="sv-tbl stack-sm">
+    <thead><tr><th>เดือน</th><th class="r">รับฝาก</th><th class="r">ถอน</th><th class="r">คงเหลือสิ้นเดือน</th><th>สถานะ</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+    <tr>
+      <td data-label="เดือน">{{ r.label }}</td>
+      <td data-label="รับฝาก" class="r">{{ "{:,.2f}".format(r.dep) }}</td>
+      <td data-label="ถอน" class="r">{{ "{:,.2f}".format(r.wd) }}</td>
+      <td data-label="คงเหลือสิ้นเดือน" class="r"><b>{{ "{:,.2f}".format(r.end) }}</b></td>
+      <td data-label="สถานะ">{% if r.lock %}<span class="st-lock">ปิดยอดแล้ว</span> <small class="muted">{{ r.lock.by_name }}</small>{% else %}<span class="st-open">เปิดอยู่</span>{% endif %}</td>
+      <td>{% if r.lock %}{% if is_owner %}<form method="post" action="/general/savings/months/{{ r.m }}/unlock" onsubmit="return confirm('เปิดยอด{{ r.label }}คืน ให้แก้ไขรายการได้อีก?')"><button class="ap-btn ap-soft" data-no-floating-save>เปิดคืน</button></form>{% endif %}
+        {% else %}<form method="post" action="/general/savings/months/{{ r.m }}/lock" onsubmit="return confirm('ปิดยอด{{ r.label }} หลังปิดแล้วบันทึกหรือยกเลิกรายการในเดือนนี้ไม่ได้')"><button class="ap-btn ap-green" data-no-floating-save>ปิดยอด</button></form>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+</div>
+<style>
+.sv-tbl{width:100%;border-collapse:collapse}
+.sv-tbl th,.sv-tbl td{padding:8px;border-bottom:1px solid #f1f5f9;text-align:left}
+.sv-tbl .r{text-align:right;white-space:nowrap}
+.sv-tbl form{margin:0}
+.st-lock{padding:2px 10px;border-radius:99px;background:#e0e7ff;color:#3730a3;font-weight:600;font-size:13px}
+.st-open{padding:2px 10px;border-radius:99px;background:#fef3c7;color:#92400e;font-weight:600;font-size:13px}
+</style>
+{% endblock %}

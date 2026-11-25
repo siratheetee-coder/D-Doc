@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>{{ ('สมุดคู่ฝาก ' ~ stu.name) if mode == 'book' else ('สรุปเงินออมประจำวัน ' ~ day_be) }}</title>
+<style>
+  @page { size: A4 portrait; margin: 14mm 14mm; }
+  body { font-family: "TH SarabunPSK","Sarabun",sans-serif; font-size: 16pt; color:#000; margin:0; }
+  h1 { text-align:center; font-size:20pt; margin:0; }
+  .sub { text-align:center; margin:2px 0 10px; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { border:1px solid #000; padding:2px 6px; }
+  th { background:#eef2ff; }
+  .c { text-align:center; } .r { text-align:right; white-space:nowrap; }
+  .signs { display:flex; justify-content:space-around; margin-top:36px; text-align:center; line-height:1.9; }
+  .noprint { margin:10px 0; text-align:center; }
+  @media print { .noprint { display:none; } }
+</style></head>
+<body>
+<div class="noprint"><button onclick="window.print()" style="font-size:16px;padding:8px 18px;border-radius:10px;border:0;background:#4f46e5;color:#fff;cursor:pointer;">พิมพ์</button></div>
+{% if mode == 'book' %}
+<h1>สมุดคู่ฝากเงินออม</h1>
+<p class="sub">{{ school.name }}<br>{{ stu.name }}  ชั้น {{ cls }}{% if stu.student_no %}  เลขประจำตัว {{ stu.student_no }}{% endif %}</p>
+<table>
+  <thead><tr><th class="c" style="width:44px;">ที่</th><th>วันที่</th><th class="r">ฝาก</th><th class="r">ถอน</th><th class="r">คงเหลือ</th><th style="width:22%;">ผู้รับ/จ่ายเงิน</th></tr></thead>
+  <tbody>
+  {% for h in hist %}{% set t = h.t %}
+  <tr><td class="c">{{ loop.index }}</td><td>{{ be(t.date) }}</td>
+    <td class="r">{{ "{:,.2f}".format(t.amount) if t.kind == 'dep' else '' }}</td>
+    <td class="r">{{ "{:,.2f}".format(t.amount) if t.kind == 'wd' else '' }}</td>
+    <td class="r">{{ "{:,.2f}".format(h.bal) }}</td><td></td></tr>
+  {% else %}<tr><td colspan="6" class="c">ยังไม่มีรายการ</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% else %}
+<h1>สรุปการรับฝากและถอนเงินออมนักเรียนประจำวัน</h1>
+<p class="sub">{{ school.name }}  วันที่ {{ day_be }}</p>
+<table>
+  <thead><tr><th class="c" style="width:44px;">ที่</th><th>ชั้น</th><th>ครูประจำชั้น</th><th class="c">จำนวนคน</th><th class="r">รับฝาก (บาท)</th><th class="r">ถอน (บาท)</th></tr></thead>
+  <tbody>
+  {% for r in rows %}<tr><td class="c">{{ loop.index }}</td><td>{{ r.label }}</td><td>{{ r.teacher }}</td><td class="c">{{ r.n }}</td><td class="r">{{ "{:,.2f}".format(r.dep) }}</td><td class="r">{{ "{:,.2f}".format(r.wd) }}</td></tr>
+  {% else %}<tr><td colspan="6" class="c">ไม่มีรายการในวันนี้</td></tr>{% endfor %}
+  </tbody>
+  <tfoot><tr><th colspan="4" class="r">รวม</th><th class="r">{{ "{:,.2f}".format(dep) }}</th><th class="r">{{ "{:,.2f}".format(wd) }}</th></tr>
+  <tr><th colspan="4" class="r">เงินที่ต้องส่ง (รับฝาก หัก ถอน)</th><th colspan="2" class="r">{{ "{:,.2f}".format(net) }}</th></tr></tfoot>
+</table>
+<div class="signs">
+  <div>ลงชื่อ ..................................... ผู้ส่งเงิน<br>(.....................................)</div>
+  <div>ลงชื่อ ..................................... ผู้รับเงิน<br>(.....................................)</div>
+</div>
+{% endif %}
+{% include '_thai_digits.html' %}
+</body></html>

@@ -236,6 +236,7 @@
         <div class="nav-sec">งานบริหารทั่วไป</div>
         <a href="/general" class="{{ 'active' if path == '/general' }}"><svg class="icon"><use href="#ic-home"/></svg> หน้าหลัก</a>
         <a href="/general/assembly" class="{{ 'active' if path.startswith('/general/assembly') or path.startswith('/general/arrival') }}"><svg class="icon"><use href="#ic-users"/></svg> บันทึกการเข้าแถว</a>
+        <a href="/general/savings" class="{{ 'active' if path.startswith('/general/savings') }}"><svg class="icon"><use href="#ic-coins"/></svg> ธนาคารโรงเรียน</a>
         <a href="/general/trips" class="{{ 'active' if path.startswith('/general/trips') }}"><svg class="icon"><use href="#ic-clipboard"/></svg> ทัศนศึกษา</a>
 
         {% else %}{# hub #}

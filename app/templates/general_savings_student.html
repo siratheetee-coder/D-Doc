@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}เงินออม {{ stu.name }}{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/acad-page.css?v=1">
+<div class="ap-page">
+<div class="ap-head">
+  <img class="ap-art" src="/static/images/home3d/f_bank.png" width="64" height="64" alt="" aria-hidden="true">
+  <div class="ap-title"><h1>{{ stu.name }}</h1><p>ชั้น {{ cls }}{% if stu.student_no %} เลขประจำตัว {{ stu.student_no }}{% endif %}</p></div>
+  <div class="ap-acts">
+    <a class="ap-btn ap-soft" href="/general/savings"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a>
+    <a class="ap-btn ap-blue" href="/general/savings/s/{{ stu.id }}/print" target="_blank"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์สมุดคู่ฝาก</a>
+  </div>
+</div>
+{% if msg %}<div class="alert">{{ msg }}</div>{% endif %}
+
+<div class="sv-stat"><span>ยอดคงเหลือ</span><b>{{ "{:,.2f}".format(bal) }}</b> บาท</div>
+
+<div class="card">
+  <h2 class="ap-h2">ประวัติรายการ</h2>
+  {% if hist %}
+  <table class="sv-tbl stack-sm">
+    <thead><tr><th>วันที่</th><th>รายการ</th><th class="r">จำนวนเงิน</th><th class="r">คงเหลือ</th><th>ผู้บันทึก</th><th></th></tr></thead>
+    <tbody>
+    {% for h in hist %}{% set t = h.t %}
+    <tr class="{{ 'void' if t.void }}">
+      <td data-label="วันที่">{{ be(t.date) }}</td>
+      <td data-label="รายการ"><span class="k-{{ t.kind }}">{{ kinds[t.kind] }}</span>{% if t.note %} <small>{{ t.note }}</small>{% endif %}
+        {% if t.void %}<br><small class="vd">ยกเลิกแล้ว: {{ t.void_reason }} โดย {{ t.void_by or '-' }}</small>{% endif %}</td>
+      <td data-label="จำนวนเงิน" class="r">{{ '-' if t.kind == 'wd' }}{{ "{:,.2f}".format(t.amount) }}</td>
+      <td data-label="คงเหลือ" class="r">{{ '' if t.void else "{:,.2f}".format(h.bal) }}</td>
+      <td data-label="ผู้บันทึก"><small>{{ t.by_name or '-' }}</small></td>
+      <td>{% if not t.void and t.date[:7] not in locked and (is_staff or t.by_name == me) %}
+        <form method="post" action="/general/savings/t/{{ t.id }}/void" class="sv-void" onsubmit="var r = prompt('เหตุผลที่ยกเลิกรายการนี้'); if (!r) return false; this.reason.value = r;">
+          <input type="hidden" name="reason"><button class="ap-btn ap-soft" data-no-floating-save>ยกเลิก</button></form>
+      {% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">ยังไม่มีรายการ</p>{% endif %}
+</div>
+</div>
+<style>
+.sv-stat{display:inline-block;margin-bottom:12px;padding:14px 22px;border-radius:18px;background:linear-gradient(135deg,#ecfdf5,#d1fae5);color:#065f46}
+.sv-stat span{display:block;font-size:13px;color:#047857}.sv-stat b{font-size:28px}
+.sv-tbl{width:100%;border-collapse:collapse}
+.sv-tbl th,.sv-tbl td{padding:7px 8px;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:top}
+.sv-tbl .r{text-align:right;white-space:nowrap}
+.sv-tbl tr.void td{color:#94a3b8;text-decoration:line-through}
+.sv-tbl tr.void td .vd{text-decoration:none;display:inline-block}
+.k-dep,.k-wd{padding:2px 10px;border-radius:99px;font-weight:600;font-size:13px}
+.k-dep{background:#dcfce7;color:#166534}.k-wd{background:#ffedd5;color:#9a3412}
+.sv-void{margin:0}.sv-void .ap-btn{padding:5px 11px;font-size:13px}
+</style>
+{% endblock %}

@@ -31,7 +31,7 @@ from app.tenancy import current_school_id, current_module
 from app.templating import templates
 
 from app.routers import (pages, admin, finance, lunch, auth, superadmin, account, textbooks,
-                         sales, hr, academic, users, general, project_report, budget_request)
+                         sales, hr, academic, users, general, project_report, budget_request, savings)
 
 # อายุการล็อกอิน (วินาที) · ค่าจริงต่อคนเก็บใน session["ttl"] ตอนล็อกอิน
 SESSION_TTL_DEFAULT = 60 * 60 * 12          # ไม่ติ๊ก "จดจำฉันไว้" = 12 ชั่วโมง (เท่าเดิม)
@@ -532,6 +532,7 @@ app.include_router(academic_supervision.router)
 app.include_router(academic.router)
 app.include_router(textbooks.router)
 app.include_router(general.router)
+app.include_router(savings.router)
 app.include_router(sales.router)
 from app.routers import knowledge
 app.include_router(knowledge.router)

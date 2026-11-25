@@ -50,6 +50,13 @@ def _student_page(request, db, tab):
                              "hist": behavior.history(db, y, row.student_id)[:5]}
             except Exception:  # noqa: BLE001
                 ctx["bh"] = None
+            # เงินออมธนาคารโรงเรียน ดูอย่างเดียว (แสดงเมื่อมีรายการ)
+            try:
+                from app.services import savings
+                h = [x for x in savings.history(db, row.student_id) if not x["t"].void]
+                ctx["sv"] = {"bal": h[-1]["bal"], "hist": list(reversed(h))[:5]} if h else None
+            except Exception:  # noqa: BLE001
+                ctx["sv"] = None
     ctx["mark_label"] = sp.MARK_LABEL
     return templates.TemplateResponse("student_home.html", ctx)
 

@@ -52,6 +52,8 @@ def denied(path, acc) -> str:
     shared_mine = mine - {"academic"} if acc.get("person_id") else mine
     if _under(p, "/general/assembly"):
         return ""   # ครูประจำชั้นเช็คเข้าแถว: route กันเองให้เห็นเฉพาะห้องที่ประจำชั้น
+    if _under(p, "/general/savings"):
+        return ""   # ธนาคารโรงเรียน: ครูประจำชั้นบันทึกห้องตัวเอง route กันเอง
     if _under(p, "/general/behavior"):
         return ""   # ครูทุกคนหัก/เพิ่มคะแนนความประพฤติได้ (เช่น ครูเวร) ตั้งกติกา/ลบของคนอื่น route กันเอง
     for pre, need in SHARED.items():

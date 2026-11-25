@@ -566,6 +566,35 @@ class BehaviorLetter(Base):
     created_at = Column(DateTime, default=datetime.now)
 
 
+class SavingsTxn(Base):
+    """ธนาคารโรงเรียน (โรงเรียนเก็บเงินเอง): ฝาก/ถอนรายคน ไม่แก้ทับ แก้ผิดด้วยการยกเลิกรายการแล้วบันทึกใหม่"""
+    __tablename__ = "savings_txn"
+
+    id = Column(Integer, primary_key=True)
+    student_id = Column(Integer, ForeignKey("student.id"), nullable=False, index=True)
+    date = Column(String, nullable=False, index=True)      # ISO
+    kind = Column(String, nullable=False)                  # dep (ฝาก) / wd (ถอน)
+    amount = Column(Float, nullable=False)
+    note = Column(String, default="")
+    by_name = Column(String, default="")
+    by_pid = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.now)
+    void = Column(Boolean, default=False)                  # ยกเลิกแล้ว (ไม่นับยอด แต่ยังเห็นในประวัติ)
+    void_reason = Column(String, default="")
+    void_by = Column(String, default="")
+    void_at = Column(DateTime, nullable=True)
+
+
+class SavingsLock(Base):
+    """ปิดยอดรายเดือน: เดือนที่ปิดแล้วบันทึกหรือยกเลิกรายการย้อนหลังไม่ได้"""
+    __tablename__ = "savings_lock"
+
+    id = Column(Integer, primary_key=True)
+    month = Column(String, nullable=False, unique=True)    # YYYY-MM
+    by_name = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.now)
+
+
 class StaffDuty(Base):
     """หน้าที่/งานพิเศษที่ระบบยังไม่รู้เอง (หัวหน้ากลุ่มสาระ เจ้าหน้าที่การเงิน ครูเวร ...) ใช้คิดภาระงาน"""
     __tablename__ = "staff_duty"
