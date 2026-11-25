@@ -8,7 +8,7 @@ import re
 from app.models import (AcadStudent, AcadClass, AcadAttendance, AcadSubject, AcadScore,
                         AcadTimetable, AcadScorePublish, Student)
 
-_ALLOW_GET = re.compile(r"^/student(/(timetable|grades|attendance))?/?$")
+_ALLOW_GET = re.compile(r"^/student(/(timetable|grades|attendance|savings))?/?$")
 _ALLOW_ANY = ("/logout",)
 
 MARK_LABEL = {"/": "มา", "ป": "ป่วย", "ล": "ลา", "ข": "ขาด"}

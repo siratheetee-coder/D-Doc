@@ -76,12 +76,24 @@
   </div>
   {% endif %}
 
-  {% if sv %}
+  {% if sv %}{% set TM = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'] %}
   <div class="card">
     <h2 class="h3d"><img src="/static/images/home3d/f_bank.png" alt="" aria-hidden="true">เงินออม</h2>
-    <div class="stats"><div class="stat ok"><span>ยอดคงเหลือ</span><b>{{ "{:,.2f}".format(sv.bal) }}</b> <span style="display:inline">บาท</span></div></div>
+    <div class="stats"><div class="stat ok"><span>ยอดคงเหลือ</span><b>{{ "{:,.2f}".format(sv.bal) }}</b> <span style="display:inline">บาท</span></div>
+      <div class="stat"><span>ฝากเดือนนี้</span><b>{{ "{:,.2f}".format(sv.month_dep) }}</b> <span style="display:inline">บาท</span></div></div>
+    {% if tab == 'savings' %}
+    {% for g in sv.months %}{% set y, mo = g.ym.split('-') %}
+    <div style="margin-top:16px;border-radius:14px;background:#f8fafc;padding:12px 14px">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;align-items:baseline"><b style="font-size:16px">{{ TM[mo|int] }} {{ y|int + 543 }}</b>
+        <span style="font-size:13px;color:#64748b">ฝาก <b style="color:#059669">{{ "{:,.2f}".format(g.dep) }}</b>{% if g.wd %} ถอน <b style="color:#c2410c">{{ "{:,.2f}".format(g.wd) }}</b>{% endif %} คงเหลือ <b style="color:#0f172a">{{ "{:,.2f}".format(g.end) }}</b></span></div>
+      {% for h in g.rows %}<div style="display:flex;justify-content:space-between;margin-top:6px;font-size:14px"><span style="color:#64748b">{{ h.t.date[8:10]|int }} {{ TM[mo|int] }}</span><b style="color:{{ '#059669' if h.t.kind == 'dep' else '#c2410c' }}">{{ 'ฝาก' if h.t.kind == 'dep' else 'ถอน' }} {{ "{:,.2f}".format(h.t.amount) }}</b></div>{% endfor %}
+    </div>{% endfor %}
+    {% else %}
     {% for h in sv.hist %}<p style="margin:8px 0 0;font-size:14px"><b style="color:{{ '#059669' if h.t.kind == 'dep' else '#c2410c' }}">{{ 'ฝาก' if h.t.kind == 'dep' else 'ถอน' }} {{ "{:,.2f}".format(h.t.amount) }}</b> <span style="color:#64748b">{{ h.t.date[8:10]|int }}/{{ h.t.date[5:7] }}/{{ h.t.date[:4]|int + 543 }}</span></p>{% endfor %}
+    <a href="/student/savings" style="display:inline-block;margin-top:12px;padding:8px 16px;border-radius:999px;background:linear-gradient(135deg,#ede9fe,#e0e7ff);color:#4338ca;font-weight:700;font-size:14px;text-decoration:none">ดูทั้งหมดแยกรายเดือน ›</a>
+    {% endif %}
   </div>
+  {% elif tab == 'savings' %}<div class="card"><h2 class="h3d"><img src="/static/images/home3d/f_bank.png" alt="" aria-hidden="true">เงินออม</h2><p class="muted">ยังไม่มีรายการฝากเงิน</p></div>
   {% endif %}
 
   {% if att %}{% set o = att.overall %}

@@ -24,6 +24,30 @@ def _me(request, db):
     return school, row, (db.get(AcadClass, row.class_id) if row else None)
 
 
+def _savings(db, sid, months=False):
+    """เงินออมของนักเรียน: ยอดคงเหลือ ฝากเดือนนี้ 5 รายการล่าสุด และ (หน้าเต็ม) แยกรายเดือนใหม่สุดก่อน"""
+    try:
+        from app.services import savings
+        from app.thai_utils import thai_today
+        h = [x for x in savings.history(db, sid) if not x["t"].void]
+    except Exception:  # noqa: BLE001
+        return None
+    if not h:
+        return None
+    ym = thai_today().strftime("%Y-%m")
+    out = {"bal": h[-1]["bal"], "hist": list(reversed(h))[:5],
+           "month_dep": round(sum(x["t"].amount for x in h if x["t"].kind == "dep" and x["t"].date[:7] == ym), 2)}
+    if months:
+        groups = {}
+        for x in h:
+            g = groups.setdefault(x["t"].date[:7], {"ym": x["t"].date[:7], "dep": 0.0, "wd": 0.0, "rows": []})
+            g[x["t"].kind] = round(g[x["t"].kind] + x["t"].amount, 2)
+            g["end"] = x["bal"]
+            g["rows"].append(x)
+        out["months"] = [dict(g, rows=list(reversed(g["rows"]))) for g in sorted(groups.values(), key=lambda g: g["ym"], reverse=True)]
+    return out
+
+
 def _student_page(request, db, tab):
     school, row, klass = _me(request, db)
     if school is None:
@@ -37,6 +61,8 @@ def _student_page(request, db, tab):
             ctx["tt"] = sp.timetable(db, klass)
         if tab in ("home", "grades"):
             ctx["grades"] = sp.grades(db, row)
+        if tab == "savings":
+            ctx["sv"] = _savings(db, row.student_id, months=True)
         if tab == "home":
             # คะแนนความประพฤติ (งานบริหารทั่วไป) ดูอย่างเดียว อ้างจาก student_id ในบัญชีเท่านั้น
             try:
@@ -51,12 +77,7 @@ def _student_page(request, db, tab):
             except Exception:  # noqa: BLE001
                 ctx["bh"] = None
             # เงินออมธนาคารโรงเรียน ดูอย่างเดียว (แสดงเมื่อมีรายการ)
-            try:
-                from app.services import savings
-                h = [x for x in savings.history(db, row.student_id) if not x["t"].void]
-                ctx["sv"] = {"bal": h[-1]["bal"], "hist": list(reversed(h))[:5]} if h else None
-            except Exception:  # noqa: BLE001
-                ctx["sv"] = None
+            ctx["sv"] = _savings(db, row.student_id)
     ctx["mark_label"] = sp.MARK_LABEL
     return templates.TemplateResponse("student_home.html", ctx)
 
@@ -70,7 +91,7 @@ def student_home(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/student/{tab}", response_class=HTMLResponse)
 def student_tab(tab: str, request: Request, db: Session = Depends(get_db)):
-    if not request.session.get("student_id") or tab not in ("attendance", "timetable", "grades"):
+    if not request.session.get("student_id") or tab not in ("attendance", "timetable", "grades", "savings"):
         return RedirectResponse("/student", status_code=303)
     return _student_page(request, db, tab)
 
