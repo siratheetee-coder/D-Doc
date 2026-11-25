@@ -1,12 +1,11 @@
 {% extends "base.html" %}
 {% block title %}สถิติการมาเรียน{% endblock %}
 {% block content %}
-<div class="hero">
-  <div>
-    <div class="hero-sub">งานบริหารทั่วไป บันทึกการเข้าแถว</div>
+<div class="hero" style="background:linear-gradient(135deg,#0891b2,#4f46e5);">
+  <div style="display:flex;align-items:center;gap:14px;"><img src="/static/images/home3d/assembly.png" alt="" style="width:60px;height:60px;border-radius:16px;box-shadow:0 6px 16px rgba(0,0,0,.2);"><div>
     <span class="hero-title">สถิติการมาเรียน</span>
     <div class="hero-meta">{{ school.name or "" }} {{ df_be }} ถึง {{ dt_be }}{% if room %} ห้อง {{ room }}{% endif %}</div>
-  </div>
+  </div></div>
 </div>
 
 <div class="card">

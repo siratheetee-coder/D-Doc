@@ -3,14 +3,15 @@
 {% block content %}
 <link rel="stylesheet" href="/static/acad-page.css?v=1">
 <div class="ap-page">
-<div class="ap-head">
-  <img class="ap-art" src="/static/images/home3d/f_bank.png" width="64" height="64" alt="" aria-hidden="true">
-  <div class="ap-title"><h1>{{ stu.name }}</h1><p>ชั้น {{ cls }}{% if stu.student_no %} เลขประจำตัว {{ stu.student_no }}{% endif %}</p></div>
-  <div class="ap-acts">
-    <a class="ap-btn ap-soft" href="/general/savings"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a>
-    <a class="ap-btn ap-blue" href="/general/savings/s/{{ stu.id }}/print" target="_blank"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์สมุดคู่ฝาก</a>
-  </div>
+{% include "_gen_style.html" %}
+<div class="hero" style="background:linear-gradient(135deg,#0891b2,#4f46e5);">
+  <div style="display:flex;align-items:center;gap:14px;"><img src="/static/images/home3d/f_bank.png" alt="" style="width:60px;height:60px;border-radius:16px;box-shadow:0 6px 16px rgba(0,0,0,.2);"><div>
+    <span class="hero-title">{{ stu.name }}</span>
+    <div class="hero-meta">ชั้น {{ cls }}{% if stu.student_no %} เลขประจำตัว {{ stu.student_no }}{% endif %}</div>
+  </div></div>
 </div>
+<div class="as-top"><span class="grow"></span><div class="as-prints"><a class="btn sm soft" href="/general/savings"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a>
+    <a class="btn sm" href="/general/savings/s/{{ stu.id }}/print" target="_blank"><svg class="icon"><use href="#ic-file"/></svg> พิมพ์สมุดคู่ฝาก</a></div></div>
 {% if msg %}<div class="alert">{{ msg }}</div>{% endif %}
 
 <div class="sv-stat"><span>ยอดคงเหลือ</span><b>{{ "{:,.2f}".format(bal) }}</b> บาท</div>

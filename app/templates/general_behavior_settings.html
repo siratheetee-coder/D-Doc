@@ -3,11 +3,14 @@
 {% block content %}
 <link rel="stylesheet" href="/static/acad-page.css?v=1">
 <div class="ap-page">
-<div class="ap-head">
-  <img class="ap-art" src="/static/images/home3d/t_check.png" width="64" height="64" alt="" aria-hidden="true">
-  <div class="ap-title"><h1>ตั้งกติกาคะแนนความประพฤติ</h1><p>ระเบียบ ศธ. ว่าด้วยการลงโทษนักเรียน พ.ศ. 2548 ข้อ 9 ให้แต่ละโรงเรียนกำหนดเอง</p></div>
-  <div class="ap-acts"><a class="ap-btn ap-soft" href="/general/behavior">← กลับ</a></div>
+{% include "_gen_style.html" %}
+<div class="hero" style="background:linear-gradient(135deg,#0891b2,#4f46e5);">
+  <div style="display:flex;align-items:center;gap:14px;"><img src="/static/images/home3d/t_check.png" alt="" style="width:60px;height:60px;border-radius:16px;box-shadow:0 6px 16px rgba(0,0,0,.2);"><div>
+    <span class="hero-title">ตั้งกติกาคะแนนความประพฤติ</span>
+    <div class="hero-meta">ระเบียบ ศธ. ว่าด้วยการลงโทษนักเรียน พ.ศ. 2548 ข้อ 9 ให้แต่ละโรงเรียนกำหนดเอง</div>
+  </div></div>
 </div>
+<div class="as-top"><span class="grow"></span><div class="as-prints"><a class="btn sm soft" href="/general/behavior"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a></div></div>
 {% if msg %}<div class="alert">{{ msg }}</div>{% endif %}
 
 <form method="post" action="/general/behavior/settings">

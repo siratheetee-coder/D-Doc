@@ -3,11 +3,14 @@
 {% block content %}
 <link rel="stylesheet" href="/static/acad-page.css?v=1">
 <div class="ap-page">
-<div class="ap-head">
-  <img class="ap-art" src="/static/images/home3d/f_bank.png" width="64" height="64" alt="" aria-hidden="true">
-  <div class="ap-title"><h1>ปิดยอดรายเดือน</h1><p>เดือนที่ปิดแล้ว บันทึกหรือยกเลิกรายการย้อนหลังไม่ได้ เปิดคืนได้เฉพาะไอดีหลัก</p></div>
-  <div class="ap-acts"><a class="ap-btn ap-soft" href="/general/savings"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a></div>
+{% include "_gen_style.html" %}
+<div class="hero" style="background:linear-gradient(135deg,#0891b2,#4f46e5);">
+  <div style="display:flex;align-items:center;gap:14px;"><img src="/static/images/home3d/f_bank.png" alt="" style="width:60px;height:60px;border-radius:16px;box-shadow:0 6px 16px rgba(0,0,0,.2);"><div>
+    <span class="hero-title">ปิดยอดรายเดือน</span>
+    <div class="hero-meta">เดือนที่ปิดแล้ว บันทึกหรือยกเลิกรายการย้อนหลังไม่ได้ เปิดคืนได้เฉพาะไอดีหลัก</div>
+  </div></div>
 </div>
+<div class="as-top"><span class="grow"></span><div class="as-prints"><a class="btn sm soft" href="/general/savings"><svg class="icon"><use href="#ic-arrow-left"/></svg> กลับ</a></div></div>
 {% if msg %}<div class="alert">{{ msg }}</div>{% endif %}
 <div class="card">
   <table class="sv-tbl stack-sm">
