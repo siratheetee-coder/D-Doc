@@ -27,7 +27,13 @@ def _alert(level, title, reason, href, tag):
 
 def _procurement_alerts(db, today):
     out, drafts, waiting = [], 0, 0
+    # เรื่องจัดจ้างที่ผูกกับรอบอาหารกลางวัน ระบบสร้าง/เปลี่ยนสถานะให้เองตามรอบ (ร่าง = รอบที่วางแผนไว้ล่วงหน้า,
+    # อนุมัติ = จ้างแล้วกำลังตรวจรับ/เบิกรายงวด) งานค้างของรอบดูที่หน้าอาหารกลางวัน จึงไม่นับซ้ำในกระดิ่งพัสดุ
+    from app.models import LunchHireRound
+    lunch_ids = {i for (i,) in db.query(LunchHireRound.procurement_id).filter(LunchHireRound.procurement_id.isnot(None))}
     for p in db.query(Procurement).filter(Procurement.status.in_(["ร่าง", "อนุมัติ"])).all():
+        if p.id in lunch_ids:
+            continue
         if p.status == "ร่าง":
             drafts += 1
             continue

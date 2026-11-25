@@ -143,3 +143,15 @@ def test_capture_new_ui_and_update_preview(env):
         if os.environ.get('CONTRACT_CAPTURE'):
             out=Path(os.environ['CONTRACT_CAPTURE']);(out/('screen-'+n+'.html')).write_text(r.text,encoding='utf-8')
             (out/'fixture.json').write_text(json.dumps(dict(pid=pid)),encoding='utf-8')
+
+def test_lunch_round_procurements_not_counted_in_bell(db):
+    """เรื่องจัดจ้างของรอบอาหารกลางวัน (ร่าง = วางแผนล่วงหน้า, อนุมัติ = เบิกรายงวด) ไม่ขึ้นร่างค้าง/รอตรวจรับในกระดิ่ง"""
+    from app.services.nav import _procurement_alerts
+    for i in range(3):
+        lunch(db,procurement(db,status='ร่าง',order_no=f'L{i}',delivery_due_date=None))
+    lunch(db,procurement(db,status='อนุมัติ',order_no='LA',delivery_due_date=None))
+    titles=[a['title'] for a in _procurement_alerts(db,date(2026,11,7))]
+    assert not any('ร่างค้าง' in t or 'รอตรวจรับ' in t for t in titles)
+    procurement(db,status='ร่าง',order_no='X1')
+    titles=[a['title'] for a in _procurement_alerts(db,date(2026,11,7))]
+    assert 'ร่างค้าง 1 เรื่อง' in titles
