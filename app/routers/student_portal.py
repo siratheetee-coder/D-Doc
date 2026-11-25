@@ -53,7 +53,8 @@ def _student_page(request, db, tab):
     if school is None:
         return RedirectResponse("/login", status_code=303)
     ctx = {"request": request, "school": school, "row": row, "klass": klass, "tab": tab,
-           "name": request.session.get("name", ""), "off": not getattr(school, "student_portal", False)}
+           "name": (sp.student_name(db, row.student_id) if row else "") or request.session.get("name", ""),
+           "uname": request.session.get("username", ""), "off": not getattr(school, "student_portal", False)}
     if row and not ctx["off"]:
         if tab in ("home", "attendance"):
             ctx["att"] = sp.attendance(db, row)

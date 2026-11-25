@@ -16,8 +16,8 @@
   .wrap{max-width:860px;margin:14px auto 30px;padding:0 16px}
   .card{background:#fff;border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:0 4px 18px rgba(15,23,42,.06)}
   h2{margin:0 0 12px;font-size:18px}
-  .tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:14px}
-  .tabs a{padding:10px 4px 8px;border-radius:16px;background:#fff;color:#4338ca;text-decoration:none;font-size:13px;text-align:center;box-shadow:0 2px 8px rgba(15,23,42,.05)}
+  .tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-bottom:14px}
+  .tabs a{padding:10px 4px 8px;border-radius:16px;background:#fff;color:#4338ca;text-decoration:none;font-size:12px;text-align:center;box-shadow:0 2px 8px rgba(15,23,42,.05)}
   .tabs a{display:flex;flex-direction:column;align-items:center;gap:4px;white-space:nowrap}
   .tabs a img{width:36px;height:36px}
   .h3d{display:flex;align-items:center;gap:10px}
@@ -64,7 +64,7 @@
 </head>
 <body>
 <div class="top"><div class="in">
-  <div class="me"><img src="/static/images/academic3d/students.png" alt="" aria-hidden="true"><div><b style="font-size:18px">{{ name }}</b><br><small>นักเรียนและผู้ปกครองใช้ไอดีนี้ดูได้</small><br><small>{{ school.name if school else '' }}{% if klass %} ชั้น {{ klass.level }}{{ '/' ~ klass.room if klass.room }} ปีการศึกษา {{ klass.year }}{% endif %}</small></div></div>
+  <div class="me"><img src="/static/images/academic3d/students.png" alt="" aria-hidden="true"><div><b style="font-size:18px">{{ name }}</b><br><small>ไอดี {{ uname }} นักเรียนและผู้ปกครองใช้ดูได้</small><br><small>{{ school.name if school else '' }}{% if klass %} ชั้น {{ klass.level }}{{ '/' ~ klass.room if klass.room }} ปีการศึกษา {{ klass.year }}{% endif %}</small></div></div>
   <span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><a href="/account/password">เปลี่ยนรหัส</a><a href="/logout">ออกจากระบบ</a></span>
 </div></div>
 <div class="wrap">
@@ -78,6 +78,7 @@
     <a href="/student/attendance" class="{{ 'on' if tab=='attendance' }}"><img src="/static/images/home3d/t_check.png" alt="" aria-hidden="true">เวลาเรียน</a>
     <a href="/student/timetable" class="{{ 'on' if tab=='timetable' }}"><img src="/static/images/home3d/calendar.png" alt="" aria-hidden="true">ตารางเรียน</a>
     <a href="/student/grades" class="{{ 'on' if tab=='grades' }}"><img src="/static/images/home3d/myplans.png" alt="" aria-hidden="true">ผลการเรียน</a>
+    <a href="/student/savings" class="{{ 'on' if tab=='savings' }}"><img src="/static/images/home3d/f_bank.png" alt="" aria-hidden="true">เงินออม</a>
   </div>
 
   {% if bh and (bh.hist or tab == 'home') %}
