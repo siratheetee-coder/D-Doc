@@ -221,6 +221,7 @@
   .lk-tone-1 .lk-cover-fallback strong{ color:#d9461b; } .lk-tone-2 .lk-cover-fallback strong{ color:#0b7a52; }
   .lk-content{ display:flex; flex-direction:column; padding:16px 20px 18px; flex:1; }
   .lk-content h3{ font-size:20px; line-height:1.4; color:var(--navy); flex:1; overflow-wrap:anywhere; }
+  .lk-desc{ font-size:14px; color:var(--muted); margin-top:6px; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
   .lk-card-footer{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:14px; }
   .lk-tag{ display:inline-flex; align-items:center; gap:6px; background:#eef2f9; color:#33466b; font-size:13.5px; padding:4px 14px; border-radius:999px; }
   .lk-read{ display:inline-flex; align-items:center; gap:6px; color:var(--blue-deep); font-size:15px; font-weight:700; }
@@ -605,6 +606,7 @@
           </div>
           <div class="lk-content">
             <h3>{{ article.title }}</h3>
+            {% if article.description %}<p class="lk-desc">{{ article.description }}</p>{% endif %}
             <div class="lk-card-footer"><span class="lk-tag"><svg class="ico"><use href="#ic-box"/></svg> {{ article.category or 'งานโรงเรียน' }}</span><span class="lk-read">อ่านบทความ <svg class="ico"><use href="#ic-arrow-right"/></svg></span></div>
           </div>
         </a>
