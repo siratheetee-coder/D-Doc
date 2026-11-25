@@ -1,0 +1,43 @@
+{# เดาโหมดจากตัวเลขที่มีอยู่ ถ้าไม่ได้ส่ง tax_vat/tax_wht มา: ต้องมี amt_v vat_v wht_v #}
+{% if tax_vat is not defined %}{% set g_inc = ((amt_v or 0) / 1.07)|round(2) %}
+{% set tax_vat = 'none' if not vat_v else ('include' if ((amt_v or 0) - g_inc - vat_v)|abs < 0.02 else 'manual') %}{% endif %}
+{% if tax_wht is not defined %}{% set goods = (amt_v or 0) - (vat_v or 0) %}{% set ns = namespace(w='manual') %}
+{% if not wht_v %}{% set ns.w = '0' %}{% else %}{% for r in [1, 2, 3, 5] %}{% if (goods * r / 100 - wht_v)|abs < 0.02 %}{% set ns.w = r|string %}{% endif %}{% endfor %}{% endif %}
+{% set tax_wht = ns.w %}{% endif %}
+<div class="row tax-rates">
+  <div><label>ภาษีมูลค่าเพิ่ม</label>
+    <select data-vat-mode>
+      <option value="none" {{ 'selected' if tax_vat == 'none' }}>ไม่มี VAT</option>
+      <option value="include" {{ 'selected' if tax_vat == 'include' }}>ราคารวม VAT 7% แล้ว</option>
+      <option value="manual" {{ 'selected' if tax_vat not in ('none', 'include') }}>กรอกเอง</option>
+    </select></div>
+  <div><label>หักภาษี ณ ที่จ่าย</label>
+    <select data-wht-rate>
+      {% for r, t in [(0, 'ไม่หัก'), (1, '1% ค่าขนส่ง'), (2, '2% ค่าโฆษณา'), (3, '3% ค่าจ้าง/บริการ'), (5, '5% ค่าเช่า')] %}
+      <option value="{{ r }}" {{ 'selected' if tax_wht == r|string }}>{{ t }}</option>{% endfor %}
+      <option value="manual" {{ 'selected' if tax_wht not in ('0','1','2','3','5') }}>กรอกเอง</option>
+    </select></div>
+  <div style="flex:2;align-self:end;"><small class="muted">ระบบคิด VAT และภาษีหักให้จากยอดขอเบิก (ภาษีหักคิดจากยอดก่อน VAT) แก้ตัวเลขเองได้</small></div>
+</div>
+<script>
+(function(){
+  var box=document.currentScript.previousElementSibling,form=box.closest('form');
+  var vm=box.querySelector('[data-vat-mode]'),wr=box.querySelector('[data-wht-rate]');
+  function f(n){return form.querySelector('[name='+n+']');}
+  function r2(x){return Math.round(x*100)/100;}
+  function calc(){
+    var amt=f('amount'),vat=f('vat'),wht=f('wht');if(!amt||!vat||!wht)return;
+    var a=Number(amt.value)||0,goods=a;
+    if(vm.value==='include'){goods=r2(a/1.07);vat.value=r2(a-goods).toFixed(2);}
+    else if(vm.value==='none'){vat.value='0.00';}
+    else{goods=r2(a-(Number(vat.value)||0));}
+    if(wr.value!=='manual'){wht.value=r2(goods*Number(wr.value)/100).toFixed(2);}
+    wht.dispatchEvent(new Event('input',{bubbles:true}));
+  }
+  vm.addEventListener('change',calc);wr.addEventListener('change',calc);
+  form.addEventListener('input',function(e){
+    if(!e.isTrusted)return;var n=e.target.name;
+    if(n==='amount')calc();else if(n==='vat'){vm.value='manual';calc();}else if(n==='wht')wr.value='manual';
+  });
+})();
+</script>

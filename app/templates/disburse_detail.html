@@ -100,6 +100,7 @@
       <div><label>ชื่อเงินที่พิมพ์ในเอกสาร</label><input name="budget_source" value="{{ m.budget_source }}" placeholder="เช่น เงินอุดหนุน"></div>
     </div>
     {% if not lunch_source %}{% include "_disburse_splits.html" %}{% endif %}
+    {% with amt_v=m.amount, vat_v=m.vat, wht_v=m.wht %}{% include "_finance_tax_rates.html" %}{% endwith %}
     <div class="row">
       <div><label>ภาษีมูลค่าเพิ่ม (VAT)</label><input name="vat" type="number" step="0.01" value="{{ '%.2f'|format(m.vat or 0) }}"></div>
       <div class="wht-inline">{% set wht_value = m.wht or 0 %}{% include "_finance_wht_field.html" %}</div>

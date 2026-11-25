@@ -1015,6 +1015,10 @@ def disburse_page(request: Request, db: Session = Depends(get_db), proc: int | N
                 "date": p.inspect_date or p.request_date,
                 "item_id": None,
             }
+            _amt = float(prefill["amount"] or 0)
+            _goods = round(_amt / 1.07, 2) if p.vat_mode == "include" else _amt
+            prefill["vat"] = round(_amt - _goods, 2)
+            prefill["wht"] = round(_goods * float(p.wht_rate or 0) / 100, 2)
     elif travel:
         # ปุ่ม "ทำเรื่องเบิกค่าเดินทาง" ในใบขอไปราชการที่อนุมัติแล้ว: เติมชื่อครู เรื่อง ยอดเงินให้ เหลือเลือกโครงการ
         from app.models import TravelRequest

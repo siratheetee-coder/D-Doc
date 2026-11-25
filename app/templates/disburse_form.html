@@ -86,9 +86,10 @@
       <div><label>ชื่อเงินที่พิมพ์ในเอกสาร</label><input name="budget_source" value="{{ prefill.budget_source if prefill else '' }}" placeholder="เช่น เงินอุดหนุน"></div>
     </div>
     {% if not lunch_source %}{% include "_disburse_splits.html" %}{% endif %}
+    {% with amt_v=(prefill.amount if prefill else 0), vat_v=(prefill.vat if prefill else 0), wht_v=(prefill.wht if prefill else 0) %}{% include "_finance_tax_rates.html" %}{% endwith %}
     <div class="row">
-      <div><label>ภาษีมูลค่าเพิ่ม (VAT)</label><input name="vat" type="number" step="0.01" min="0" value="0"></div>
-      <div class="wht-inline">{% set wht_value = prefill.wht if lunch_source else 0 %}{% include "_finance_wht_field.html" %}</div>
+      <div><label>ภาษีมูลค่าเพิ่ม (VAT)</label><input name="vat" type="number" step="0.01" min="0" value="{{ '%.2f'|format(prefill.vat or 0) if prefill else '0' }}"></div>
+      <div class="wht-inline">{% set wht_value = (prefill.wht or 0) if prefill else 0 %}{% include "_finance_wht_field.html" %}</div>
       <div><label>ค่าปรับ</label><input name="fine" type="number" step="0.01" min="0" value="{{ prefill.fine if lunch_source else 0 }}"></div>
       <div><label>มูลค่าสินค้า / คงเหลือจ่ายจริง</label><input value="คำนวณให้อัตโนมัติในเอกสาร" disabled style="background:#f3f5f9;"></div>
     </div>
