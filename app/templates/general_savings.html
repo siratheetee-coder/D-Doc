@@ -2,39 +2,43 @@
 {% block title %}ธนาคารโรงเรียน{% endblock %}
 {% block content %}
 <link rel="stylesheet" href="/static/acad-page.css?v=1">
+{% include "_gen_style.html" %}
 <div class="ap-page">
-<div class="ap-head">
-  <img class="ap-art" src="/static/images/home3d/f_bank.png" width="64" height="64" alt="" aria-hidden="true">
-  <div class="ap-title"><h1>ธนาคารโรงเรียน</h1><p>เงินออมนักเรียน โรงเรียนเก็บเงินเอง ไม่ปนกับทะเบียนคุมเงินของโรงเรียน</p></div>
-  <div class="ap-acts">
-    <a class="ap-btn ap-soft" href="/general/savings/daily?date={{ day }}" target="_blank"><svg class="icon"><use href="#ic-file"/></svg> สรุปประจำวัน</a>
-    {% if is_staff %}<a class="ap-btn ap-soft" href="/general/savings/months"><svg class="icon"><use href="#ic-lock"/></svg> ปิดยอดรายเดือน</a>{% endif %}
+<div class="hero" style="background:linear-gradient(135deg,#0891b2,#4f46e5);">
+  <div style="display:flex;align-items:center;gap:14px;"><img src="/static/images/home3d/f_bank.png" alt="" style="width:60px;height:60px;border-radius:16px;box-shadow:0 6px 16px rgba(0,0,0,.2);"><div>
+    <span class="hero-title">ธนาคารโรงเรียน</span>
+    <div class="hero-meta">กรอกฝาก/ถอนทั้งห้อง โรงเรียนเก็บเงินเอง ไม่ปนกับทะเบียนคุมเงิน</div>
+  </div></div>
+</div>
+
+{% if msg %}<div class="alert" style="margin-top:14px;">{{ msg }}</div>{% endif %}
+
+<div class="as-top">
+  <form method="get" action="/general/savings">
+    {% if classes|length > 1 %}<select name="cid" onchange="this.form.submit()" aria-label="ห้อง">{% for k in classes %}<option value="{{ k.id }}" {{ 'selected' if c and k.id == c.id }}>ห้อง {{ class_label(k) }}</option>{% endfor %}</select>
+    {% elif c %}<input type="hidden" name="cid" value="{{ c.id }}"><b>ห้อง {{ class_label(c) }}</b>{% endif %}
+    {# กดที่วันที่ = เปิดปฏิทินเลือกวัน  ‹ › = วันก่อน/วันถัดไป #}
+    <div class="as-date">
+      <button type="button" class="as-nav sv-nav" data-step="-1" aria-label="วันก่อนหน้า">‹</button>
+      <label class="as-pick sv-cal"><svg class="icon"><use href="#ic-calendar"/></svg><span>{{ day_be }}</span>
+        <input type="date" name="date" value="{{ day }}" aria-label="เลือกวันที่" onchange="if(this.value)this.form.submit()"></label>
+      <button type="button" class="as-nav sv-nav" data-step="1" aria-label="วันถัดไป">›</button>
+    </div>
+  </form>
+  <span class="grow"></span>
+  <div class="as-prints">
+    <a class="btn sm" href="/general/savings/daily?date={{ day }}" target="_blank" rel="noopener"><svg class="icon"><use href="#ic-file"/></svg> สรุปประจำวัน</a>
+    {% if is_staff %}<a class="btn sm soft" href="/general/savings/months"><svg class="icon"><use href="#ic-lock"/></svg> ปิดยอดรายเดือน</a>{% endif %}
   </div>
 </div>
 
-{% if msg %}<div class="alert">{{ msg }}</div>{% endif %}
-
-{% if school_bal is not none %}
-<div class="sv-stats">
-  <div class="sv-stat"><span>เงินออมคงเหลือทั้งโรงเรียน</span><b>{{ "{:,.2f}".format(school_bal) }}</b></div>
-</div>
-{% endif %}
-
-<div class="card sv-tools">
-  <form method="get" action="/general/savings" class="sv-pick">
-    <div><label>ห้อง</label>
-      <select name="cid" onchange="this.form.submit()" aria-label="เลือกห้อง">
-        {% for k in classes %}<option value="{{ k.id }}" {{ 'selected' if c and k.id == c.id }}>{{ class_label(k) }}</option>{% endfor %}
-      </select></div>
-    <div><label>วันที่</label>
-      {# กดที่วันที่ = เปิดปฏิทินเลือกวัน  ‹ › = วันก่อน/วันถัดไป #}
-      <div class="sv-date">
-        <button type="button" class="sv-nav" data-step="-1" aria-label="วันก่อนหน้า">‹</button>
-        <label class="sv-cal"><svg class="icon"><use href="#ic-calendar"/></svg><span>{{ day_be }}</span>
-          <input type="date" name="date" value="{{ day }}" aria-label="เลือกวันที่" onchange="if(this.value)this.form.submit()"></label>
-        <button type="button" class="sv-nav" data-step="1" aria-label="วันถัดไป">›</button>
-      </div></div>
-  </form>
+<div class="as-sum {{ 'c4' if school_bal is not none else 'c3' }}">
+  {% if school_bal is not none %}<div class="as-card" style="--t:#60a5fa;--b:#2563eb;--sh:rgba(37,99,235,.3)"><i><svg class="icon"><use href="#ic-coins"/></svg></i><div><b>{{ "{:,.2f}".format(school_bal) }}</b><span>คงเหลือทั้งโรงเรียน</span></div></div>{% endif %}
+  {% if c %}
+  <div class="as-card" style="--t:#2dd4bf;--b:#0d9488;--sh:rgba(13,148,136,.3)"><i><svg class="icon"><use href="#ic-layers"/></svg></i><div><b>{{ "{:,.2f}".format(room_bal) }}</b><span>คงเหลือห้องนี้</span></div></div>
+  <div class="as-card" style="--t:#4ade80;--b:#16a34a;--sh:rgba(22,163,74,.3)"><i><svg class="icon"><use href="#ic-plus"/></svg></i><div><b>{{ "{:,.2f}".format(room_dep) }}</b><span>ฝากวันนี้</span></div></div>
+  <div class="as-card" style="--t:#fdba74;--b:#ea580c;--sh:rgba(234,88,12,.3)"><i><svg class="icon"><use href="#ic-outbox"/></svg></i><div><b>{{ "{:,.2f}".format(room_wd) }}</b><span>ถอนวันนี้</span></div></div>
+  {% endif %}
 </div>
 
 {% if c %}
@@ -43,7 +47,6 @@
   <input type="hidden" name="back" value="/general/savings?cid={{ c.id }}&date={{ day }}">
   <div class="sv-head">
     <h2 class="ap-h2">ห้อง {{ class_label(c) }} <small class="muted">{{ rows|length }} คน วันที่ {{ day_be }}</small></h2>
-    <div class="sv-room">คงเหลือทั้งห้อง <b>{{ "{:,.2f}".format(room_bal) }}</b></div>
   </div>
   {% if locked %}<div class="alert">เดือนนี้ปิดยอดแล้ว ดูได้อย่างเดียว</div>{% endif %}
   {% if missing %}<p class="muted">มีนักเรียน {{ missing }} คนที่ยังไม่ผูกทะเบียนนักเรียน</p>{% endif %}

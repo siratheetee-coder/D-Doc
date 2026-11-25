@@ -3,37 +3,45 @@
 {% block content %}
 <link rel="stylesheet" href="/static/acad-page.css?v=1">
 <div class="ap-page">
-<div class="ap-head">
-  <img class="ap-art" src="/static/images/home3d/t_check.png" width="64" height="64" alt="" aria-hidden="true">
-  <div class="ap-title"><h1>คะแนนความประพฤติ</h1><p>ปีการศึกษา {{ year }} คะแนนเต็ม {{ bst.full }} เริ่มใหม่ทุกปีการศึกษา</p></div>
-  <div class="ap-acts">
-    {% if is_staff %}<a class="ap-btn ap-soft" href="/general/behavior/settings"><svg class="icon"><use href="#ic-settings"/></svg> ตั้งกติกา</a>{% endif %}
-  </div>
+{% include "_gen_style.html" %}
+<div class="hero" style="background:linear-gradient(135deg,#0891b2,#4f46e5);">
+  <div style="display:flex;align-items:center;gap:14px;"><img src="/static/images/home3d/t_check.png" alt="" style="width:60px;height:60px;border-radius:16px;box-shadow:0 6px 16px rgba(0,0,0,.2);"><div>
+    <span class="hero-title">คะแนนความประพฤติ</span>
+    <div class="hero-meta">ปีการศึกษา {{ year }} คะแนนเต็ม {{ bst.full }} เริ่มใหม่ทุกปีการศึกษา</div>
+  </div></div>
 </div>
 
-{% if msg %}<div class="alert">{{ msg }}</div>{% endif %}
+{% if msg %}<div class="alert" style="margin-top:14px;">{{ msg }}</div>{% endif %}
 
-<div class="card bh-tools">
-  <form method="get" action="/general/behavior" class="bh-pick">
-    <label>ห้อง</label>
+<div class="as-top">
+  <form method="get" action="/general/behavior">
     <select name="cid" onchange="this.form.submit()" aria-label="เลือกห้อง">
-      {% for k in classes %}<option value="{{ k.id }}" {{ 'selected' if c and k.id == c.id }}>{{ class_label(k) }}{{ ' (ห้องของฉัน)' if k.id in mine_ids }}</option>{% endfor %}
+      {% for k in classes %}<option value="{{ k.id }}" {{ 'selected' if c and k.id == c.id }}>ห้อง {{ class_label(k) }}{{ ' (ห้องของฉัน)' if k.id in mine_ids }}</option>{% endfor %}
     </select>
   </form>
-  <div class="bh-find">
-    <label>ค้นหานักเรียนทั้งโรงเรียน</label>
-    <select id="bhFind" aria-label="ค้นหานักเรียน" data-combo data-combo-placeholder="พิมพ์ชื่อหรือเลขประจำตัว">
+  <div class="bh-find as-grow">
+    <select id="bhFind" aria-label="ค้นหานักเรียน" data-combo data-combo-placeholder="ค้นหานักเรียนทั้งโรงเรียน พิมพ์ชื่อหรือเลขประจำตัว">
       <option value=""></option>
       {% for s in students %}<option value="{{ s.id }}" data-cp-sub="{{ s.cls }}">{{ s.name }}{% if s.no %} ({{ s.no }}){% endif %}</option>{% endfor %}
     </select>
   </div>
+  <span class="grow"></span>
+  {% if is_staff %}<div class="as-prints"><a class="btn sm soft" href="/general/behavior/settings"><svg class="icon"><use href="#ic-settings"/></svg> ตั้งกติกา</a></div>{% endif %}
 </div>
+
+{% if c and rows %}{% set lv = rows|map(attribute='level')|list %}
+<div class="as-sum c4">
+  <div class="as-card" style="--t:#4ade80;--b:#16a34a;--sh:rgba(22,163,74,.3)"><i><svg class="icon"><use href="#ic-check"/></svg></i><div><b>{{ lv|select('equalto','ok')|list|length }}</b><span>ปกติ</span></div></div>
+  <div class="as-card" style="--t:#fcd34d;--b:#d97706;--sh:rgba(217,119,6,.3)"><i><svg class="icon"><use href="#ic-users"/></svg></i><div><b>{{ lv|select('equalto','parent')|list|length }}</b><span>ต่ำกว่า {{ bst.warn_parent }} เชิญผู้ปกครอง</span></div></div>
+  <div class="as-card" style="--t:#f87171;--b:#dc2626;--sh:rgba(220,38,38,.3)"><i><svg class="icon"><use href="#ic-alert"/></svg></i><div><b>{{ lv|select('equalto','probation')|list|length }}</b><span>ต่ำกว่า {{ bst.warn_probation }} ทัณฑ์บน</span></div></div>
+  <div class="as-card" style="--t:#c4b5fd;--b:#7c3aed;--sh:rgba(124,58,237,.3)"><i><svg class="icon"><use href="#ic-star"/></svg></i><div><b>{{ "%.1f"|format((rows|sum(attribute='score')) / rows|length) }}</b><span>คะแนนเฉลี่ยห้อง</span></div></div>
+</div>
+{% endif %}
 
 {% if c %}
 <div class="card">
   <div class="bh-head">
     <h2 class="ap-h2">ห้อง {{ class_label(c) }} <small class="muted">{{ rows|length }} คน</small></h2>
-    <div class="bh-legend"><span class="lv-ok">ปกติ</span><span class="lv-parent">ต่ำกว่า {{ bst.warn_parent }} เชิญผู้ปกครอง</span><span class="lv-probation">ต่ำกว่า {{ bst.warn_probation }} ทัณฑ์บน</span></div>
   </div>
   {% if rows %}
   <p class="muted bh-tip">กดที่ชื่อเพื่อดูประวัติ ติ๊กหลายคนแล้วกด "บันทึกคะแนน" เพื่อบันทึกพร้อมกัน</p>

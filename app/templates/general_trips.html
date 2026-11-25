@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block title %}ทัศนศึกษา{% endblock %}
 {% block content %}
-<div class="hero">
+{% include "_gen_style.html" %}
+<div class="hero" style="background:linear-gradient(135deg,#0891b2,#4f46e5);">
   <div style="display:flex;align-items:center;gap:14px;"><img src="/static/images/home3d/trip.png" alt="" style="width:60px;height:60px;border-radius:16px;box-shadow:0 6px 16px rgba(0,0,0,.2);flex:none;"><div>
     <div class="hero-sub">งานบริหารทั่วไป</div>
     <span class="hero-title">ทัศนศึกษา / พานักเรียนไปนอกสถานศึกษา</span>
@@ -10,6 +11,14 @@
   <form method="post" action="/general/trips/new" style="margin:0;">
     <button class="btn" type="submit"><svg class="icon"><use href="#ic-plus"/></svg> เพิ่มการไปทัศนศึกษา</button>
   </form>
+</div>
+
+{% set st = rows|map(attribute='t')|map(attribute='status')|list %}
+<div class="as-sum c4" style="margin-top:14px">
+  <div class="as-card" style="--t:#60a5fa;--b:#2563eb;--sh:rgba(37,99,235,.3)"><i><svg class="icon"><use href="#ic-clipboard"/></svg></i><div><b>{{ rows|length }}</b><span>ทั้งหมด</span></div></div>
+  <div class="as-card" style="--t:#fcd34d;--b:#d97706;--sh:rgba(217,119,6,.3)"><i><svg class="icon"><use href="#ic-clock"/></svg></i><div><b>{{ st|select('in',['draft','requested'])|list|length }}</b><span>ร่าง/รออนุญาต</span></div></div>
+  <div class="as-card" style="--t:#4ade80;--b:#16a34a;--sh:rgba(22,163,74,.3)"><i><svg class="icon"><use href="#ic-check"/></svg></i><div><b>{{ st|select('in',['approved','done'])|list|length }}</b><span>ได้รับอนุญาต</span></div></div>
+  <div class="as-card" style="--t:#c4b5fd;--b:#7c3aed;--sh:rgba(124,58,237,.3)"><i><svg class="icon"><use href="#ic-file"/></svg></i><div><b>{{ st|select('equalto','reported')|list|length }}</b><span>รายงานผลแล้ว</span></div></div>
 </div>
 
 <div class="card">
