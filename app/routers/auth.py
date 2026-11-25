@@ -85,9 +85,13 @@ def landing_page(request: Request, ref: str = "", utm_source: str = ""):
     published = _articles.all_articles()
     # Use the public library order and the same thumbnail metadata.
     preview = published[:3]
+    # ปุ่ม "ดูวิดีโอแนะนำ" ใช้คลิปจากหน้าวิธีใช้งาน (intro ก่อน ถ้าว่างใช้คลิปแรกที่มี)
+    from app.routers.pages import _guide_videos
+    vids = _guide_videos()
+    video_id = vids.get("intro") or next(iter(vids.values()), "")
     resp = templates.TemplateResponse("landing.html", {"request": request, "sandbox_msg": msg,
                                                        "live": landing_stats(), "site_url": site_url(),
-                                                       "kb_count": len(published), "kb_preview": preview,
+                                                       "kb_count": len(published), "kb_preview": preview, "video_id": video_id,
                                                        **pricing_context()})
     return _remember_ref(resp, ref or utm_source)
 

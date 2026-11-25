@@ -41,534 +41,325 @@
 </script>
 <link rel="icon" href="/static/favicon-ekkasan.png">
 <style>
-  /* ===== ฟอนต์ Prompt (ชุดเดียวกับเว็บหลัก base.html) ===== */
-  @font-face { font-family: "Prompt"; font-weight: 400; font-display: swap;
-               src: url("/static/fonts/Prompt-Regular.ttf") format("truetype"); }
-  @font-face { font-family: "Prompt"; font-weight: 500; font-display: swap;
-               src: url("/static/fonts/Prompt-Medium.ttf") format("truetype"); }
-  @font-face { font-family: "Prompt"; font-weight: 600; font-display: swap;
-               src: url("/static/fonts/Prompt-SemiBold.ttf") format("truetype"); }
-  @font-face { font-family: "Prompt"; font-weight: 700; font-display: swap;
-               src: url("/static/fonts/Prompt-Bold.ttf") format("truetype"); }
-  @font-face { font-family: "Prompt"; font-weight: 800; font-display: swap;
-               src: url("/static/fonts/Prompt-Bold.ttf") format("truetype"); }
+  @font-face { font-family: "Prompt"; font-weight: 400; font-display: swap; src: url("/static/fonts/Prompt-Regular.ttf") format("truetype"); }
+  @font-face { font-family: "Prompt"; font-weight: 500; font-display: swap; src: url("/static/fonts/Prompt-Medium.ttf") format("truetype"); }
+  @font-face { font-family: "Prompt"; font-weight: 600; font-display: swap; src: url("/static/fonts/Prompt-SemiBold.ttf") format("truetype"); }
+  @font-face { font-family: "Prompt"; font-weight: 700; font-display: swap; src: url("/static/fonts/Prompt-Bold.ttf") format("truetype"); }
 
   :root{
-    --blue:#2563eb; --blue-deep:#1d4ed8; --navy:#0b2a6b;
+    --blue:#2563eb; --blue-deep:#1d4ed8; --navy:#0b2a6b; --indigo:#4f46e5; --cyan:#06b6d4;
     --ink:#0f172a; --muted:#5b6b84; --line:#e6ebf3;
-    --bg-soft:#f6f9fd; --yellow:#fbbf24; --sky:#7dd3fc; --green:#22c55e;
+    --soft-blue:#f2f7ff; --soft-violet:#f6f3ff; --green:#16a34a;
+    --grad:linear-gradient(110deg,#06b6d4 0%,#3b82f6 45%,#6366f1 100%);
+    --shadow:0 12px 34px rgba(30,58,138,.08);
   }
   *{ margin:0; padding:0; box-sizing:border-box; }
   html{ scroll-behavior:smooth; }
-  /* กันเนื้อหาโดน navbar (sticky 70px) บังตอนกดลิงก์ #anchor + กันรูปหัวโผล่ดันจอเลื่อนข้าง */
+  html, body{ overflow-x:hidden; }
   section[id]{ scroll-margin-top:84px; }
-  body{ overflow-x:hidden; }
-  body{ font-family: "Prompt", "Sarabun", "Leelawadee UI", "Segoe UI", system-ui,
-                     -apple-system, "Noto Sans Thai", sans-serif;
+  body{ font-family:"Prompt","Sarabun","Leelawadee UI","Segoe UI",system-ui,-apple-system,"Noto Sans Thai",sans-serif;
         color:var(--ink); background:#fff; line-height:1.65; }
   a{ text-decoration:none; color:inherit; }
   img{ max-width:100%; display:block; }
-  .wrap{ max-width:1140px; margin:0 auto; padding:0 24px; }
+  .wrap{ max-width:1180px; margin:0 auto; padding:0 24px; }
   section{ position:relative; }
+  .ico{ width:1em; height:1em; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; vertical-align:-0.125em; flex:none; }
+  .grad-text{ background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
 
-  /* ---------- ไอคอน ---------- */
-  .ico{ width:1em; height:1em; fill:none; stroke:currentColor; stroke-width:2;
-        stroke-linecap:round; stroke-linejoin:round; vertical-align:-0.125em; flex:none; }
-
-  /* ---------- ปุ่ม ---------- */
-  .btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; border-radius:999px;
-        padding:12px 26px; font-size:15px; font-weight:600; cursor:pointer;
-        border:0; transition:.18s; white-space:nowrap; font-family:inherit; line-height:1.2; }
-  .btn-primary{ background:var(--blue); color:#fff; box-shadow:0 8px 20px rgba(37,99,235,.28); }
-  .btn-primary:hover{ background:var(--blue-deep); transform:translateY(-2px); }
-  .btn-ghost{ background:transparent; color:var(--ink); border:1.5px solid var(--line); }
+  /* ปุ่ม */
+  .btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; border-radius:999px; padding:12px 24px;
+        font-size:15px; font-weight:600; cursor:pointer; border:0; transition:.18s; white-space:nowrap; font-family:inherit; line-height:1.2; }
+  .btn-primary{ background:var(--grad); color:#fff; box-shadow:0 10px 22px rgba(59,130,246,.28); }
+  .btn-primary:hover{ transform:translateY(-2px); box-shadow:0 14px 28px rgba(79,70,229,.3); }
+  .btn-ghost{ background:#fff; color:var(--navy); border:1.5px solid #d7e1f0; }
   .btn-ghost:hover{ border-color:var(--blue); color:var(--blue); }
   .btn-white{ background:#fff; color:var(--blue-deep); }
   .btn-white:hover{ transform:translateY(-2px); }
-  .btn-try{ background:linear-gradient(120deg,#ea580c,#f59e0b); color:#fff; box-shadow:0 8px 20px rgba(234,88,12,.28); }
-  .btn-try:hover{ transform:translateY(-2px); box-shadow:0 10px 24px rgba(234,88,12,.36); }
-  .btn-try[disabled]{ opacity:.75; cursor:wait; transform:none; }
+  .btn[disabled]{ opacity:.75; cursor:wait; transform:none; }
   .try-form{ display:contents; }
-  .try-note{ flex-basis:100%; margin:-6px 0 0; font-size:13.5px; color:var(--muted, #64748b); }
-  .try-msg{ flex-basis:100%; padding:10px 14px; border-radius:12px; font-size:14px; line-height:1.6;
-            background:linear-gradient(120deg,#fff7ed,#ffedd5); color:#9a3412; }
-  .btn-play{ background:transparent; color:var(--ink); font-weight:600; }
-  .btn-play .ic{ width:40px; height:40px; border-radius:50%; border:1.5px solid var(--line);
-                 display:inline-flex; align-items:center; justify-content:center; color:var(--blue); }
-  .btn-play:hover .ic{ border-color:var(--blue); }
+  .try-note{ flex-basis:100%; font-size:13px; color:var(--muted); }
+  .try-msg{ flex-basis:100%; padding:10px 14px; border-radius:12px; font-size:14px; background:linear-gradient(120deg,#fff7ed,#ffedd5); color:#9a3412; }
 
-  /* ---------- แถบนำทาง ---------- */
-  header{ position:sticky; top:0; z-index:50; background:rgba(255,255,255,.92);
-          backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
-  .nav{ display:flex; align-items:center; justify-content:space-between; height:70px; }
-  .brand{ display:flex; align-items:center; gap:10px; font-size:21px; font-weight:700; }
-  .brand img{ height:36px; }
+  /* เมนูบน */
+  header{ position:sticky; top:0; z-index:50; background:rgba(255,255,255,.94); backdrop-filter:blur(10px); box-shadow:0 1px 0 var(--line); }
+  .nav{ display:flex; align-items:center; justify-content:space-between; height:72px; gap:16px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-size:21px; font-weight:700; color:var(--navy); white-space:nowrap; }
+  .brand img{ height:38px; }
   .brand b{ color:var(--blue); }
-  .nav-links{ display:flex; gap:30px; font-size:14.5px; color:var(--muted); font-weight:500; }
+  .nav-links{ display:flex; gap:30px; font-size:15px; color:#334a6d; font-weight:500; }
   .nav-links a:hover{ color:var(--blue); }
   .nav-cta{ display:flex; gap:10px; align-items:center; }
   .nav-cta .btn{ padding:9px 20px; font-size:14px; }
 
-  /* ---------- ฮีโร่ ---------- */
-  .hero{ padding:64px 0 0; overflow:hidden; }
-  .hero-grid{ display:grid; grid-template-columns:1.05fr .95fr; gap:40px; align-items:center; }
-  .chip{ display:inline-flex; align-items:center; gap:8px; background:#eef4ff; color:var(--blue-deep);
-         font-size:13.5px; font-weight:600; border-radius:999px; padding:7px 16px; margin-bottom:18px; }
-  h1{ font-size:52px; line-height:1.18; font-weight:700; letter-spacing:-.5px; }
-  h1 .hl{ color:var(--blue); }
-  .hero p.lead{ margin:18px 0 26px; color:var(--muted); font-size:17px; max-width:34em; }
-  .hero-actions{ display:flex; gap:18px; align-items:center; flex-wrap:wrap; }
-  .hero-stats{ display:flex; gap:44px; margin:40px 0 34px; flex-wrap:wrap; }
-  .stat b{ font-size:26px; font-weight:700; }
-  .stat b em{ color:var(--yellow); font-style:normal; }
-  .stat span{ display:block; font-size:13.5px; color:var(--muted); }
-  .live{ margin:-14px 0 30px; padding:12px 18px; border-radius:14px; width:fit-content; max-width:100%;
-         background:linear-gradient(120deg,#ecfdf5,#eff6ff); }
+  /* ส่วนเปิดหน้า */
+  .hero{ padding:56px 0 30px; background:
+          radial-gradient(900px 420px at 85% 10%, #eaf2ff 0, transparent 70%),
+          radial-gradient(700px 380px at 0% 90%, #f3efff 0, transparent 70%); }
+  .hero-grid{ display:grid; grid-template-columns:.95fr 1.05fr; gap:44px; align-items:center; }
+  .chip{ display:inline-flex; align-items:center; gap:8px; background:#eaf2ff; color:var(--blue-deep); font-size:13.5px; font-weight:600;
+         border-radius:999px; padding:7px 16px; margin-bottom:18px; }
+  h1{ font-size:44px; line-height:1.25; font-weight:700; letter-spacing:-.5px; color:var(--navy); }
+  h1 span{ display:block; }
+  .lead{ margin:18px 0 26px; color:var(--muted); font-size:17px; max-width:31em; }
+  .hero-actions{ display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+  .hero-actions .btn{ padding:14px 26px; font-size:16px; }
+  .play-ic{ width:26px; height:26px; border-radius:50%; background:#eaf2ff; color:var(--blue); display:inline-flex; align-items:center; justify-content:center; }
+  .play-ic .ico{ width:11px; height:11px; }
+  .live{ margin-top:22px; padding:12px 18px; border-radius:14px; width:fit-content; max-width:100%; background:linear-gradient(120deg,#ecfdf5,#eff6ff); }
   .live-tag{ display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; color:#047857; }
-  .live-tag i{ width:8px; height:8px; border-radius:50%; background:#10b981; box-shadow:0 0 0 0 rgba(16,185,129,.6);
-               animation:livePulse 1.8s infinite; }
-  @keyframes livePulse{ 0%{ box-shadow:0 0 0 0 rgba(16,185,129,.55); } 70%{ box-shadow:0 0 0 8px rgba(16,185,129,0); }
-                        100%{ box-shadow:0 0 0 0 rgba(16,185,129,0); } }
-  .live-txt{ margin-top:3px; font-size:15px; color:var(--ink); line-height:1.6; }
+  .live-tag i{ width:8px; height:8px; border-radius:50%; background:#10b981; }
+  .live-txt{ margin-top:3px; font-size:15px; line-height:1.6; }
   .live-txt span{ white-space:nowrap; }
-  .live-txt .dot{ color:var(--muted); }
   .live-txt b{ font-size:18px; color:var(--blue-deep); }
 
-  /* ซุ้มโค้ง + รูปครู */
-  .stage{ position:relative; padding:12px 8px 0; }
-  /* กรอบแบบหัวโผล่: รูปอยู่นอกซุ้ม (ไม่ถูก clip ด้านบน) ชิดขอบล่างซุ้ม */
-  .pop{ position:relative; width:min(400px,88%); margin:0 auto; }
-  .pop .arch{ width:100%; }
-  .photo-pop{ position:absolute; bottom:0; left:50%; transform:translateX(-50%);
-              width:100%; max-width:none; height:auto; z-index:2; border-radius:0 0 26px 26px;
-              filter:drop-shadow(0 18px 30px rgba(11,42,107,.28)); }
-  /* รูปท่าชี้นิ้ว: หัวอยู่กึ่งกลางซุ้ม (โผล่พ้นโดม) มือชี้ยื่นออกนอกกรอบไปทางข้อความ */
-  .photo-pop.pp-point{ width:136%; left:auto; right:-3.9%; transform:none; }
-  .arch{ position:relative; width:min(400px,88%); margin:0 auto; aspect-ratio:4/5;
-         border-radius:999px 999px 26px 26px; overflow:hidden;
-         background:
-           radial-gradient(circle at 22% 18%, rgba(255,255,255,.16) 0 2px, transparent 2.6px),
-           radial-gradient(circle at 68% 34%, rgba(255,255,255,.13) 0 2px, transparent 2.6px),
-           radial-gradient(circle at 40% 62%, rgba(255,255,255,.10) 0 2px, transparent 2.6px),
-           linear-gradient(160deg,#3b82f6 0%,#1d4ed8 60%,#0b2a6b 130%);
-         background-size:90px 90px,120px 120px,70px 70px,cover; }
-  .ph-note{ position:absolute; left:50%; bottom:14px; transform:translateX(-50%); z-index:3;
-            background:rgba(255,255,255,.16); border:1px dashed rgba(255,255,255,.55); color:#fff;
-            font-size:11.5px; padding:5px 12px; border-radius:8px; white-space:nowrap; backdrop-filter:blur(3px); }
-  /* มีรูปจริงเมื่อไหร่ ป้ายบอกตำแหน่งวางไฟล์จะหายเอง (ถ้ารูปหาย onerror ลบ img ป้ายกลับมา) */
-  .pop img.photo-pop ~ .ph-note{ display:none; }
+  .shot{ position:relative; padding:20px 26px 40px 10px; }
+  .browser{ position:relative; z-index:2; background:#fff; border-radius:16px; overflow:hidden;
+            box-shadow:0 30px 70px rgba(30,58,138,.18), 0 0 0 1px rgba(15,23,42,.05); }
+  .browser-bar{ display:flex; align-items:center; gap:7px; padding:10px 14px; background:#f3f6fb; }
+  .browser-bar i{ width:10px; height:10px; border-radius:50%; background:#ff6b6b; }
+  .browser-bar i:nth-child(2){ background:#fbbf24; } .browser-bar i:nth-child(3){ background:#34d399; }
+  .browser-bar span{ flex:1; margin-left:10px; background:#fff; border-radius:8px; font-size:11.5px; color:#8090a8; padding:3px 12px; }
+  .browser img{ width:100%; height:auto; }
+  .shot-school{ position:absolute; z-index:3; width:38%; left:-12%; bottom:-4%; filter:drop-shadow(0 16px 24px rgba(30,58,138,.22)); }
+  .shot-doc{ position:absolute; z-index:3; width:78px; right:0; top:-2%; filter:drop-shadow(0 12px 18px rgba(30,58,138,.2)); animation:float 5s ease-in-out infinite; }
+  .shot-note{ position:absolute; z-index:3; right:10px; bottom:6px; font-size:11.5px; color:var(--muted); background:rgba(255,255,255,.9); padding:3px 10px; border-radius:999px; }
+  @keyframes float{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-8px);} }
 
-  /* การ์ดลอย + จุดสี */
-  .float-card{ position:absolute; background:#fff; border-radius:14px; padding:12px 16px;
-               box-shadow:0 14px 34px rgba(15,23,42,.14); font-size:13px; font-weight:600;
-               animation:float 4.5s ease-in-out infinite; z-index:4; }
-  .float-card small{ display:block; font-weight:500; color:var(--muted); font-size:11.5px; }
-  .float-card .ico{ color:var(--blue); font-size:15px; }
-  .fc-1{ top:12%; left:-4%; animation-delay:.2s; }
-  .fc-2{ bottom:14%; right:0; animation-delay:1.4s; }
-  .fc-3{ bottom:8%; left:-8%; animation-delay:2.2s; }
-  /* การ์ดรอบรูปครูชี้นิ้ว (ส่วนฟีเจอร์) - วางเลี่ยงแนวมือที่ยื่นออกซ้ายช่วงกลางรูป */
-  .fc-a{ top:2%; left:-12%; animation-delay:.6s; }
-  .fc-b{ bottom:3%; left:-6%; animation-delay:1.8s; }
-  .fc-c{ top:20%; right:-7%; animation-delay:2.6s; }
-  .up{ color:var(--green); }
-  .dot{ position:absolute; border-radius:50%; animation:float 5s ease-in-out infinite; }
-  .d-y{ width:18px; height:18px; background:var(--yellow); top:6%; right:10%; }
-  .d-b{ width:13px; height:13px; background:var(--sky); top:32%; right:-2%; animation-delay:1s; }
-  .d-b2{ width:10px; height:10px; background:var(--blue); bottom:8%; left:2%; animation-delay:2s; }
-  @keyframes float{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-10px);} }
+  /* แถบจุดเด่น */
+  .perks{ margin-top:34px; display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:#fff; border-radius:20px; box-shadow:var(--shadow); padding:10px; }
+  .perk{ display:flex; align-items:center; gap:14px; padding:14px 18px; }
+  .perk + .perk{ box-shadow:-1px 0 0 var(--line); }
+  .perk img, .perk .pk-svg{ width:52px; height:52px; flex:none; }
+  .pk-svg{ border-radius:15px; background:linear-gradient(135deg,#a5f3fc,#818cf8); color:#fff; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 16px rgba(99,102,241,.25); }
+  .pk-svg .ico{ width:26px; height:26px; }
+  .perk b{ display:block; font-size:16px; color:var(--navy); }
+  .perk span{ font-size:13px; color:var(--muted); line-height:1.45; display:block; }
 
-  /* ---------- แถบโมดูล (เหมือนแถบโลโก้) ---------- */
-  .trust{ margin-top:-6px; }
-  .trust-bar{ background:#fff; border:1px solid var(--line); border-radius:18px;
-              box-shadow:0 18px 44px rgba(15,23,42,.07); padding:22px 30px;
-              display:flex; justify-content:space-around; gap:18px; flex-wrap:wrap;
-              position:relative; z-index:5; }
-  .trust-item{ display:flex; align-items:center; gap:10px; font-weight:600; color:#42526b; font-size:15px; }
-  .trust-item .tic{ width:34px; height:34px; border-radius:10px; display:inline-flex; align-items:center;
-                    justify-content:center; font-size:17px; background:#eef4ff; color:var(--blue); }
-
-  /* ---------- หัวข้อกลาง ---------- */
-  .sec-head{ text-align:center; max-width:620px; margin:0 auto 46px; }
-  .sec-head h2{ font-size:34px; font-weight:700; }
-  .sec-head h2 i{ color:var(--blue); font-style:normal; }
+  /* หัวข้อ */
+  .sec{ padding:76px 0; }
+  .sec.alt-blue{ background:var(--soft-blue); }
+  .sec.alt-violet{ background:var(--soft-violet); }
+  .sec-head{ text-align:center; max-width:680px; margin:0 auto 40px; }
+  .eyebrow{ display:inline-block; font-size:13px; font-weight:600; color:var(--indigo); background:#eef0ff; padding:4px 14px; border-radius:999px; margin-bottom:10px; }
+  .sec-head h2, .split h2{ font-size:34px; font-weight:700; color:var(--navy); line-height:1.35; }
   .sec-head p{ color:var(--muted); margin-top:10px; font-size:15.5px; }
 
-  /* ---------- ใช้งานยังไง ---------- */
-  .how{ padding:90px 0 70px; }
-  .how-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:26px; }
-  .how-card{ background:#fff; border:1px solid var(--line); border-radius:18px; padding:30px 26px;
-             box-shadow:0 10px 30px rgba(15,23,42,.05); transition:.2s; text-align:center; }
-  .how-card:hover{ transform:translateY(-5px); box-shadow:0 18px 40px rgba(37,99,235,.12); }
-  .how-num{ width:34px; height:34px; border-radius:50%; background:var(--blue); color:#fff;
-            display:flex; align-items:center; justify-content:center; font-weight:700;
-            margin:0 auto 16px; }
-  .how-ic{ width:46px; height:46px; display:block; margin:0 auto 16px; }
-  .how-card h3{ font-size:18px; margin-bottom:8px; }
-  .how-card p{ color:var(--muted); font-size:14px; }
+  /* 7 งาน */
+  .mods-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:18px; }
+  .mod{ --c:#2563eb; --cs:#eaf2ff; position:relative; display:flex; flex-direction:column; background:#fff; border-radius:20px; padding:22px 20px 18px;
+        box-shadow:0 0 0 1px var(--line), 0 8px 22px rgba(30,58,138,.05); transition:.2s; }
+  .mod:hover{ transform:translateY(-4px); box-shadow:0 0 0 1.5px var(--c), 0 18px 36px rgba(30,58,138,.12); }
+  .mod:focus-visible{ outline:3px solid var(--c); outline-offset:3px; }
+  .mod img{ width:58px; height:58px; margin-bottom:12px; }
+  .mod h3{ font-size:17.5px; color:var(--navy); margin-bottom:6px; }
+  .mod p{ font-size:13.5px; color:var(--muted); line-height:1.55; flex:1; }
+  .mod .more{ margin-top:14px; font-size:13.5px; font-weight:600; color:var(--c); display:flex; align-items:center; gap:6px; }
+  .mod::before{ content:""; position:absolute; left:20px; right:20px; top:0; height:4px; border-radius:0 0 6px 6px; background:var(--c); opacity:.85; }
+  .free-tag{ position:absolute; top:16px; right:16px; font-size:12px; font-weight:700; color:#0e7490; background:#cffafe; border-radius:999px; padding:3px 11px; }
+  .m-proc{ --c:#0284c7; } .m-fin{ --c:#16a34a; } .m-admin{ --c:#9333ea; } .m-lunch{ --c:#ea580c; }
+  .m-hr{ --c:#0d9488; } .m-acad{ --c:#4f46e5; } .m-gen{ --c:#0891b2; }
 
-  /* ---------- ฟีเจอร์สลับข้าง ---------- */
-  .feat{ padding:70px 0; }
-  .feat-grid{ display:grid; grid-template-columns:1fr 1fr; gap:56px; align-items:center; }
-  .feat h2{ font-size:32px; font-weight:700; line-height:1.3; }
-  .feat h2 i{ color:var(--blue); font-style:normal; }
-  .feat .sub{ color:var(--muted); margin:12px 0 22px; font-size:15.5px; }
-  .checks{ list-style:none; display:grid; gap:14px; margin-bottom:28px; }
-  .checks li{ display:flex; gap:12px; align-items:flex-start; font-size:15px; font-weight:500; }
-  .checks .ck{ flex:0 0 22px; height:22px; border-radius:50%; background:#e8f9ef; color:var(--green);
-               display:inline-flex; align-items:center; justify-content:center; font-size:12px; margin-top:2px; }
-  .stage.sm .pop{ width:min(330px,84%); }
+  /* flow */
+  .flow{ display:grid; grid-template-columns:1fr auto 1fr auto 1fr; align-items:stretch; gap:14px; }
+  .step{ background:#fff; border-radius:20px; padding:26px 22px; text-align:center; box-shadow:var(--shadow); }
+  .step img{ width:70px; height:70px; margin:0 auto 12px; }
+  .step .num{ display:inline-flex; width:28px; height:28px; border-radius:50%; background:var(--grad); color:#fff; font-weight:700; font-size:14px; align-items:center; justify-content:center; margin-bottom:8px; }
+  .step h3{ font-size:18px; color:var(--navy); margin-bottom:6px; }
+  .step p{ font-size:13.5px; color:var(--muted); }
+  .arrow{ display:flex; align-items:center; color:#93a8d6; font-size:28px; }
+  .flow-note{ text-align:center; margin-top:22px; font-size:13.5px; color:var(--muted); }
+  .flow-note b{ color:var(--indigo); }
 
-  /* ---------- แถบน้ำเงินเข้ม ---------- */
-  .band{ background:linear-gradient(115deg,#0b2a6b,#1d4ed8 80%); color:#fff; padding:64px 0;
-         clip-path:polygon(0 8%, 100% 0, 100% 100%, 0 100%); margin-top:40px; }
-  .band-grid{ display:flex; justify-content:space-between; align-items:center; gap:30px; flex-wrap:wrap; }
-  .band h2{ font-size:30px; font-weight:700; max-width:18em; line-height:1.35; }
-  .band h2 em{ color:var(--yellow); font-style:normal; }
-  .band p{ color:#c9d8f5; margin-top:10px; max-width:34em; font-size:15px; }
+  /* ซ้ายขวา */
+  .split{ display:grid; grid-template-columns:1fr 1.1fr; gap:52px; align-items:center; }
+  .split.rev{ grid-template-columns:1.1fr 1fr; }
+  .split .sub{ color:var(--muted); margin:12px 0 22px; font-size:15.5px; }
+  .rows{ list-style:none; display:grid; gap:14px; margin-bottom:26px; }
+  .rows li{ display:flex; gap:14px; align-items:flex-start; background:#fff; border-radius:16px; padding:14px 16px; box-shadow:0 0 0 1px var(--line); }
+  .rows img{ width:44px; height:44px; flex:none; }
+  .rows b{ display:block; font-size:15.5px; color:var(--navy); }
+  .rows span{ font-size:13.5px; color:var(--muted); }
 
-  /* ---------- โมดูล ---------- */
-  .mods{ padding:90px 0 40px; background:var(--bg-soft); }
-  .mods-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:22px; }
-  .mod{ background:#fff; border:1px solid var(--line); border-radius:18px; padding:26px 22px; transition:.2s; }
-  .mod:hover{ transform:translateY(-5px); box-shadow:0 18px 40px rgba(37,99,235,.12); }
-  .mod .mic{ width:42px; height:42px; display:block; margin-bottom:16px; }
-  .mod h3{ font-size:17px; margin-bottom:8px; }
-  .free-tag{ display:inline-block; margin-left:6px; vertical-align:middle; font-size:11px; font-weight:800;
-    color:#0e7490; background:#cffafe; border:1px solid #a5f3fc; border-radius:999px; padding:1px 8px; }
-  .mod ul{ list-style:none; display:grid; gap:6px; }
-  .mod li{ color:var(--muted); font-size:13.5px; padding-left:16px; position:relative; }
-  .mod li::before{ content:"•"; color:var(--blue); position:absolute; left:2px; }
+  .vid{ position:relative; display:block; border-radius:20px; overflow:hidden; box-shadow:var(--shadow); background:#0b2a6b; aspect-ratio:16/9; cursor:pointer; border:0; width:100%; padding:0; }
+  .vid img{ width:100%; height:100%; object-fit:cover; opacity:.92; }
+  .vid .pl{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+  .vid .pl span{ width:74px; height:74px; border-radius:50%; background:rgba(255,255,255,.95); color:var(--blue); display:flex; align-items:center; justify-content:center; box-shadow:0 10px 30px rgba(0,0,0,.25); }
+  .vid .pl .ico{ width:26px; height:26px; margin-left:4px; }
+  .vid-fallback{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:var(--grad); }
+  .guide-btns{ display:flex; gap:12px; flex-wrap:wrap; }
+  dialog.vbox{ border:0; padding:0; border-radius:16px; width:min(920px,94vw); background:#000; overflow:hidden; }
+  dialog.vbox::backdrop{ background:rgba(8,15,40,.72); }
+  dialog.vbox iframe{ display:block; width:100%; aspect-ratio:16/9; border:0; }
+  dialog.vbox .x{ position:absolute; top:8px; right:8px; z-index:2; width:36px; height:36px; border-radius:50%; border:0; background:rgba(255,255,255,.9); font-size:20px; cursor:pointer; }
 
-  /* ---------- ราคา (เลือกงานที่ต้องการ รายปี) ---------- */
-  .pricing{ padding:90px 0 40px; }
-  .pick-wrap{ display:grid; grid-template-columns:1.5fr 1fr; gap:26px; align-items:start; }
-  .pick-list{ display:grid; gap:14px; }
-  .pick-item{ display:flex; align-items:center; gap:16px; background:#fff; border:2px solid var(--line);
-              border-radius:16px; padding:18px 20px; cursor:pointer; transition:.18s; position:relative; }
-  .pick-item:hover{ border-color:#c7d6f5; }
-  .pick-item input{ position:absolute; opacity:0; pointer-events:none; }
-  .pick-item.on{ border-color:var(--blue); background:#f5f8ff; }
-  .pick-box{ flex:0 0 24px; height:24px; border-radius:7px; border:2px solid var(--line);
-             display:flex; align-items:center; justify-content:center; color:#fff; transition:.18s; }
-  .pick-item.on .pick-box{ background:var(--blue); border-color:var(--blue); }
-  .pick-box .ico{ width:14px; height:14px; opacity:0; }
-  .pick-item.on .pick-box .ico{ opacity:1; }
-  .pick-mic{ flex:0 0 44px; height:44px; border-radius:12px; background:#eef4ff; color:var(--blue);
-             display:flex; align-items:center; justify-content:center; font-size:21px; }
-  .pick-body{ flex:1; }
-  .pick-body h4{ font-size:16px; margin-bottom:2px; }
-  .pick-body p{ color:var(--muted); font-size:12.5px; line-height:1.4; }
-  .pick-price{ text-align:right; font-weight:700; font-size:15px; white-space:nowrap; }
-  .pick-price small{ display:block; font-weight:500; font-size:11px; color:var(--muted); }
-  .pick-free{ display:flex; align-items:center; gap:14px; background:#fff; border:1px solid var(--line);
-              border-left:4px solid var(--green); border-radius:14px; padding:14px 18px;
-              box-shadow:0 6px 18px rgba(15,23,42,.05); }
-  .pick-free .free-badge{ flex:0 0 40px; height:40px; border-radius:11px;
-              background:linear-gradient(135deg,#22c55e,#16a34a); color:#fff;
-              display:flex; align-items:center; justify-content:center; font-size:19px; }
-  .pick-free .free-txt{ flex:1; font-size:13.5px; color:var(--ink); font-weight:600; line-height:1.35; }
-  .pick-free .free-txt small{ display:block; font-weight:500; color:var(--muted); font-size:12px; }
-  .pick-free .free-tag{ background:#dcfce7; color:#15803d; font-size:12px; font-weight:700;
-              padding:5px 12px; border-radius:999px; white-space:nowrap; }
-  /* กล่องสรุปยอด (ติดขอบบนเวลาเลื่อน) */
-  .pick-sum{ background:#fff; border:1px solid var(--line); border-radius:20px; padding:26px 24px;
-             box-shadow:0 14px 40px rgba(15,23,42,.08); position:sticky; top:90px; }
-  .pick-sum h3{ font-size:17px; margin-bottom:4px; }
-  .pick-sum .sub{ color:var(--muted); font-size:12.5px; margin-bottom:16px; }
-  .pick-all{ width:100%; margin-bottom:16px; justify-content:center; }
-  .sum-rows{ border-top:1px solid var(--line); padding-top:14px; margin-bottom:14px;
-             display:grid; gap:8px; min-height:24px; }
-  .sum-rows .row{ display:flex; justify-content:space-between; font-size:13.5px; color:#334155; }
-  .sum-rows .empty{ color:var(--muted); font-size:13px; }
-  .sum-save{ display:flex; justify-content:space-between; font-size:13px; color:var(--green); font-weight:600; }
-  .sum-total{ display:flex; justify-content:space-between; align-items:baseline;
-              border-top:2px solid var(--line); padding-top:14px; margin-top:6px; }
-  .sum-total .lab{ font-size:14px; font-weight:600; }
-  .sum-total .val{ font-size:34px; font-weight:700; letter-spacing:-1px; }
-  .sum-total .val small{ font-size:14px; font-weight:500; color:var(--muted); }
-  .pick-sum .btn{ width:100%; justify-content:center; margin-top:18px; }
-  .pick-sum .note{ text-align:center; color:var(--muted); font-size:11.5px; margin-top:10px; }
-  .price-foot{ text-align:center; color:var(--muted); font-size:13.5px; margin-top:26px; }
-  .pick-price s{ color:var(--muted); font-weight:500; margin-right:6px; opacity:.7; }
-
-  /* ===== การ์ดแพ็กเกจรวม (แนะนำ) - สไตล์ฟ้าอ่อน + เมฆ + รูปโรงเรียน 3D ===== */
-  .bundle-card{ position:relative; display:flex; align-items:center; justify-content:space-between;
-    gap:20px; flex-wrap:wrap; max-width:930px; margin:24px auto 46px; padding:26px 36px 26px 28px; border-radius:28px;
-    background:linear-gradient(150deg,#dcebff 0%,#c3ddff 55%,#aecdff 100%); border:none;
-    box-shadow:none; }
-  /* เมฆประดับ (คุมให้อยู่ในการ์ด ไม่ตัดป้ายแนะนำ) */
-  .bundle-card::before{ content:""; position:absolute; top:20px; left:42%; width:80px; height:24px; border-radius:999px;
-    background:rgba(255,255,255,.55); box-shadow:44px 10px 0 -6px rgba(255,255,255,.45), -30px 7px 0 -8px rgba(255,255,255,.4);
-    pointer-events:none; }
-  .bundle-card::after{ content:""; position:absolute; bottom:24px; left:34%; width:50px; height:15px; border-radius:999px;
-    background:rgba(255,255,255,.38); box-shadow:24px 5px 0 -4px rgba(255,255,255,.32); pointer-events:none; }
-  .bundle-card.promo{ background:linear-gradient(140deg,#2563eb,#1d4ed8 130%); color:#fff; }
-
-  /* ---- การ์ดกดได้ทั้งใบ ---- */
-  a.bundle-card{ text-decoration:none; cursor:pointer;
-    transition:transform .2s ease, box-shadow .2s ease; }
-  a.bundle-card:hover{ transform:translateY(-4px); box-shadow:0 22px 46px rgba(37,99,235,.26); }
-  a.bundle-card:active{ transform:translateY(-1px); }
-  a.bundle-card:focus-visible{ outline:3px solid #1d4ed8; outline-offset:4px; }
-  a.bundle-card:hover .bc-btn{ background:#1a44c8; box-shadow:0 10px 24px rgba(29,78,216,.4); }
-
-  /* ---- ประกายแสงกวาดผ่านการ์ด (เหมือนตอนได้ของใหม่) ---- */
-  .bc-shine{ position:absolute; inset:0; border-radius:28px; overflow:hidden;
-    pointer-events:none; z-index:2; }
-  .bc-shine::before{ content:""; position:absolute; top:-60%; left:-70%; width:38%; height:220%;
-    background:linear-gradient(100deg, transparent 0%, rgba(255,255,255,.28) 35%,
-      rgba(255,255,255,.85) 50%, rgba(255,255,255,.28) 65%, transparent 100%);
-    transform:rotate(18deg); filter:blur(1px);
-    animation:bcSweep 5s cubic-bezier(.4,0,.2,1) infinite; }
-  @keyframes bcSweep{
-    0%{ left:-70%; opacity:0; } 12%{ opacity:1; }
-    55%{ left:120%; opacity:1; } 60%{ left:120%; opacity:0; } 100%{ left:120%; opacity:0; }
-  }
-  a.bundle-card:hover .bc-shine::before{ animation-duration:2.2s; }
-
-  /* ---- นับถอยหลัง + สิทธิ์คงเหลือ ---- */
-  .bc-count{ display:flex; gap:5px; justify-content:center; margin-bottom:9px; }
-  .bc-count .cbox{ background:#fff; border-radius:10px; padding:5px 0 4px; width:46px;
-    text-align:center; box-shadow:0 4px 10px rgba(20,45,95,.13); }
-  .bc-count .cbox b{ display:block; font-size:17px; font-weight:800; line-height:1.05;
-    color:var(--navy); font-variant-numeric:tabular-nums; }
-  .bc-count .cbox span{ font-size:9.5px; color:#5b7099; }
-  .bc-slots{ margin:0 auto 10px; max-width:230px; }
-  .bc-slots .srow{ display:flex; justify-content:space-between; font-size:11.5px;
-    color:#40598a; margin-bottom:4px; font-weight:600; }
-  .bc-slots .srow b{ color:#c2410c; }
-  .bc-bar{ height:7px; border-radius:999px; background:rgba(255,255,255,.75); overflow:hidden;
-    box-shadow:inset 0 1px 3px rgba(20,45,95,.15); }
-  .bc-bar i{ display:block; height:100%; border-radius:999px;
-    background:linear-gradient(90deg,#fb923c,#f97316); }
-  @media (prefers-reduced-motion: reduce){
-    .bc-shine::before{ animation:none; opacity:0; }
-    a.bundle-card:hover{ transform:none; }
-  }
-  .bc-badge{ position:absolute; top:-14px; left:50%; transform:translateX(-50%); background:#1d4ed8; color:#fff;
-    font-weight:800; font-size:13.5px; padding:6px 22px; border-radius:999px; display:inline-flex; align-items:center;
-    gap:6px; box-shadow:none; white-space:nowrap; z-index:3; }
-  .bc-badge .ico{ width:15px; height:15px; fill:#ffe310; stroke:#ffe310; color:#ffe310; }
-  .bc-left{ display:flex; align-items:center; gap:22px; flex:1; min-width:300px; position:relative; z-index:1;
-    padding-right:24px; border-right:1px solid rgba(29,78,216,.22); }
-  .bc-illus{ width:230px; height:auto; flex:none; background:transparent; filter:none; }
-  .bc-illus-emoji{ font-size:120px; line-height:1; flex:none; }
-  .bc-info{ flex:1; }
-  .bc-info h3{ font-size:30px; margin:0; color:var(--navy); line-height:1.15; }
-  .bundle-card.promo .bc-info h3{ color:#fff; }
-  .bc-info p{ color:#40598a; font-size:17px; margin:5px 0 0; font-weight:500; }
-  .bundle-card.promo .bc-info p{ color:rgba(255,255,255,.92); }
-  /* 6 งานแล้ว -> ให้ตัดบรรทัดได้ + ชิปยืดหยุ่น จะได้ไม่ล้นออกนอกกรอบการ์ด */
-  .bc-mods{ display:flex; flex-wrap:wrap; gap:8px; margin-top:18px; max-width:100%; }
-  .bc-mods span{ display:flex; flex-direction:column; align-items:center; gap:4px;
-    flex:0 1 auto; min-width:58px; max-width:76px;
-    padding:9px 7px 6px; border-radius:14px; background:#fff; box-shadow:0 5px 12px rgba(20,45,95,.14); }
-  .bc-mods .ico{ width:23px; height:23px; }
-  .bc-mods b{ font-size:11px; font-weight:600; color:var(--navy); line-height:1.1; text-align:center; }
-  .bc-mods .m1 .ico{ color:var(--blue); } .bc-mods .m2 .ico{ color:#16a34a; }
-  .bc-mods .m3 .ico{ color:#dc2626; } .bc-mods .m4 .ico{ color:#d97706; }
-  .bc-mods .m5 .ico{ color:#0d9488; } .bc-mods .m6 .ico{ color:#4f46e5; }
-  .bundle-card.promo .bc-mods span{ background:#fff; }
-  .bc-right{ text-align:center; flex:none; position:relative; z-index:1; padding-left:12px; display:flex;
-    flex-direction:column; align-items:center; justify-content:center; }
-  .bc-promo{ display:inline-block; background:#fbbf24; color:#7c4a03; font-weight:700; font-size:12.5px;
-    padding:4px 13px; border-radius:999px; margin-bottom:8px; }
-  .bc-was{ font-size:14px; color:#5b6b84; }
-  .bundle-card.promo .bc-was{ color:rgba(255,255,255,.85); }
-  .bc-was s{ opacity:.85; text-decoration-color:#dc2626; }
-  .bc-save{ display:inline-block; background:#22c55e; color:#fff; font-weight:800; font-size:13px;
-    padding:4px 14px; border-radius:999px; margin:6px 0; box-shadow:0 4px 10px rgba(34,197,94,.35); }
-  .bundle-card.promo .bc-save{ background:rgba(255,255,255,.2); }
-  .bc-price{ margin-top:2px; }
-  .bc-price b{ font-size:54px; font-weight:800; color:var(--blue-deep); letter-spacing:-2px; line-height:1;
-    -webkit-text-stroke:1px #fff; text-shadow:0 0 1px rgba(255,255,255,.8); }
-  .bundle-card.promo .bc-price b{ color:#fff; }
-  .bc-price span{ display:block; font-size:14px; color:#5b6b84; margin-top:2px; font-weight:600; }
-  .bundle-card.promo .bc-price span{ color:rgba(255,255,255,.9); }
-  .bc-btn{ margin-top:14px; box-shadow:0 10px 22px rgba(37,99,235,.35); }
-  .bundle-card.promo .bc-btn{ background:#fff; color:var(--blue-deep); box-shadow:0 8px 20px rgba(0,0,0,.18); }
-  .bundle-card.promo .bc-btn .ico{ color:var(--blue-deep); }
-
-  /* ===== การ์ดงานแยก (แนวนอน 4 ใบ) ===== */
-  .or-head{ text-align:center; font-size:18px; font-weight:700; color:var(--muted); margin:0 0 14px; }
-  .save-ladder{ display:flex; align-items:stretch; justify-content:center; flex-wrap:wrap; gap:14px; margin:0 0 26px; }
-  .sl-card{ position:relative; display:flex; align-items:center; gap:11px; min-width:178px; overflow:hidden;
-            background:linear-gradient(135deg,#5b8cff,#3b5bdb); border:none; border-radius:14px; padding:14px 18px;
-            box-shadow:0 8px 20px rgba(37,99,235,.22); color:#fff;
-            transition:transform .18s cubic-bezier(.2,.7,.25,1), box-shadow .18s; }
-  .sl-card:hover{ transform:translateY(-3px); box-shadow:0 15px 32px rgba(37,99,235,.34); }
-  .sl-card .ico{ width:24px; height:24px; color:#fff; flex:none; opacity:.95; }
-  .sl-txt{ display:flex; flex-direction:column; line-height:1.25; }
-  .sl-txt b{ font-size:15.5px; color:#fff; font-weight:700; }
-  .sl-txt b i{ font-style:normal; font-weight:600; font-size:12.5px; color:rgba(255,255,255,.82); }
-  .sl-txt span{ font-size:14px; color:#fff; font-weight:700; }
-  .sl-best{ background:linear-gradient(135deg,#2fd36f,#16a34a); box-shadow:0 10px 26px rgba(22,163,74,.3);
-            overflow:visible; }   /* ให้ริบบิ้น "คุ้มสุด" โผล่พ้นขอบการ์ด ไม่ถูกตัด */
-  .save-ladder{ padding-top:8px; }   /* กันริบบิ้นชนขอบบน */
-  .sl-best:hover{ box-shadow:0 16px 36px rgba(22,163,74,.4); }
-  .sl-best .ico, .sl-best .sl-txt b, .sl-best .sl-txt span{ color:#fff; }
-  .sl-ribbon{ position:absolute; top:-10px; right:-8px; background:linear-gradient(135deg,#fbbf24,#f59e0b);
-              color:#fff; font-size:11.5px; font-weight:700; padding:3px 10px; border-radius:999px;
-              box-shadow:0 3px 8px rgba(245,158,11,.45); }
-  /* ส่วนลดปลดล็อกทีละขั้นตามจำนวนงานที่เลือก (สคริปต์ render ใส่ class locked / current / unlocking) */
-  .sl-card.locked{ background:linear-gradient(135deg,#cbd5e1,#94a3b8); box-shadow:none; }
-  .sl-card.locked > .ico{ opacity:.55; }
-  .sl-lock{ position:absolute; top:7px; right:9px; display:none; }
-  .sl-best .sl-lock{ top:auto; bottom:7px; }   /* มุมบนมีริบบิ้น "คุ้มสุด" */
-  .sl-lock svg{ width:17px; height:17px; fill:none; stroke:#fff; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
-  .sl-card.locked .sl-lock, .sl-card.unlocking .sl-lock{ display:block; }
-  .sl-need{ display:none; font-style:normal; font-size:12px; font-weight:600; color:#fff; opacity:.95; }
-  .sl-card.locked .sl-need{ display:block; }
-  .sl-card.current{ transform:translateY(-3px) scale(1.04);
-    box-shadow:0 0 0 3px #fff, 0 0 0 6px rgba(37,99,235,.45), 0 16px 32px rgba(37,99,235,.35); }
-  .sl-best.current{ box-shadow:0 0 0 3px #fff, 0 0 0 6px rgba(22,163,74,.45), 0 16px 32px rgba(22,163,74,.35); }
-  .sl-card.unlocking{ animation:slPop .65s cubic-bezier(.2,.8,.3,1.35); }
-  .sl-card.unlocking::after{ content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
-    background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.7) 50%,transparent 65%) no-repeat;
-    background-size:250% 100%; background-position:150% 0; animation:slShine .8s ease-out .1s forwards; }
-  .sl-card.unlocking .sl-lock{ animation:slFly .55s ease-in forwards; }
-  @keyframes slPop{ 0%{ transform:scale(.92); } 55%{ transform:scale(1.12); } 100%{ transform:translateY(-3px) scale(1.04); } }
-  @keyframes slShine{ to{ background-position:-50% 0; } }
-  @keyframes slFly{ 0%{ transform:none; opacity:1; } 100%{ transform:translate(10px,-18px) rotate(25deg); opacity:0; } }
-  @media (prefers-reduced-motion: reduce){
-    .sl-card.unlocking, .sl-card.unlocking::after, .sl-card.unlocking .sl-lock{ animation:none; }
-  }
-  /* 6 งาน = 6 คอลัมน์ เรียงแถวเดียวให้ทุกใบอยู่ในแกน x เดียวกัน (การ์ดเป็นแนวตั้ง) */
-  .mgrid{ display:grid; grid-template-columns:repeat(6,1fr); gap:12px; align-items:stretch; }
-  .mcard{ background:#fff; border:2px solid var(--line); border-radius:18px; padding:18px 14px 14px;
-    cursor:pointer; transition:.16s; position:relative; display:flex; flex-direction:column;
-    height:100%; }
-  .mcard:hover{ border-color:var(--blue); transform:translateY(-2px); box-shadow:0 10px 24px rgba(37,99,235,.14); }
-  .mcard.on{ border-color:var(--blue); box-shadow:0 12px 30px rgba(37,99,235,.12); }
-  .mcard.on:hover{ box-shadow:0 14px 32px rgba(37,99,235,.18); }
+  /* แพ็กเกจ */
+  .pk-wrap{ display:grid; grid-template-columns:1.45fr 1fr; gap:24px; align-items:start; }
+  .pk-list{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .mcard{ display:flex; align-items:center; gap:12px; background:#fff; border-radius:16px; padding:14px 16px; cursor:pointer; transition:.16s; position:relative;
+          box-shadow:0 0 0 1.5px var(--line); }
+  .mcard:hover{ box-shadow:0 0 0 1.5px #a9c2f3; }
+  .mcard.on{ box-shadow:0 0 0 2px var(--blue), 0 10px 22px rgba(37,99,235,.1); background:#f7faff; }
   .mcard input{ position:absolute; opacity:0; pointer-events:none; }
-  /* หัวการ์ดแนวตั้ง: ไอคอนในกรอบสี -> ชื่องาน (ชื่อยาวไม่ดันการ์ดให้เบี้ยว) */
-  .mc-head{ display:flex; flex-direction:column; align-items:center; text-align:center;
-    gap:8px; margin-bottom:10px; }
-  .mc-head .ico{ width:24px; height:24px; flex:none; color:var(--blue); }
-  .mc-ic{ width:44px; height:44px; border-radius:13px; display:flex; align-items:center;
-    justify-content:center; background:#f1f5ff; }
-  .mcard h4{ font-size:14.5px; margin:0; line-height:1.3; }
-  /* รายละเอียดเป็นข้อ ๆ อ่านง่ายกว่าเขียนติดกันด้วยเครื่องหมาย + */
-  .mc-list{ list-style:none; margin:0 0 6px; padding:0; flex:1;
-    display:flex; flex-direction:column; gap:6px; }
-  .mc-list li{ position:relative; padding-left:15px; color:var(--muted);
-    font-size:12px; line-height:1.4; }
-  .mc-list li::before{ content:""; position:absolute; left:3px; top:6px; width:5px; height:5px;
-    border-radius:50%; background:var(--blue); opacity:.55; }
-  .mc-price{ font-weight:800; font-size:19px; margin:10px 0 10px; text-align:center;
-    margin-top:auto; }
-  .mc-price small{ font-weight:500; font-size:12px; color:var(--muted); }
-  .mc-pick{ display:flex; align-items:center; justify-content:center; gap:7px; border:1.5px solid var(--line);
-    border-radius:10px; padding:8px 0; font-weight:700; font-size:14px; color:var(--muted); }
-  .mc-pick .ico{ width:15px; height:15px; opacity:0; }
-  .mcard.on .mc-pick{ background:var(--blue); border-color:var(--blue); color:#fff; }
-  .mcard.on .mc-pick .ico{ opacity:1; }
+  .mcard:focus-within{ outline:3px solid #93c5fd; outline-offset:2px; }
+  .mcard img{ width:44px; height:44px; flex:none; }
+  .mc-body{ flex:1; min-width:0; }
+  .mc-body h4{ font-size:15px; color:var(--navy); line-height:1.3; }
+  .mc-body p{ font-size:12px; color:var(--muted); line-height:1.4; }
+  .mc-price{ font-weight:700; font-size:15px; color:var(--navy); white-space:nowrap; text-align:right; }
+  .mc-price small{ display:block; font-size:11px; font-weight:500; color:var(--muted); }
+  .mc-box{ flex:0 0 24px; height:24px; border-radius:7px; box-shadow:inset 0 0 0 2px #cfd9ea; display:flex; align-items:center; justify-content:center; color:#fff; }
+  .mc-box .ico{ width:14px; height:14px; opacity:0; }
+  .mcard.on .mc-box{ background:var(--blue); box-shadow:none; }
+  .mcard.on .mc-box .ico{ opacity:1; }
+  .mfree{ grid-column:1/-1; display:flex; align-items:center; gap:12px; background:linear-gradient(120deg,#ecfeff,#f0f9ff); border-radius:16px; padding:12px 16px; }
+  .mfree img{ width:40px; height:40px; }
+  .mfree div{ flex:1; font-size:14px; font-weight:600; color:var(--navy); }
+  .mfree small{ display:block; font-weight:500; color:var(--muted); font-size:12px; }
+  .mfree .tag{ font-size:12.5px; font-weight:700; color:#0e7490; background:#cffafe; padding:4px 12px; border-radius:999px; white-space:nowrap; }
+  .tier-hint{ grid-column:1/-1; font-size:13px; color:var(--muted); text-align:center; }
 
-  /* ===== แถบสรุปยอด ===== */
-  .sbar{ display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap;
-    background:#fff; border:1px solid var(--line); border-radius:20px; padding:22px 28px; margin-top:22px;
-    box-shadow:0 14px 40px rgba(15,23,42,.07); }
-  .sb-left{ min-width:240px; }
-  .sb-left .sb-title{ font-weight:700; font-size:15px; }
-  .sb-left .sb-sel{ color:var(--muted); font-size:13px; margin-top:2px; }
-  .sb-save{ display:inline-block; background:#dcfce7; color:#15803d; font-weight:700; font-size:12.5px;
-    padding:3px 11px; border-radius:999px; margin-top:7px; }
-  .sb-mid{ text-align:center; }
-  .sb-mid .sb-lbl{ font-size:13px; color:var(--muted); }
-  .sb-mid .sb-total b{ font-size:38px; font-weight:800; letter-spacing:-1.5px; color:var(--ink); }
-  .sb-mid .sb-total small{ font-size:14px; color:var(--muted); }
-  .sb-right{ text-align:center; }
-  .sb-right .btn{ padding:13px 24px; }
-  .sb-note{ font-size:11.5px; color:var(--muted); margin-top:8px; }
-  .purchase-actions{ display:flex; flex-direction:column; gap:10px; width:100%; }
-  .purchase-actions .btn{ min-height:46px; justify-content:center; }
-  .btn-quote{ background:#fff; color:var(--blue-deep); border:2px solid var(--blue); }
-  .btn-quote:hover{ background:#eff6ff; }
-  .trial-link{ display:inline-block; color:var(--blue-deep); font-weight:600;
-    text-decoration:underline; text-underline-offset:3px; padding:10px 4px; }
-  .purchase-actions a:focus-visible{ outline:3px solid var(--blue-deep); outline-offset:4px; }
+  .bundle{ position:relative; border-radius:24px; padding:30px 26px 24px; color:#fff; text-align:center; overflow:hidden;
+           background:linear-gradient(150deg,#06b6d4 0%,#3b82f6 50%,#6366f1 100%); box-shadow:0 24px 50px rgba(79,70,229,.28); }
+  .bundle::before{ content:""; position:absolute; width:240px; height:240px; border-radius:50%; background:rgba(255,255,255,.1); top:-110px; right:-80px; }
+  .bundle > *{ position:relative; }
+  .bd-badge{ display:inline-flex; align-items:center; gap:6px; background:#fff; color:var(--indigo); font-weight:700; font-size:13px; padding:5px 16px; border-radius:999px; }
+  .bd-badge .ico{ fill:#f59e0b; stroke:#f59e0b; }
+  .bundle img.bd-school{ width:170px; margin:12px auto 4px; filter:drop-shadow(0 12px 18px rgba(0,0,0,.18)); }
+  .bundle h3{ font-size:26px; line-height:1.25; }
+  .bundle .bd-sub{ font-size:14px; opacity:.92; margin-top:4px; }
+  .bd-promo{ display:inline-block; background:#fbbf24; color:#7c4a03; font-weight:700; font-size:12.5px; padding:4px 13px; border-radius:999px; margin:12px 0 6px; }
+  .bc-count{ display:flex; gap:5px; justify-content:center; margin-bottom:8px; }
+  .bc-count .cbox{ background:#fff; border-radius:10px; padding:5px 0 4px; width:46px; text-align:center; }
+  .bc-count .cbox b{ display:block; font-size:17px; font-weight:800; line-height:1.05; color:var(--navy); font-variant-numeric:tabular-nums; }
+  .bc-count .cbox span{ font-size:9.5px; color:#5b7099; }
+  .bc-slots{ margin:0 auto 8px; max-width:230px; font-size:12px; }
+  .bc-slots .srow{ display:flex; justify-content:space-between; font-weight:600; margin-bottom:4px; }
+  .bc-bar{ height:7px; border-radius:999px; background:rgba(255,255,255,.35); overflow:hidden; }
+  .bc-bar i{ display:block; height:100%; background:#fbbf24; border-radius:999px; }
+  .bd-was{ margin-top:14px; font-size:14px; opacity:.92; }
+  .bd-save{ display:inline-block; background:rgba(255,255,255,.22); font-weight:700; font-size:13px; padding:4px 14px; border-radius:999px; margin:6px 0; }
+  .bd-price b{ font-size:52px; font-weight:800; letter-spacing:-2px; line-height:1.05; }
+  .bd-price span{ display:block; font-size:14px; font-weight:600; opacity:.92; }
+  .purchase-actions{ display:flex; flex-direction:column; gap:10px; width:100%; margin-top:16px; }
+  .purchase-actions .btn{ min-height:46px; }
+  .bundle .btn-white .ico{ color:var(--blue-deep); }
+  .btn-quote{ background:transparent; color:#fff; box-shadow:inset 0 0 0 2px rgba(255,255,255,.7); }
+  .btn-quote:hover{ background:rgba(255,255,255,.12); }
+  .trial-link{ display:inline-block; font-weight:600; text-decoration:underline; text-underline-offset:3px; padding:10px 4px 0; }
   .purchase-actions a[aria-disabled="true"]{ opacity:.45; cursor:not-allowed; }
-  .sb-right{ width:280px; max-width:100%; }
-  .sb-breakdown{ width:100%; display:grid; gap:8px; margin-top:14px; padding-top:14px; border-top:1px solid rgba(29,78,216,.14); }
-  .sb-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:13px; color:var(--muted); }
-  .sb-row strong{ font-size:14px; color:var(--ink); }
+
+  .sbar{ display:grid; grid-template-columns:1.2fr .8fr 1fr; gap:22px; align-items:center; background:#fff; border-radius:20px; padding:22px 26px; margin-top:22px; box-shadow:var(--shadow); }
+  .sb-title{ font-weight:700; font-size:15px; color:var(--navy); }
+  .sb-sel{ color:var(--muted); font-size:13px; margin-top:2px; }
+  .sb-save{ display:inline-block; background:#dcfce7; color:#15803d; font-weight:700; font-size:12.5px; padding:3px 11px; border-radius:999px; margin-top:7px; }
+  .sb-upsell{ margin-top:6px; font-size:12.5px; font-weight:700; color:var(--indigo); }
+  .sb-mid{ text-align:center; }
+  .sb-lbl{ font-size:13px; color:var(--muted); }
+  .sb-total b{ font-size:36px; font-weight:800; letter-spacing:-1.5px; color:var(--navy); }
+  .sb-total small{ font-size:14px; color:var(--muted); }
+  .sb-rows{ display:grid; gap:4px; font-size:13px; color:var(--muted); }
+  .sb-row{ display:flex; justify-content:space-between; gap:10px; }
+  .sb-row strong{ color:var(--ink); }
   .sb-row.discount strong{ color:#dc2626; }
-  .sb-row.net strong{ color:var(--blue-deep); font-size:16px; }
-  .sb-row.saved strong{ color:#15803d; }
-  .sb-upsell{ margin-top:4px; font-size:12.5px; font-weight:700; color:var(--blue-deep); }
+  .sb-row.net strong{ color:var(--blue-deep); }
+  .sb-right{ grid-column:1/-1; display:flex; gap:12px; align-items:center; justify-content:flex-end; flex-wrap:wrap; padding-top:14px; box-shadow:0 -1px 0 var(--line); }
+  .sb-right .btn-quote{ color:var(--blue-deep); box-shadow:inset 0 0 0 2px var(--blue); }
+  .sb-right .btn-quote:hover{ background:#eff6ff; }
+  .sb-right .trial-link{ color:var(--blue-deep); padding:0 6px; }
+  .sb-note{ font-size:12px; color:var(--muted); margin-right:auto; }
+  .price-foot{ text-align:center; color:var(--muted); font-size:13px; margin-top:18px; }
 
-  /* ===== แถบความน่าเชื่อถือ ===== */
-  .price-trust{ margin-top:46px; }
-  .pt-badges{ display:flex; justify-content:center; gap:14px; flex-wrap:wrap; }
-  .pt-badge{ display:flex; align-items:center; gap:11px; background:#fff; border:1px solid var(--line);
-    border-radius:14px; padding:13px 17px; max-width:250px; }
-  .pt-badge .ico{ width:26px; height:26px; flex:none; color:#fff; }
-  .pt-badge b{ display:block; font-size:13.5px; } .pt-badge span{ color:var(--muted); font-size:11.5px; }
+  /* คำถาม */
+  .faq{ max-width:860px; margin:0 auto; display:grid; gap:12px; }
+  .faq details{ background:#fff; border-radius:16px; box-shadow:0 0 0 1px var(--line); }
+  .faq summary{ list-style:none; cursor:pointer; padding:18px 22px; font-weight:600; font-size:16px; color:var(--navy); display:flex; justify-content:space-between; gap:14px; align-items:center; }
+  .faq summary::-webkit-details-marker{ display:none; }
+  .faq summary::after{ content:""; flex:none; width:30px; height:30px; border-radius:50%; transition:.2s;
+    background:linear-gradient(var(--indigo),var(--indigo)) center/12px 2px no-repeat, linear-gradient(var(--indigo),var(--indigo)) center/2px 12px no-repeat, #eef2ff; }
+  .faq details[open] summary::after{ transform:rotate(45deg); }
+  .faq details p{ padding:0 22px 18px; color:var(--muted); font-size:14.5px; }
+  .faq a{ color:var(--blue); font-weight:600; }
 
-  /* ---------- ปิดท้าย ---------- */
-  .cta-final{ padding:90px 0; text-align:center; background:var(--bg-soft); }
-  .cta-box{ background:linear-gradient(120deg,#2563eb,#1d4ed8); border-radius:26px; color:#fff;
-            padding:56px 30px; position:relative; overflow:hidden; }
-  .cta-box::before{ content:""; position:absolute; width:220px; height:220px; border-radius:50%;
-                    background:rgba(255,255,255,.08); top:-80px; right:-60px; }
-  .cta-box::after{ content:""; position:absolute; width:150px; height:150px; border-radius:50%;
-                   background:rgba(255,255,255,.07); bottom:-60px; left:-40px; }
-  .cta-box h2{ font-size:32px; font-weight:700; margin-bottom:10px; }
-  .cta-box p{ color:#d4e0f9; margin-bottom:26px; }
+  /* ปิดท้าย */
+  .cta-final{ padding:20px 0 76px; }
+  .cta-box{ background:linear-gradient(115deg,#06b6d4 0%,#3b82f6 45%,#4f46e5 100%); border-radius:28px; color:#fff; padding:52px 30px; text-align:center; position:relative; overflow:hidden; }
+  .cta-box::before{ content:""; position:absolute; width:260px; height:260px; border-radius:50%; background:rgba(255,255,255,.09); top:-100px; right:-60px; }
+  .cta-box::after{ content:""; position:absolute; width:170px; height:170px; border-radius:50%; background:rgba(255,255,255,.08); bottom:-70px; left:-40px; }
+  .cta-box > *{ position:relative; z-index:1; }
+  .cta-box h2{ font-size:34px; font-weight:700; margin-bottom:8px; }
+  .cta-box p{ color:#e0ecff; margin-bottom:26px; }
+  .cta-btns{ display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+  .btn-line{ background:transparent; color:#fff; box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.7); }
+  .btn-line:hover{ background:rgba(255,255,255,.12); }
 
-  footer{ padding:36px 0; border-top:1px solid var(--line); }
-  .foot{ display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;
-         color:var(--muted); font-size:13.5px; }
-  .foot .brand{ font-size:17px; }
-  .foot .brand img{ height:28px; }
+  footer{ background:#0b1f4d; color:#c5d3ee; padding:46px 0 26px; }
+  .foot{ display:grid; grid-template-columns:1.4fr 1fr 1fr 1fr; gap:28px; }
+  .foot .brand{ color:#fff; font-size:19px; }
+  .foot .brand b{ color:#7dd3fc; }
+  .foot .brand img{ height:32px; }
+  .foot p{ font-size:13.5px; margin-top:10px; max-width:26em; }
+  .foot h4{ color:#fff; font-size:14.5px; margin-bottom:10px; }
+  .foot ul{ list-style:none; display:grid; gap:7px; font-size:13.5px; }
+  .foot a:hover{ color:#fff; }
+  .foot-bottom{ margin-top:30px; padding-top:18px; box-shadow:0 -1px 0 rgba(255,255,255,.1); font-size:12.5px; text-align:center; }
 
-  /* ---------- จอเล็ก ---------- */
-  /* การ์ดลอยในหัวเว็บตั้งใจให้ยื่นล้นกรอบเพื่อความสวย แต่ต้องไม่ทำให้ทั้งหน้าเลื่อนแนวนอนได้ */
-  html, body{ overflow-x:hidden; }
-  @media (max-width:960px){
+  /* จอกลาง / มือถือ */
+  @media (max-width:1020px){
+    .nav-links{ gap:20px; font-size:14px; }
+    .mods-grid{ grid-template-columns:repeat(3,1fr); }
+  }
+  @media (max-width:900px){
     h1{ font-size:38px; }
-    .hero-grid,.feat-grid{ grid-template-columns:1fr; }
-    .how-grid{ grid-template-columns:1fr; }
-    .mods-grid{ grid-template-columns:repeat(2,1fr); }
-    .pick-wrap{ grid-template-columns:1fr; }
-    .pick-sum{ position:static; }
-    .mgrid{ grid-template-columns:repeat(3,1fr); }
-    .bundle-card{ flex-direction:column; text-align:center; }
-    .bundle-card .bc-left{ flex-direction:column; text-align:center; }
-    .bundle-card .bc-right{ text-align:center; }
-    .bc-mods{ justify-content:center; }
-    .sbar{ flex-direction:column; text-align:center; }
-    .sb-right .btn{ width:100%; }
-    .nav-links{ display:none; }
-    .stage{ order:-1; }
-    .feat-grid .stage{ order:0; }
-    .band{ clip-path:polygon(0 3%, 100% 0, 100% 100%, 0 100%); }
+    .hero{ padding-top:34px; }
+    .hero-grid, .split, .split.rev, .pk-wrap{ grid-template-columns:1fr; gap:30px; }
+    .split.rev .split-media{ order:2; }
+    .nav-links{ position:absolute; left:0; right:0; top:100%; display:flex; overflow-x:auto; gap:22px; padding:8px 20px 10px;
+                background:rgba(255,255,255,.97); box-shadow:0 1px 0 var(--line); white-space:nowrap; scrollbar-width:none; }
+    .nav-links::-webkit-scrollbar{ display:none; }
+    section[id]{ scroll-margin-top:120px; }
+    body{ padding-top:0; }
+    .hero{ margin-top:42px; }
+    .perks{ grid-template-columns:1fr; padding:6px; }
+    .perk + .perk{ box-shadow:0 -1px 0 var(--line); }
+    .mods-grid{ grid-template-columns:1fr 1fr; }
+    .flow{ grid-template-columns:1fr; }
+    .arrow{ justify-content:center; transform:rotate(90deg); font-size:22px; }
+    .sbar{ grid-template-columns:1fr; text-align:center; }
+    .sb-right{ justify-content:center; }
+    .sb-note{ margin:0; flex-basis:100%; }
+    .foot{ grid-template-columns:1fr 1fr; }
   }
   @media (max-width:560px){
+    .wrap{ padding:0 16px; }
+    h1{ font-size:31px; }
+    .lead{ font-size:15.5px; }
+    .hero-actions .btn{ width:100%; }
+    .shot{ padding:10px 6px 26px; }
+    .shot-school{ width:34%; left:-4%; }
+    .shot-doc{ width:56px; }
+    .sec{ padding:54px 0; }
+    .sec-head h2, .split h2{ font-size:26px; }
     .mods-grid{ grid-template-columns:1fr; }
-    .mgrid{ grid-template-columns:repeat(2,1fr); }
-    h1{ font-size:32px; }
-    /* จอเล็ก: เหลือการ์ดลอยรูปละ 1-2 ใบ กันบังตัวคน/ล้นจอ */
-    .fc-3,.fc-a,.fc-c{ display:none; }
-    .fc-1{ left:0; }
-    .fc-b{ left:0; }
-    /* แถบบนจอมือถือ: โลโก้ + 2 ปุ่มต้องอยู่บรรทัดเดียวโดยไม่ทับกัน */
+    .pk-list{ grid-template-columns:1fr; }
     .nav{ height:60px; gap:8px; }
-    .brand{ font-size:16px; gap:7px; white-space:nowrap; min-width:0; }
+    .brand{ font-size:16px; gap:7px; }
     .brand img{ height:28px; }
-    .nav-cta{ gap:6px; flex:none; }
+    .nav-cta{ gap:6px; }
     .nav-cta .btn{ padding:7px 12px; font-size:13px; }
-    .live-txt span{ display:block; }          /* มือถือ: วลีละบรรทัด */
-    .live-txt .dot{ display:none; }
+    .live-txt span{ display:block; }
+    .cta-box{ padding:40px 18px; }
+    .cta-box h2{ font-size:26px; }
+    .cta-btns .btn{ width:100%; }
+    .guide-btns .btn{ flex:1; }
+    .foot{ grid-template-columns:1fr; }
+    .bd-price b{ font-size:44px; }
   }
   @media (max-width:380px){
-    .brand{ font-size:14.5px; gap:5px; }
-    .brand img{ height:24px; }
+    .brand{ font-size:14.5px; }
     .nav-cta .btn{ padding:7px 10px; font-size:12.5px; }
-    .nav-cta .btn-ghost{ border:0; padding:7px 4px; }
+    .nav-cta .btn-ghost{ box-shadow:none; border:0; padding:7px 4px; }
   }
+  @media (prefers-reduced-motion: reduce){ .shot-doc{ animation:none; } .mod:hover{ transform:none; } }
   /* บทความบน landing ใช้ข้อมูลเผยแพร่ชุดเดียวกับคลังความรู้ */
   .landing-knowledge{padding:84px 0 72px;background:#f7f9fd;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
   .lk-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:28px;margin-bottom:30px}
@@ -593,46 +384,32 @@
   @media(max-width:960px){.lk-grid{gap:14px}.lk-content{padding:17px}.lk-content h3{font-size:16px}.lk-heading h2{font-size:29px}.lk-paper{padding:14px}.lk-paper strong{font-size:27px}}
   @media(max-width:720px){.landing-knowledge{padding:54px 0}.lk-heading{align-items:flex-start;flex-direction:column;gap:18px}.lk-heading h2{font-size:27px}.lk-grid{grid-template-columns:1fr;gap:22px}.lk-card{max-width:540px;width:100%;margin:0 auto}.lk-content{padding:21px}.lk-content h3{font-size:18px}.lk-content>p{font-size:13px}.lk-paper{padding:18px 24px}.lk-paper strong{font-size:40px}.lk-note{text-align:left;line-height:1.9}.lk-cover-caption{font-size:11px}.lk-card-footer{font-size:12px}}
   @media(prefers-reduced-motion:reduce){.lk-card,.lk-cover-image{transition:none}.lk-card:hover,.lk-card:hover .lk-cover-image{transform:none}}
-
 </style>
 </head>
 <body>
-
-<!-- ================= ไอคอน SVG (แทน emoji ทั้งหน้า) ================= -->
+{% set I = '/static/images/home3d/' %}
 <svg style="display:none" xmlns="http://www.w3.org/2000/svg">
   <symbol id="ic-spark" viewBox="0 0 24 24"><path d="M12 3l1.9 5.9L20 12l-6.1 3.1L12 21l-1.9-5.9L4 12l6.1-3.1z"/></symbol>
   <symbol id="ic-play" viewBox="0 0 24 24"><polygon points="7 4 20 12 7 20 7 4" fill="currentColor" stroke="none"/></symbol>
-  <symbol id="ic-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
-  <symbol id="ic-arrow-down" viewBox="0 0 24 24"><path d="M12 5v14"/><polyline points="19 12 12 19 5 12"/></symbol>
   <symbol id="ic-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14"/><polyline points="12 5 19 12 12 19"/></symbol>
-  <symbol id="ic-package" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></symbol>
-  <symbol id="ic-coins" viewBox="0 0 24 24"><circle cx="8" cy="8" r="6"/><path d="M18.1 10.4A6 6 0 1 1 10.3 18"/><path d="M6.3 6.3h3.4M8 4.6v3.4"/></symbol>
-  <symbol id="ic-mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></symbol>
-  <symbol id="ic-food" viewBox="0 0 24 24"><path d="M3 11h18a9 9 0 0 1-18 0z"/><path d="M7 11V9a5 5 0 0 1 10 0v2"/><path d="M5 21h14"/></symbol>
-  <symbol id="ic-cap" viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/><path d="M22 10v6"/></symbol>
-  <symbol id="ic-pencil" viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></symbol>
-  <symbol id="ic-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></symbol>
-  <symbol id="ic-printer" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8" rx="1"/></symbol>
   <symbol id="ic-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
   <symbol id="ic-doc" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8M8 17h5"/></symbol>
+  <symbol id="ic-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></symbol>
+  <symbol id="ic-phone" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></symbol>
   <symbol id="ic-facebook" viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></symbol>
-  <symbol id="ic-users" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
   <symbol id="ic-star" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></symbol>
-  <symbol id="ic-tag" viewBox="0 0 24 24"><path d="M20.59 13.41 12 22l-9-9V3h10l7.59 7.59a2 2 0 0 1 0 2.82z"/><circle cx="7.5" cy="7.5" r="1.5"/></symbol>
-  <symbol id="ic-building" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01"/></symbol>
 </svg>
 
-<!-- ================= NAVBAR ================= -->
+<!-- ================= เมนูบน ================= -->
 <header>
   <div class="wrap nav">
     <a class="brand" href="/landing"><img src="/static/logo-ekkasan.png" alt="Easy Ekkasan" onerror="this.remove()">Easy <b>Ekkasan</b></a>
-    <nav class="nav-links">
+    <nav class="nav-links" aria-label="เมนูหลัก">
+      <a href="#modules">ฟังก์ชัน</a>
       <a href="#how">วิธีใช้งาน</a>
-      <a href="#features">จุดเด่น</a>
-      <a href="#modules">โมดูล</a>
-      <a href="#pricing">ราคา</a>
+      {% if kb_preview %}<a href="#knowledge">คลังความรู้</a>{% elif kb_count %}<a href="/knowledge">คลังความรู้</a>{% endif %}
+      <a href="#pricing">แพ็กเกจ</a>
       <a href="#contact">ติดต่อ</a>
-      {% if kb_count %}<a href="/knowledge">คลังความรู้</a>{% endif %}
     </nav>
     <div class="nav-cta">
       <a class="btn btn-ghost" href="/login">เข้าสู่ระบบ</a>
@@ -641,211 +418,154 @@
   </div>
 </header>
 
-<!-- ================= HERO ================= -->
+<!-- ================= ส่วนเปิดหน้า ================= -->
 <section class="hero">
   <div class="wrap hero-grid">
     <div>
-      <span class="chip"><svg class="ico"><use href="#ic-spark"/></svg> ออกแบบมาเพื่อครูโรงเรียนไทยโดยเฉพาะ</span>
-      <h1>ลดงานเอกสาร<br><span class="hl">ให้ครูได้กลับไปสอน</span></h1>
-      <p class="lead">Easy Ekkasan รวมงานพัสดุ การเงิน ธุรการ อาหารกลางวัน บุคคล และวิชาการ ไว้ในที่เดียว
-        กรอกข้อมูลครั้งเดียว ระบบออกเอกสารราชการให้ครบชุด ถูกต้องตามระเบียบ พร้อมพิมพ์ทันที</p>
+      <span class="chip"><svg class="ico"><use href="#ic-spark"/></svg> ระบบงานโรงเรียน ลดงานเอกสารให้ครู</span>
+      <h1><span>งานโรงเรียนเชื่อมถึงกัน</span><span class="grad-text">ครูมีเวลาให้ห้องเรียนมากขึ้น</span></h1>
+      <p class="lead">รวมงานพัสดุ การเงิน ธุรการ อาหารกลางวัน บุคคล วิชาการ และบริหารทั่วไป ไว้ในระบบเดียว
+        กรอกข้อมูลครั้งเดียว ใช้ต่อได้ทุกเอกสาร แล้วดาวน์โหลดเป็นไฟล์ Word พร้อมพิมพ์</p>
       <div class="hero-actions" id="try">
         {% if sandbox_msg or request.query_params.get('sandbox') == 'ended' %}
         <div class="try-msg">{{ sandbox_msg or 'ระบบตัวอย่างชุดเดิมครบ 24 ชั่วโมงและถูกลบแล้ว กดปุ่มด้านล่างเพื่อเปิดชุดใหม่ได้เลย' }}</div>
         {% endif %}
         <form class="try-form" method="post" action="/sandbox/start" onsubmit="tryStart(this)">
-          <button class="btn btn-try" type="submit"><svg class="ico"><use href="#ic-play"/></svg> ทดลองใช้ระบบตัวอย่าง</button>
+          <button class="btn btn-primary" type="submit"><svg class="ico"><use href="#ic-play"/></svg> ลองใช้ระบบตัวอย่าง</button>
         </form>
-        <a class="btn btn-primary" href="/register">ทดลองใช้ฟรี</a>
-        <a class="btn btn-play" href="#how"><span class="ic"><svg class="ico" style="font-size:13px;"><use href="#ic-play"/></svg></span> ดูวิธีใช้งาน</a>
-        <p class="try-note">ระบบตัวอย่าง: เข้าดูได้ทันทีไม่ต้องสมัคร มีข้อมูลโรงเรียนสมมติครบทุกงาน ลบเองใน 24 ชั่วโมง</p>
+        {% if video_id %}
+        <button class="btn btn-ghost" type="button" data-video="{{ video_id }}"><span class="play-ic"><svg class="ico"><use href="#ic-play"/></svg></span> ดูวิดีโอแนะนำ</button>
+        {% else %}
+        <a class="btn btn-ghost" href="/guide"><span class="play-ic"><svg class="ico"><use href="#ic-play"/></svg></span> ดูวิธีใช้งาน</a>
+        {% endif %}
+        <p class="try-note">ทดลองใช้ระบบตัวอย่างได้ทันที ไม่ต้องสมัคร มีข้อมูลโรงเรียนสมมติครบทุกงาน ลบเองใน 24 ชั่วโมง</p>
       </div>
-      <div class="hero-stats">
-        <div class="stat"><b>60<em>+</em></b><span>แบบเอกสารราชการ</span></div>
-        <div class="stat"><b>6<em>+</em></b><span>งานหลักในระบบเดียว</span></div>
-        <div class="stat"><b>1 <em>คลิก</em></b><span>ออกเอกสารครบชุด</span></div>
-      </div>
-      {% if kb_preview %}<a class="hero-knowledge" href="#knowledge"><svg class="ico" aria-hidden="true"><use href="#ic-doc"/></svg> มีบทความสำหรับครูให้อ่านฟรี <span aria-hidden="true">→</span></a>{% endif %}
       {% if live %}
       {# ตัวเลขจริงจากระบบ อัปเดตวันละครั้ง (app/services/public_stats.py) #}
       <div class="live">
-        <div class="live-tag"><i></i> ข้อมูลจริงจากระบบ อัปเดต {{ live.as_of }}</div>
-        {# แต่ละวลีห้ามตัดกลาง (ตัวเลขกับหน่วยต้องอยู่บรรทัดเดียวกัน) ตกบรรทัดได้เฉพาะระหว่างวลี #}
+        <div class="live-tag"><i></i> ข้อมูลจริงจากระบบ อัปเดต {{ live.as_of }}</div>
         <div class="live-txt"><span>ใช้งานไปแล้ว <b>{{ "{:,}".format(live.hits) }}</b> ครั้ง</span>
           <span>จากทั้งหมด <b>{{ "{:,}".format(live.schools) }}</b> โรงเรียน</span>{% if live.docs %}
-          <span class="dot"> </span><span>ออกเอกสารแล้ว <b>{{ "{:,}".format(live.docs) }}</b> ฉบับ</span>{% endif %}</div>
+          <span>ออกเอกสารแล้ว <b>{{ "{:,}".format(live.docs) }}</b> ฉบับ</span>{% endif %}</div>
       </div>
       {% endif %}
     </div>
 
-    <div class="stage">
-      <div class="pop">
-        <div class="arch"></div>
-        <img class="photo-pop" src="/static/landing/teacher-hero.png?v=3" alt="ครูผู้ใช้งาน Easy Ekkasan">
+    <div class="shot">
+      <div class="browser">
+        <div class="browser-bar"><i></i><i></i><i></i><span>easy-ekkasan.com</span></div>
+        <img src="/static/landing/screen-proc.jpg?v=1" width="1920" height="1200" alt="หน้างานพัสดุในระบบ Easy Ekkasan (ข้อมูลโรงเรียนสมมติ)" fetchpriority="high">
       </div>
-      <div class="float-card fc-1"><svg class="ico"><use href="#ic-grid"/></svg> ใช้งานง่าย <small>ครอบคลุมหลายฝ่ายงาน</small></div>
-      <div class="float-card fc-2">งานเอกสาร <small class="up"><svg class="ico" style="color:var(--green);"><use href="#ic-arrow-down"/></svg> ลดลงกว่า 80%</small></div>
-      <div class="float-card fc-3"><svg class="ico"><use href="#ic-spark"/></svg> มี AI ช่วยงานเอกสาร <small>ร่างบันทึก/หนังสือราชการให้อัตโนมัติ</small></div>
-      <span class="dot d-y"></span><span class="dot d-b"></span><span class="dot d-b2"></span>
+      <img class="shot-school" src="/static/landing/school.png" alt="" aria-hidden="true">
+      <img class="shot-doc" src="{{ I }}t_doc.png" alt="" aria-hidden="true">
+      <span class="shot-note">ภาพจากระบบจริง ข้อมูลสมมติ</span>
     </div>
   </div>
 
-  <!-- แถบโมดูล -->
-  <div class="wrap trust">
-    <div class="trust-bar">
-      <span class="trust-item"><span class="tic"><svg class="ico"><use href="#ic-package"/></svg></span>งานพัสดุ</span>
-      <span class="trust-item"><span class="tic"><svg class="ico"><use href="#ic-coins"/></svg></span>งานการเงิน</span>
-      <span class="trust-item"><span class="tic"><svg class="ico"><use href="#ic-mail"/></svg></span>งานธุรการ</span>
-      <span class="trust-item"><span class="tic"><svg class="ico"><use href="#ic-food"/></svg></span>อาหารกลางวัน</span>
-      <span class="trust-item"><span class="tic"><svg class="ico"><use href="#ic-users"/></svg></span>งานบุคคล</span>
-      <span class="trust-item"><span class="tic"><svg class="ico"><use href="#ic-cap"/></svg></span>งานวิชาการ</span>
+  <!-- แถบจุดเด่น -->
+  <div class="wrap">
+    <div class="perks">
+      <div class="perk"><img src="/static/images/finance3d/link-records.png" alt="" aria-hidden="true"><div><b>ข้อมูลแต่ละงานเชื่อมกัน</b><span>รายชื่อครู ผู้ขาย นักเรียน และงบประมาณ กรอกครั้งเดียวใช้ได้ทุกงาน</span></div></div>
+      <div class="perk"><img src="{{ I }}t_doc.png" alt="" aria-hidden="true"><div><b>ดาวน์โหลด Word</b><span>เอกสารแบบราชการ ฟอนต์ TH Sarabun เปิดแก้ต่อได้ก่อนพิมพ์</span></div></div>
+      <div class="perk"><span class="pk-svg" aria-hidden="true"><svg class="ico"><use href="#ic-phone"/></svg></span><div><b>รองรับมือถือ</b><span>ใช้ผ่านเบราว์เซอร์ ไม่ต้องติดตั้งโปรแกรม เปิดได้ทั้งคอมและมือถือ</span></div></div>
     </div>
   </div>
 </section>
 
-<!-- ================= HOW IT WORKS ================= -->
-<section class="how" id="how">
+<!-- ================= ฟังก์ชัน 7 งาน ================= -->
+<section class="sec" id="modules">
   <div class="wrap">
     <div class="sec-head">
-      <h2>ใช้งานยังไง<i>?</i></h2>
-      <p>สามขั้นตอน แค่กรอกข้อมูล เลือกเอกสารที่ต้องการ และพิมพ์</p>
-    </div>
-    <div class="how-grid">
-      <div class="how-card">
-        <div class="how-num">1</div>
-        <svg class="ico how-ic" style="color:var(--green);"><use href="#ic-pencil"/></svg>
-        <h3>กรอกข้อมูลครั้งเดียว</h3>
-        <p>บันทึกเรื่องจัดซื้อ รายการพัสดุ ผู้ขาย หรือรายชื่อนักเรียน แค่ครั้งเดียว
-           ระบบจำและนำไปใช้ทุกเอกสารที่เกี่ยวข้อง</p>
-      </div>
-      <div class="how-card">
-        <div class="how-num">2</div>
-        <svg class="ico how-ic" style="color:var(--blue);"><use href="#ic-layers"/></svg>
-        <h3>ระบบจัดเอกสารให้ครบชุด</h3>
-        <p>บันทึกขอซื้อ ใบสั่งซื้อ ตรวจรับ ขอเบิกจ่าย ครบทุกใบตามระเบียบพัสดุฯ
-           เลขที่เอกสารรันอัตโนมัติ ไม่ชนกัน</p>
-      </div>
-      <div class="how-card">
-        <div class="how-num">3</div>
-        <svg class="ico how-ic" style="color:#b45309;"><use href="#ic-printer"/></svg>
-        <h3>ดาวน์โหลด Word พร้อมพิมพ์</h3>
-        <p>ได้ไฟล์ Word ฟอนต์ราชการ TH Sarabun จัดหน้าถูกต้อง
-           เปิดแก้เพิ่มได้เอง พิมพ์เสนอเซ็นได้ทันที</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ================= FEATURE 1 ================= -->
-<section class="feat" id="features">
-  <div class="wrap feat-grid">
-    <div>
-      <h2>ช่วยงานเอกสาร<br>ที่ครูทำอยู่ทุกวัน</h2>
-      <p class="sub">เปลี่ยนจากการพิมพ์ซ้ำ ๆ ให้ Easy Ekkasan จัดการแทน</p>
-      <ul class="checks">
-        <li><span class="ck"><svg class="ico"><use href="#ic-check"/></svg></span>ชุดเอกสารจัดซื้อจัดจ้างครบ 11 เอกสาร รวม ว.804 / ว.119 วิธีพิเศษ</li>
-        <li><span class="ck"><svg class="ico"><use href="#ic-check"/></svg></span>มีทะเบียนข้อมูลโรงเรียน ระบบดึงรายชื่อไปใช้ได้ทุกเอกสาร ไม่ต้องกรอกใหม่</li>
-        <li><span class="ck"><svg class="ico"><use href="#ic-check"/></svg></span>ออกเอกสารทุกประเภท พร้อมรูปแบบราชการ</li>
-      </ul>
-      <a class="btn btn-primary" href="/register">ทดลองใช้ฟรี</a>
-    </div>
-    <div class="stage sm">
-      <div class="pop">
-        <div class="arch"></div>
-        <img class="photo-pop pp-point" src="/static/landing/teacher-2.png?v=3" alt="" onerror="this.remove()">
-        <span class="ph-note">วางรูปครู → app/static/landing/teacher-2.png</span>
-      </div>
-      <div class="float-card fc-2">ชุดเอกสารจัดซื้อ <small class="up"><svg class="ico" style="color:var(--green);"><use href="#ic-check"/></svg> ครบ 11 เอกสารใน 1 คลิก</small></div>
-      <div class="float-card fc-a"><svg class="ico"><use href="#ic-coins"/></svg> บัญชีเงินคงเหลือประจำวัน <small class="up"><svg class="ico" style="color:var(--green);"><use href="#ic-check"/></svg> พร้อมพิมพ์</small></div>
-      <div class="float-card fc-b"><svg class="ico"><use href="#ic-food"/></svg> เอกสารจ้างอาหารกลางวัน <small>ครบ 3 รูปแบบ</small></div>
-      <div class="float-card fc-c"><svg class="ico"><use href="#ic-doc"/></svg> ช่วยเขียนหนังสือราชการ <small>6 รูปแบบสำเร็จรูป</small></div>
-      <span class="dot d-y"></span><span class="dot d-b2"></span>
-    </div>
-  </div>
-</section>
-
-<!-- ================= แถบน้ำเงิน ================= -->
-<section class="band">
-  <div class="wrap band-grid">
-    <div>
-      <h2>ครูใช้เวลากับงานธุรการ<br>มากกว่า <em>1 ใน 3</em> ของเวลาทำงาน</h2>
-      <p>ให้ Easy Ekkasan รับภาระงานเอกสารแทน แล้วคืนเวลาให้ห้องเรียน
-         ระบบคิดเลข คุมยอด คุมเลขที่เอกสาร และจัดรูปแบบราชการให้ทั้งหมด</p>
-    </div>
-    <a class="btn btn-white" href="#contact">เริ่มใช้กับโรงเรียนของคุณ</a>
-  </div>
-</section>
-
-<!-- ================= โมดูล ================= -->
-<section class="mods" id="modules">
-  <div class="wrap">
-    <div class="sec-head">
-      <h2>มีครบทุกงานเอกสารหลักในโรงเรียน</h2>
-      <p>งานที่กินเวลาครูที่สุด รวมอยู่ในระบบเดียวและข้อมูลแต่ละงานเชื่อมถึงกันได้</p>
+      <span class="eyebrow">ฟังก์ชัน</span>
+      <h2>ครบทุกงาน <span class="grad-text">ในระบบเดียว</span></h2>
+      <p>เลือกใช้เฉพาะงานที่โรงเรียนต้องการได้ และข้อมูลของทุกงานเชื่อมถึงกัน</p>
     </div>
     <div class="mods-grid">
-      <div class="mod">
-        <svg class="ico mic" style="color:var(--blue);"><use href="#ic-package"/></svg>
-        <h3>งานพัสดุ</h3>
-        <ul>
-          <li>เอกสารจัดซื้อจัดจ้างครบชุด</li>
-          <li>ทะเบียนคุมทรัพย์สิน-ค่าเสื่อม</li>
-          <li>แผนจัดซื้อ + ทะเบียนคุมสัญญา</li>
-        </ul>
+      <a class="mod m-proc" href="/guide"><img src="{{ I }}mod_procurement.png" alt="" aria-hidden="true"><h3>งานพัสดุ</h3>
+        <p>เอกสารจัดซื้อจัดจ้างครบชุด แผนจัดซื้อ ทะเบียนคุมสัญญา ทะเบียนครุภัณฑ์และบัญชีวัสดุ</p><span class="more">ดูรายละเอียด <svg class="ico"><use href="#ic-arrow-right"/></svg></span></a>
+      <a class="mod m-fin" href="/guide"><img src="{{ I }}mod_finance.png" alt="" aria-hidden="true"><h3>งานการเงิน</h3>
+        <p>ทะเบียนคุมเงิน สมุดเงินสด บัญชีแยกประเภท บันทึกขอเบิก และรายงานเงินคงเหลือประจำวัน</p><span class="more">ดูรายละเอียด <svg class="ico"><use href="#ic-arrow-right"/></svg></span></a>
+      <a class="mod m-admin" href="/guide"><img src="{{ I }}mod_admin.png" alt="" aria-hidden="true"><h3>งานธุรการ</h3>
+        <p>ทะเบียนหนังสือรับ-ส่ง บันทึกข้อความ คำสั่ง และหนังสือราชการ มี AI ช่วยร่างและอ่านหนังสือ</p><span class="more">ดูรายละเอียด <svg class="ico"><use href="#ic-arrow-right"/></svg></span></a>
+      <a class="mod m-lunch" href="/guide"><img src="{{ I }}mod_lunch.png" alt="" aria-hidden="true"><h3>อาหารกลางวัน</h3>
+        <p>คำนวณงบต่อหัว เอกสารจ้างเหมา จ้างแม่ครัว หรือซื้อวัตถุดิบ และภาวะโภชนาการนักเรียน</p><span class="more">ดูรายละเอียด <svg class="ico"><use href="#ic-arrow-right"/></svg></span></a>
+      <a class="mod m-hr" href="/guide"><img src="{{ I }}mod_hr.png" alt="" aria-hidden="true"><h3>งานบุคคล</h3>
+        <p>ทะเบียนบุคลากร ใบลาและขอไปราชการที่ครูส่งในระบบได้ ก.พ.7 และหนังสือรับรอง</p><span class="more">ดูรายละเอียด <svg class="ico"><use href="#ic-arrow-right"/></svg></span></a>
+      <a class="mod m-acad" href="/guide"><img src="{{ I }}mod_academic.png" alt="" aria-hidden="true"><h3>งานวิชาการ</h3>
+        <p>ผลการเรียน ปพ.5 ปพ.6 ตารางเรียน เช็กชื่อรายวัน แผนการสอน และงานนิเทศภายใน</p><span class="more">ดูรายละเอียด <svg class="ico"><use href="#ic-arrow-right"/></svg></span></a>
+      <a class="mod m-gen" href="/guide"><span class="free-tag">ใช้ฟรี</span><img src="{{ I }}mod_general.png" alt="" aria-hidden="true"><h3>งานบริหารทั่วไป</h3>
+        <p>บันทึกการเข้าแถว สถิติการมาเรียน คะแนนความประพฤติ และเงินออมนักเรียน เปิดให้ทุกโรงเรียนใช้ฟรี</p><span class="more">ดูรายละเอียด <svg class="ico"><use href="#ic-arrow-right"/></svg></span></a>
+    </div>
+  </div>
+</section>
+
+<!-- ================= การเชื่อมข้อมูล ================= -->
+<section class="sec alt-blue" id="how">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">วิธีใช้งาน</span>
+      <h2>กรอกครั้งเดียว <span class="grad-text">ใช้ต่อได้ทั้งงาน</span></h2>
+      <p>ข้อมูลที่กรอกตอนสร้างเรื่อง ถูกนำไปใช้ต่อในเอกสารทุกฉบับและงานที่เกี่ยวข้อง</p>
+    </div>
+    <div class="flow">
+      <div class="step"><img src="{{ I }}p_create.png" alt="" aria-hidden="true"><div class="num">1</div><h3>สร้างเรื่อง</h3>
+        <p>กรอกรายการ ผู้ขาย และงบประมาณ ระบบเลือกรายชื่อและเลขที่เอกสารให้</p></div>
+      <div class="arrow" aria-hidden="true"><svg class="ico"><use href="#ic-arrow-right"/></svg></div>
+      <div class="step"><img src="{{ I }}a_wait_dir.png" alt="" aria-hidden="true"><div class="num">2</div><h3>ส่งอนุมัติ</h3>
+        <p>เสนอผู้อำนวยการพิจารณาในระบบ อนุมัติแล้วแปะลายเซ็นในเอกสารให้</p></div>
+      <div class="arrow" aria-hidden="true"><svg class="ico"><use href="#ic-arrow-right"/></svg></div>
+      <div class="step"><img src="{{ I }}f_disburse.png" alt="" aria-hidden="true"><div class="num">3</div><h3>ออกเอกสาร / บันทึกจ่าย</h3>
+        <p>ดาวน์โหลดเอกสารครบชุดเป็น Word และบันทึกขอเบิกเข้าทะเบียนคุมเงิน</p></div>
+    </div>
+    <p class="flow-note"><b>หมายเหตุ:</b> ขั้นส่งอนุมัติขึ้นอยู่กับการตั้งค่าของโรงเรียน เปิดหรือปิดได้</p>
+  </div>
+</section>
+
+<!-- ================= ติดตามงาน ================= -->
+<section class="sec" id="features">
+  <div class="wrap split">
+    <div>
+      <span class="eyebrow">ติดตามงาน</span>
+      <h2>เห็นงานที่ต้องทำ<br><span class="grad-text">ไม่ต้องไล่เปิดหลายหน้า</span></h2>
+      <p class="sub">หน้าภาพรวมรวบรวมงานค้างของแต่ละคน ตามหน้าที่ที่ได้รับ</p>
+      <ul class="rows">
+        <li><img src="{{ I }}todo.png" alt="" aria-hidden="true"><div><b>สถานะของแต่ละเรื่อง</b><span>รู้ว่าเรื่องไหนยังเป็นร่าง รอตรวจรับ หรือเบิกจ่ายแล้ว</span></div></li>
+        <li><img src="{{ I }}leave_wait.png" alt="" aria-hidden="true"><div><b>งานรออนุมัติ</b><span>ใบลา แผนการสอน และเอกสารที่รอ ผอ. รวมอยู่ในกล่องเดียว</span></div></li>
+        <li><img src="/static/images/finance3d/link-records.png" alt="" aria-hidden="true"><div><b>ข้อมูลที่เชื่อมกัน</b><span>เรื่องจัดซื้อเชื่อมกับโครงการและทะเบียนคุมเงิน ไม่ต้องกรอกยอดซ้ำ</span></div></li>
+      </ul>
+      <form class="try-form" method="post" action="/sandbox/start" onsubmit="tryStart(this)">
+        <button class="btn btn-primary" type="submit"><svg class="ico"><use href="#ic-play"/></svg> ลองใช้ระบบตัวอย่าง</button>
+      </form>
+    </div>
+    <div class="split-media">
+      <div class="browser">
+        <div class="browser-bar"><i></i><i></i><i></i><span>easy-ekkasan.com</span></div>
+        <img src="/static/landing/screen-home.jpg?v=1" width="1920" height="1200" decoding="async" alt="หน้าภาพรวมโรงเรียน แสดงงานที่ต้องจัดการ (ข้อมูลโรงเรียนสมมติ)">
       </div>
-      <div class="mod">
-        <svg class="ico mic" style="color:var(--green);"><use href="#ic-coins"/></svg>
-        <h3>งานการเงิน</h3>
-        <ul>
-          <li>ทะเบียนคุมเงิน รับ-จ่าย-คงเหลือ</li>
-          <li>สมุดเงินสด + บัญชีแยกประเภท</li>
-          <li>รายงานแบบ สตง. + เงินคงเหลือประจำวัน</li>
-        </ul>
-      </div>
-      <div class="mod">
-        <svg class="ico mic" style="color:#dc2626;"><use href="#ic-mail"/></svg>
-        <h3>งานธุรการ</h3>
-        <ul>
-          <li>ทะเบียนหนังสือรับ-ส่ง</li>
-          <li>บันทึกข้อความ + คำสั่ง (มี AI ช่วย)</li>
-          <li>เขียนหนังสือราชการได้ 6 รูปแบบ (มี AI ช่วย)</li>
-        </ul>
-      </div>
-      <div class="mod">
-        <svg class="ico mic" style="color:#b45309;"><use href="#ic-food"/></svg>
-        <h3>อาหารกลางวัน</h3>
-        <ul>
-          <li>คำนวณงบต่อหัวอัตโนมัติ</li>
-          <li>เอกสารจ้างเหมา/จ้างแม่ครัว/ซื้อวัตถุดิบ</li>
-          <li>ภาวะโภชนาการจากทะเบียนนักเรียน</li>
-        </ul>
-      </div>
-      <div class="mod">
-        <svg class="ico mic" style="color:#0d9488;"><use href="#ic-users"/></svg>
-        <h3>งานบุคคล</h3>
-        <ul>
-          <li>ทะเบียนบุคลากร วันลา ไปราชการ (ครูส่งในระบบได้)</li>
-          <li>ก.พ.7 หนังสือรับรอง คำนวณวันลาคงเหลืออัตโนมัติ</li>
-        </ul>
-      </div>
-      <div class="mod">
-        <svg class="ico mic" style="color:#4f46e5;"><use href="#ic-cap"/></svg>
-        <h3>งานวิชาการ</h3>
-        <ul>
-          <li>ผลการเรียน ปพ.5 / ปพ.6 + ประเมินคุณลักษณะ/อ่านคิดวิเคราะห์</li>
-          <li>ห้องเรียน รายวิชา 8 กลุ่มสาระ จัดครูเข้าสอน ตารางเรียน</li>
-          <li>เช็คชื่อรายวัน ส่ง-ตรวจแผนการสอน บัญชีครูรายคน</li>
-          <li>นิเทศภายใน: เยี่ยมชั้นเรียน + นิเทศการสอน (พิมพ์เอกสาร)</li>
-        </ul>
-      </div>
-      <div class="mod">
-        <svg class="ico mic" style="color:#0891b2;"><use href="#ic-grid"/></svg>
-        <h3>งานบริหารทั่วไป <span class="free-tag">ฟรี</span></h3>
-        <ul>
-          <li>บันทึกการเข้าแถวรายห้อง (มา สาย ขาด โดดแถว)</li>
-          <li>สถิติการมาเรียนรายห้อง + รายชื่อมาสาย + กราฟ</li>
-          <li>เปิดให้ทุกโรงเรียนใช้ฟรี ทยอยเพิ่มฟังก์ชันเรื่อยๆ</li>
-        </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ================= คู่มือและวิดีโอ ================= -->
+<section class="sec alt-violet" id="guide">
+  <div class="wrap split rev">
+    <div class="split-media">
+      {% if video_id %}
+      <button class="vid" type="button" data-video="{{ video_id }}" aria-label="เล่นวิดีโอแนะนำการใช้งาน">
+        <img src="https://i.ytimg.com/vi/{{ video_id }}/hqdefault.jpg" alt="" loading="lazy">
+        <span class="pl"><span><svg class="ico"><use href="#ic-play"/></svg></span></span>
+      </button>
+      {% else %}
+      <a class="vid" href="/guide" aria-label="เปิดคู่มือการใช้งาน"><span class="vid-fallback"></span><span class="pl"><span><svg class="ico"><use href="#ic-book"/></svg></span></span></a>
+      {% endif %}
+    </div>
+    <div>
+      <span class="eyebrow">คู่มือ</span>
+      <h2>เริ่มต้นง่าย<br><span class="grad-text">มีคู่มือให้ดูทีละขั้น</span></h2>
+      <p class="sub">หน้าวิธีใช้งานมีขั้นตอนของแต่ละงานพร้อมวิดีโอสอน และในระบบมีรายการเริ่มต้นบอกว่าต้องตั้งค่าอะไรก่อน</p>
+      <div class="guide-btns">
+        {% if video_id %}<button class="btn btn-primary" type="button" data-video="{{ video_id }}"><svg class="ico"><use href="#ic-play"/></svg> ดูวิดีโอ</button>{% endif %}
+        <a class="btn btn-ghost" href="/guide"><svg class="ico"><use href="#ic-book"/></svg> เปิดคู่มือทั้งหมด</a>
       </div>
     </div>
   </div>
@@ -883,46 +603,53 @@
       </article>
       {% endfor %}
     </div>
-    <p class="lk-note">เลือกอ่านเรื่องที่กำลังทำอยู่ แล้วกลับมาใช้เป็นตัวช่วยระหว่างเตรียมเอกสารได้</p>
   </div>
 </section>
 {% endif %}
 
-
-<!-- ================= ราคา ================= -->
+<!-- ================= แพ็กเกจ ================= -->
 {% set px = prices | default(price_list()) %}
 {% set full = full_sum | default(px.p_proc + px.p_fin + px.p_admin + px.p_lunch + px.p_hr + px.p_acad) %}
 {% set save = bundle_save | default(1250) %}
-<section class="pricing" id="pricing">
+{% set tiers = tier_discount | default({2:100, 3:200, 4:300, 5:400}) %}
+<section class="sec alt-blue" id="pricing">
   <div class="wrap">
     <div class="sec-head">
-      <h2>ราคาที่คุ้มค่าสำหรับโรงเรียน<i>.</i></h2>
-      <p>จ่ายรายปี เริ่มทดลองใช้ฟรี {{ trial_days }} วันก่อนตัดสินใจ</p>
+      <span class="eyebrow">แพ็กเกจ</span>
+      <h2>เลือกให้พอดี<span class="grad-text">กับงานของโรงเรียน</span></h2>
+      <p>จ่ายรายปี ซื้อแยกเฉพาะงานได้ ยิ่งเลือกหลายงานยิ่งได้ส่วนลด ทดลองใช้ฟรี {{ trial_days }} วันก่อนตัดสินใจ</p>
     </div>
 
-    <!-- การ์ดแพ็กเกจรวม (แนะนำ) -->
-    <div class="bundle-card" aria-label="แพ็กเกจครบทุกงาน">
-      <span class="bc-shine"></span>
-      <div class="bc-badge"><svg class="ico"><use href="#ic-star"/></svg> แนะนำ</div>
-      <div class="bc-left">
-        <img class="bc-illus" src="/static/landing/school.png" alt="โรงเรียน"
-             onerror="this.outerHTML='<div class=&quot;bc-illus-emoji&quot;>🏫</div>'">
-        <div class="bc-info">
-          <h3>แพ็กเกจสุดคุ้ม</h3>
-          <p>ได้ครบทุกงาน ในราคาคุ้มที่สุด</p>
-          <div class="bc-mods">
-            <span class="m1"><svg class="ico"><use href="#ic-package"/></svg><b>พัสดุ</b></span>
-            <span class="m2"><svg class="ico"><use href="#ic-coins"/></svg><b>การเงิน</b></span>
-            <span class="m3"><svg class="ico"><use href="#ic-mail"/></svg><b>ธุรการ</b></span>
-            <span class="m4"><svg class="ico"><use href="#ic-food"/></svg><b>อาหารกลางวัน</b></span>
-            <span class="m5"><svg class="ico"><use href="#ic-users"/></svg><b>บุคคล</b></span>
-            <span class="m6"><svg class="ico"><use href="#ic-cap"/></svg><b>วิชาการ</b></span>
-          </div>
-        </div>
+    <div class="pk-wrap">
+      <div class="pk-list" id="pickList">
+        {% for key, name, desc, icon in [
+          ('p_proc','งานพัสดุ','จัดซื้อจัดจ้าง ครุภัณฑ์ วัสดุ','mod_procurement'),
+          ('p_fin','งานการเงิน','ทะเบียนคุมเงิน ขอเบิก รายงาน','mod_finance'),
+          ('p_admin','งานธุรการ','หนังสือรับ-ส่ง บันทึก คำสั่ง','mod_admin'),
+          ('p_lunch','งานอาหารกลางวัน','งบต่อหัว จ้างเหมา วัตถุดิบ','mod_lunch'),
+          ('p_hr','งานบุคคล','บุคลากร ใบลา ไปราชการ','mod_hr'),
+          ('p_acad','งานวิชาการ','ผลการเรียน ปพ. ตารางเรียน','mod_academic')] %}
+        <label class="mcard on" data-price="{{ px[key] }}" data-name="{{ name }}">
+          <input type="checkbox" checked>
+          <span class="mc-box"><svg class="ico"><use href="#ic-check"/></svg></span>
+          <img src="{{ I }}{{ icon }}.png" alt="" aria-hidden="true">
+          <span class="mc-body"><h4>{{ name }}</h4><p>{{ desc }}</p></span>
+          <span class="mc-price">{{ "{:,}".format(px[key]) }}<small>บาท/ปี</small></span>
+        </label>
+        {% endfor %}
+        <div class="mfree"><img src="{{ I }}mod_general.png" alt="" aria-hidden="true">
+          <div>งานบริหารทั่วไป<small>เข้าแถว การมาเรียน ความประพฤติ เงินออม พร้อมข้อมูลโรงเรียนและทะเบียนนักเรียนกลาง</small></div>
+          <span class="tag">ใช้ฟรี</span></div>
+        <p class="tier-hint">ส่วนลดเมื่อเลือกหลายงาน: {% for n, d in tiers|dictsort %}{{ n }} งาน ลด {{ "{:,}".format(d) }} บาท{% if not loop.last %}, {% endif %}{% endfor %} และครบ 6 งานใช้ราคาแพ็กเกจ</p>
       </div>
-      <div class="bc-right">
+
+      <div class="bundle" aria-label="แพ็กเกจครบทุกงาน">
+        <span class="bd-badge"><svg class="ico"><use href="#ic-star"/></svg> แนะนำ</span>
+        <img class="bd-school" src="/static/landing/school.png" alt="" aria-hidden="true">
+        <h3>แพ็กเกจครบทุกงาน</h3>
+        <p class="bd-sub">ได้ครบ 6 งานหลัก ในราคาคุ้มที่สุด</p>
         {% if promo_end_iso %}
-        <div class="bc-promo">ราคานี้เหลืออีก {{ promo_days_left }} วัน</div>
+        <div class="bd-promo">ราคานี้เหลืออีก {{ promo_days_left }} วัน</div>
         <div class="bc-count" data-deadline="{{ promo_end_iso }}"></div>
         {% endif %}
         {% if promo_slots %}
@@ -931,304 +658,82 @@
           <div class="bc-bar"><i style="width:{{ (promo_slots_left / promo_slots * 100)|round(0,'floor') }}%"></i></div>
         </div>
         {% endif %}
-        <div class="bc-was">จากปกติ <s>{{ "{:,}".format(full) }}</s> บาท</div>
-        <div class="bc-save">ประหยัด {{ "{:,}".format(save) }} บาท</div>
-        <div class="bc-price"><b>{{ "{:,}".format(px.bundle) }}</b><span>บาท / ปี</span></div>
+        <div class="bd-was">จากปกติ <s>{{ "{:,}".format(full) }}</s> บาท</div>
+        <div class="bd-save">ประหยัด {{ "{:,}".format(save) }} บาท</div>
+        <div class="bd-price"><b>{{ "{:,}".format(px.bundle) }}</b><span>บาท / ปี</span></div>
         <div class="purchase-actions">
-          <a class="btn btn-primary bc-btn" href="/checkout?packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}">สั่งซื้อแพ็กเกจ <svg class="ico"><use href="#ic-arrow-right"/></svg></a>
+          <a class="btn btn-white" href="/checkout?packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}">สั่งซื้อแพ็กเกจ <svg class="ico"><use href="#ic-arrow-right"/></svg></a>
           <a class="btn btn-quote" href="/quote?packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}">ขอใบเสนอราคา</a>
         </div>
         <a class="trial-link" href="/register">ทดลองใช้ฟรี {{ trial_days }} วัน</a>
       </div>
     </div>
 
-    <!-- หรือเลือกเฉพาะงาน -->
-    <div class="or-head">หรือเลือกเฉพาะงานที่ต้องใช้</div>
-    <div class="save-ladder">
-      <div class="sl-card" data-n="2"><span class="sl-lock" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
-        <svg class="ico"><use href="#ic-tag"/></svg>
-        <div class="sl-txt"><b>2 งาน</b><span>ลด 100 บาท</span><em class="sl-need"></em></div>
-      </div>
-      <div class="sl-card" data-n="3"><span class="sl-lock" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
-        <svg class="ico"><use href="#ic-tag"/></svg>
-        <div class="sl-txt"><b>3 งาน</b><span>ลด 200 บาท</span><em class="sl-need"></em></div>
-      </div>
-      <div class="sl-card" data-n="4"><span class="sl-lock" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
-        <svg class="ico"><use href="#ic-tag"/></svg>
-        <div class="sl-txt"><b>4 งาน</b><span>ลด 300 บาท</span><em class="sl-need"></em></div>
-      </div>
-      <div class="sl-card" data-n="5"><span class="sl-lock" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
-        <svg class="ico"><use href="#ic-tag"/></svg>
-        <div class="sl-txt"><b>5 งาน</b><span>ลด 400 บาท</span><em class="sl-need"></em></div>
-      </div>
-      <div class="sl-card sl-best" data-n="6"><span class="sl-lock" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
-        <span class="sl-ribbon">คุ้มสุด!</span>
-        <svg class="ico"><use href="#ic-star"/></svg>
-        <div class="sl-txt"><b>6 งาน <i>(ครบทุกงาน)</i></b><span>เหลือ {{ "{:,}".format(px.bundle) }} บาท</span><em class="sl-need"></em></div>
-      </div>
-    </div>
-    <div class="mgrid" id="pickList">
-      <label class="mcard on" data-price="{{ px.p_proc }}" data-name="งานพัสดุ">
-        <input type="checkbox" checked>
-        <div class="mc-head">
-          <span class="mc-ic" style="background:#eef4ff;"><svg class="ico" style="color:var(--blue);"><use href="#ic-package"/></svg></span>
-          <h4>งานพัสดุ</h4>
-        </div>
-        <ul class="mc-list">
-          <li>เอกสารจัดซื้อจัดจ้างครบทุกแบบ</li>
-          <li>ออกเอกสารแบบต่างๆ เช่น ว.804/ว.119</li>
-          <li>ทะเบียนครุภัณฑ์และบัญชีวัสดุ</li>
-        </ul>
-        <div class="mc-price">{{ px.p_proc }} <small>บาท/ปี</small></div>
-        <span class="mc-pick"><svg class="ico"><use href="#ic-check"/></svg> เลือก</span>
-      </label>
-      <label class="mcard on" data-price="{{ px.p_fin }}" data-name="งานการเงิน">
-        <input type="checkbox" checked>
-        <div class="mc-head">
-          <span class="mc-ic" style="background:#e9f9ef;"><svg class="ico" style="color:var(--green);"><use href="#ic-coins"/></svg></span>
-          <h4>งานการเงิน</h4>
-        </div>
-        <ul class="mc-list">
-          <li>สมุดเงินสดและบัญชีแยกประเภท</li>
-          <li>รายงานเงินคงเหลือประจำวัน</li>
-          <li>บันทึกขอเบิกจ่ายและออกใบเสร็จ</li>
-        </ul>
-        <div class="mc-price">{{ px.p_fin }} <small>บาท/ปี</small></div>
-        <span class="mc-pick"><svg class="ico"><use href="#ic-check"/></svg> เลือก</span>
-      </label>
-      <label class="mcard on" data-price="{{ px.p_admin }}" data-name="งานธุรการ">
-        <input type="checkbox" checked>
-        <div class="mc-head">
-          <span class="mc-ic" style="background:#fdeeee;"><svg class="ico" style="color:#dc2626;"><use href="#ic-mail"/></svg></span>
-          <h4>งานธุรการ</h4>
-        </div>
-        <ul class="mc-list">
-          <li>ออกหนังสือราชการได้ 6 แบบ (มี AI ช่วย)</li>
-          <li>ทะเบียนหนังสือรับ-ส่ง</li>
-          <li>ออกคำสั่ง บันทึกข้อความ เกียรติบัตร</li>
-        </ul>
-        <div class="mc-price">{{ px.p_admin }} <small>บาท/ปี</small></div>
-        <span class="mc-pick"><svg class="ico"><use href="#ic-check"/></svg> เลือก</span>
-      </label>
-      <label class="mcard on" data-price="{{ px.p_lunch }}" data-name="งานอาหารกลางวัน">
-        <input type="checkbox" checked>
-        <div class="mc-head">
-          <span class="mc-ic" style="background:#fff5e6;"><svg class="ico" style="color:#d97706;"><use href="#ic-food"/></svg></span>
-          <h4>อาหารกลางวัน</h4>
-        </div>
-        <ul class="mc-list">
-          <li>คำนวณงบต่อหัวอัตโนมัติ</li>
-          <li>เอกสารจ้างเหมาหลายรูปแบบ</li>
-          <li>ภาวะโภชนาการนักเรียนและชุดเมนูอาหาร</li>
-        </ul>
-        <div class="mc-price">{{ px.p_lunch }} <small>บาท/ปี</small></div>
-        <span class="mc-pick"><svg class="ico"><use href="#ic-check"/></svg> เลือก</span>
-      </label>
-      <label class="mcard on" data-price="{{ px.p_hr }}" data-name="งานบุคคล">
-        <input type="checkbox" checked>
-        <div class="mc-head">
-          <span class="mc-ic" style="background:#e6f7f5;"><svg class="ico" style="color:#0d9488;"><use href="#ic-users"/></svg></span>
-          <h4>งานบุคคล</h4>
-        </div>
-        <ul class="mc-list">
-          <li>ทะเบียนบุคลากร วันลา ไปราชการ</li>
-          <li>ก.พ.7 และหนังสือรับรอง</li>
-          <li>คำนวณวันลาคงเหลือ</li>
-        </ul>
-        <div class="mc-price">{{ px.p_hr }} <small>บาท/ปี</small></div>
-        <span class="mc-pick"><svg class="ico"><use href="#ic-check"/></svg> เลือก</span>
-      </label>
-      <label class="mcard on" data-price="{{ px.p_acad }}" data-name="งานวิชาการ">
-        <input type="checkbox" checked>
-        <div class="mc-head">
-          <span class="mc-ic" style="background:#eeecff;"><svg class="ico" style="color:#4f46e5;"><use href="#ic-cap"/></svg></span>
-          <h4>งานวิชาการ</h4>
-        </div>
-        <ul class="mc-list">
-          <li>ผลการเรียน ปพ.5 / ปพ.6</li>
-          <li>สร้างรายวิชา 8 กลุ่มสาระง่าย ๆ</li>
-          <li>กำหนดห้องเรียนและครูประจำชั้น</li>
-        </ul>
-        <div class="mc-price">{{ px.p_acad }} <small>บาท/ปี</small></div>
-        <span class="mc-pick"><svg class="ico"><use href="#ic-check"/></svg> เลือก</span>
-      </label>
-    </div>
-
-    <!-- แถบสรุป -->
+    <!-- สรุปงานที่เลือก -->
     <div class="sbar">
-      <div class="sb-left">
-        <div class="sb-title">สรุปของคุณ</div>
+      <div>
+        <div class="sb-title">งานที่เลือก</div>
         <div class="sb-sel" id="sbSel">เลือกครบทุกงาน</div>
         <div class="sb-save" id="sbSave"></div>
-      </div>
-      <div class="sb-mid">
-        <div class="sb-lbl">รวมทั้งหมด</div>
-        <div class="sb-total"><b id="sumTotal">{{ "{:,}".format(px.bundle) }}</b> <small>บาท/ปี</small></div>
-      </div>
-      <div class="sb-right">
-        <div class="purchase-actions">
-          <a class="btn btn-primary" href="/checkout?packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}" id="btnBuy"><svg class="ico"><use href="#ic-arrow-right"/></svg> สั่งซื้อแพ็กเกจที่เลือก</a>
-          <a class="btn btn-quote" href="/quote?packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}" id="btnQuote">ขอใบเสนอราคา</a>
-        </div>
-        <a class="trial-link" href="/register" id="btnTrial">ทดลองใช้ฟรี {{ trial_days }} วัน</a>
-        <div class="sb-note">ทดลองใช้ก่อน ไม่ต้องจ่าย</div>
-      </div>
-      <div class="sb-breakdown">
-        <div class="sb-row"><span id="sbBeforeLabel">ราคาสินค้า</span><strong id="sbBefore">{{ "{:,}".format(px.bundle) }} บาท</strong></div>
-        <div class="sb-row discount"><span id="sbDiscountLabel">ส่วนลดที่ได้รับ</span><strong id="sbDiscount">−{{ "{:,}".format(save) }} บาท</strong></div>
-        <div class="sb-row net"><span>ยอดชำระ</span><strong id="sbNet">{{ "{:,}".format(px.bundle) }} บาท</strong></div>
-        <div class="sb-row saved"><span>คุณประหยัด</span><strong id="sbSaved">{{ "{:,}".format(save) }} บาท</strong></div>
         <div class="sb-upsell" id="sbUpsell"></div>
       </div>
-    </div>
-
-    <!-- แถมฟรี -->
-    <div class="pick-free" style="max-width:920px; margin:22px auto 0;">
-      <span class="free-badge"><svg class="ico"><use href="#ic-cap"/></svg></span>
-      <span class="free-txt">ข้อมูลโรงเรียน + ทะเบียนนักเรียนกลาง<small>ป้อนข้อมูลครั้งเดียว ระบบดึงข้อมูลไปใช้อัตโนมัติ ไม่ต้องกรอกซ้ำ</small></span>
-      <span class="free-tag">แถมฟรีทุกแพ็กเกจ</span>
-    </div>
-
-    <!-- ความน่าเชื่อถือ -->
-    <div class="price-trust">
-      <div class="pt-badges">
-        <div class="pt-badge"><svg class="ico" style="background:#2563eb; border-radius:10px; padding:6px;"><use href="#ic-check"/></svg><div><b>ปลอดภัย</b><span>ข้อมูลโรงเรียนปลอดภัย 
-          มีระบบสำรองข้อมูล</span></div></div>
-        <div class="pt-badge"><svg class="ico" style="background:#2563eb; border-radius:10px; padding:6px;"><use href="#ic-facebook"/></svg><div><b>มีทีมช่วยเหลือ</b><span>จันทร์-ศุกร์ 08.30-17.00 น.</span></div></div>
-        <div class="pt-badge"><svg class="ico" style="background:#2563eb; border-radius:10px; padding:6px;"><use href="#ic-cap"/></svg><div><b>อัปเดตต่อเนื่อง</b><span>ปรับปรุงข้อผิดพลาดได้เสมอ</span></div></div>
-        <div class="pt-badge"><svg class="ico" style="background:#2563eb; border-radius:10px; padding:6px;"><use href="#ic-star"/></svg><div><b>ใช้งานง่าย</b><span>ออกแบบเพื่อครู กรอกน้อย ได้เอกสารครบ</span></div></div>
+      <div class="sb-mid">
+        <div class="sb-lbl">ยอดชำระต่อปี</div>
+        <div class="sb-total"><b id="sumTotal">{{ "{:,}".format(px.bundle) }}</b> <small>บาท</small></div>
       </div>
+      <div class="sb-rows">
+        <div class="sb-row"><span id="sbBeforeLabel">ราคาสินค้า</span><strong id="sbBefore">{{ "{:,}".format(full) }} บาท</strong></div>
+        <div class="sb-row discount"><span id="sbDiscountLabel">ส่วนลดที่ได้รับ</span><strong id="sbDiscount">−{{ "{:,}".format(save) }} บาท</strong></div>
+        <div class="sb-row net"><span>ยอดชำระ</span><strong id="sbNet">{{ "{:,}".format(px.bundle) }} บาท</strong></div>
+        <div class="sb-row"><span>คุณประหยัด</span><strong id="sbSaved">{{ "{:,}".format(save) }} บาท</strong></div>
+      </div>
+      <div class="sb-right">
+        <span class="sb-note">ทดลองใช้ก่อน ไม่ต้องจ่าย</span>
+        <a class="trial-link" href="/register" id="btnTrial">ทดลองใช้ฟรี {{ trial_days }} วัน</a>
+        <span class="purchase-actions" style="flex-direction:row; width:auto; margin:0; flex-wrap:wrap;">
+          <a class="btn btn-quote" href="/quote?packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}" id="btnQuote">ขอใบเสนอราคา</a>
+          <a class="btn btn-primary" href="/checkout?packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}" id="btnBuy">สั่งซื้องานที่เลือก <svg class="ico"><use href="#ic-arrow-right"/></svg></a>
+        </span>
+      </div>
+    </div>
+    <p class="price-foot">ราคาและโปรโมชันเป็นราคาปัจจุบันจากระบบ ยอดสุดท้ายแสดงอีกครั้งในหน้าสั่งซื้อ</p>
+  </div>
+</section>
+
+<!-- ================= คำถามที่พบบ่อย ================= -->
+<section class="sec" id="faq">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">คำถามที่พบบ่อย</span>
+      <h2>มีคำถาม? <span class="grad-text">เราช่วยตอบ</span></h2>
+    </div>
+    <div class="faq">
+      <details open><summary>ต้องติดตั้งโปรแกรมไหม</summary>
+        <p>ไม่ต้องติดตั้ง ใช้ผ่านเบราว์เซอร์ได้เลย ทั้งคอมพิวเตอร์ แท็บเล็ต และมือถือ ข้อมูลเก็บบนเซิร์ฟเวอร์และมีการสำรองข้อมูล</p></details>
+      <details><summary>เลือกซื้อเฉพาะบางงานได้ไหม</summary>
+        <p>ได้ เลือกเฉพาะงานที่ต้องใช้ ถ้าเลือกตั้งแต่ 2 งานขึ้นไปได้ส่วนลดเพิ่ม หรือเลือกแพ็กเกจครบทุกงานในราคาที่คุ้มที่สุด ส่วนงานบริหารทั่วไปใช้ได้ฟรีทุกโรงเรียน</p></details>
+      <details><summary>เอกสารที่ได้เป็นไฟล์อะไร แก้ไขได้ไหม</summary>
+        <p>ดาวน์โหลดเป็นไฟล์ Word (.docx) ตามแบบราชการ เปิดแก้ไขเพิ่มเติมได้ก่อนพิมพ์และเสนอเซ็น</p></details>
+      <details><summary>ทดลองใช้ก่อนได้ไหม</summary>
+        <p>ได้ 2 แบบ กด "ลองใช้ระบบตัวอย่าง" เพื่อดูระบบที่มีข้อมูลสมมติครบทุกงานโดยไม่ต้องสมัคร (ลบเองใน 24 ชั่วโมง) หรือสมัครทดลองใช้ฟรี {{ trial_days }} วันด้วยข้อมูลโรงเรียนของคุณเอง</p></details>
+      <details><summary>ติดปัญหาการใช้งาน ขอความช่วยเหลือได้ทางไหน</summary>
+        <p>ดูขั้นตอนและวิดีโอได้ที่ <a href="/guide">หน้าวิธีใช้งาน</a> ในระบบมีปุ่มแชทกับเจ้าหน้าที่ หรือทักทาง <a href="https://www.facebook.com/profile.php?id=61590718498881&locale=th_TH" target="_blank" rel="noopener">Facebook</a> ทีมช่วยเหลือตอบวันจันทร์ถึงศุกร์ 08.30-17.00 น.</p></details>
     </div>
   </div>
 </section>
 
-<script>
-  // นับถอยหลังบนการ์ดแพ็กเกจ (วันสิ้นสุดมาจากค่าที่ตั้งไว้ใน seller_config - ไม่ใช่ตัวเลขหลอก)
-  (function(){
-    var box = document.querySelector('.bc-count[data-deadline]');
-    if(!box) return;
-    var end = new Date(box.dataset.deadline + 'T23:59:59');
-    var U = [['วัน',86400],['ชม.',3600],['นาที',60],['วิ',1]];
-    function tick(){
-      var s = Math.max(0, Math.floor((end - new Date())/1000));
-      box.innerHTML = U.map(function(u){
-        var v = Math.floor(s/u[1]); s -= v*u[1];
-        return '<span class="cbox"><b>' + String(v).padStart(2,'0') + '</b><span>' + u[0] + '</span></span>';
-      }).join('');
-    }
-    tick(); setInterval(tick, 1000);
-  })();
-
-  (function(){
-    var BUNDLE = {{ px.bundle | tojson }};                 // แพ็กครบทุกงาน (ราคาโปรถ้ามี) - จาก pricing_context()
-    var FULL = {{ full_sum | default(px.p_proc + px.p_fin + px.p_admin + px.p_lunch + px.p_hr + px.p_acad) | tojson }};    // รวมงานแยกเต็ม (ราคาขีดฆ่า)
-    var cards = [].slice.call(document.querySelectorAll('#pickList .mcard'));
-    var TIERS = {{ tier_discount | default({2:100, 3:200, 4:300, 5:400}) | tojson }};
-    var NMODS = cards.length;
-    var sumTotal = document.getElementById('sumTotal');
-    var sbSel = document.getElementById('sbSel');
-    var sbSave = document.getElementById('sbSave');
-    var sbBeforeLabel = document.getElementById('sbBeforeLabel');
-    var sbBefore = document.getElementById('sbBefore');
-    var sbDiscountLabel = document.getElementById('sbDiscountLabel');
-    var sbDiscount = document.getElementById('sbDiscount');
-    var sbNet = document.getElementById('sbNet');
-    var sbSaved = document.getElementById('sbSaved');
-    var sbUpsell = document.getElementById('sbUpsell');
-    var btnBuy = document.getElementById('btnBuy');
-    var btnQuote = document.getElementById('btnQuote');
-    var fmt = function(n){ return n.toLocaleString('en-US'); };
-    var ladder = [].slice.call(document.querySelectorAll('.save-ladder .sl-card[data-n]'));
-    var ready = false;                                   // ครั้งแรกที่โหลดหน้า ไม่เล่นเอฟเฟกต์
-    // การ์ดส่วนลด: ปลดล็อกตามจำนวนงานที่เลือก ใบที่ใช้อยู่ตอนนี้มีกรอบเด่น
-    function renderLadder(count){
-      var top = 0;
-      ladder.forEach(function(el){
-        var n = +el.dataset.n, open = count >= n, wasOpen = !el.classList.contains('locked');
-        if(open) top = Math.max(top, n);
-        el.classList.toggle('locked', !open);
-        var need = el.querySelector('.sl-need');
-        if(need) need.textContent = open ? '' : 'เลือกอีก ' + (n - count) + ' งาน';
-        if(open && !wasOpen && ready){
-          el.classList.remove('unlocking'); void el.offsetWidth; el.classList.add('unlocking');
-          setTimeout(function(){ el.classList.remove('unlocking'); }, 950);
-        }
-      });
-      ladder.forEach(function(el){ el.classList.toggle('current', +el.dataset.n === top); });
-    }
-    function render(){
-      var chosen = cards.filter(function(c){ return c.querySelector('input').checked; });
-      cards.forEach(function(c){ c.classList.toggle('on', c.querySelector('input').checked); });
-      var count = chosen.length;
-      var listSum = chosen.reduce(function(s,c){ return s + (+c.dataset.price); }, 0);
-      // ต้องตรงกับ price_for() ฝั่งเซิร์ฟเวอร์ (seller_config.py) - ที่นี่แค่แสดงผล
-      var total = count === NMODS ? BUNDLE : (count ? Math.max(0, listSum - (TIERS[count] || 0)) : 0);
-      var discount = Math.max(0, listSum - total);
-      var savings = discount;
-      var label = count === NMODS ? 'ครบทุกงาน' : (count ? chosen.map(function(c){ return c.dataset.name; }).join(' + ') : 'ยังไม่ได้เลือกงาน');
-
-      renderLadder(count);
-      sbSel.textContent = count ? label : 'ยังไม่ได้เลือกงาน';
-      sumTotal.textContent = fmt(total);
-
-      sbBeforeLabel.textContent = count === NMODS ? 'ราคาปกติทั้งชุด' : 'ราคาสินค้า';
-      sbBefore.textContent = count ? fmt(listSum) + ' บาท' : '0 บาท';
-      sbDiscountLabel.textContent = count === NMODS ? 'ส่วนลดแพ็กเกจ' : 'ส่วนลดที่ได้รับ';
-      sbDiscount.textContent = count ? '−' + fmt(discount) + ' บาท' : '0 บาท';
-      sbNet.textContent = count ? fmt(total) + ' บาท' : '0 บาท';
-      sbSaved.textContent = count ? fmt(savings) + ' บาท' : '0 บาท';
-
-      if(count === NMODS){
-        sbSave.style.display = '';
-        sbSave.textContent = 'ส่วนลดแพ็กเกจ: −' + fmt(FULL - BUNDLE) + ' บาท';
-        sbUpsell.textContent = '';
-      } else if(count >= 2){
-        sbSave.style.display = '';
-        sbSave.textContent = 'ส่วนลดซื้อครบ ' + count + ' รายการ: −' + fmt(discount) + ' บาท';
-        sbUpsell.textContent = (BUNDLE > total)
-          ? ('เพิ่มอีกเพียง ' + fmt(BUNDLE - total) + ' บาท เพื่อรับครบทั้ง ' + NMODS + ' งาน!') : '';
-      } else if(count === 1){
-        sbSave.style.display = '';
-        sbSave.textContent = 'ราคาเต็ม (ไม่มีส่วนลด)';
-        sbUpsell.textContent = '';
-      } else {
-        sbSave.style.display = 'none';
-        sbUpsell.textContent = '';
-      }
-
-      var q = '?packages=' + encodeURIComponent(label || '') + '&amount=' + total;
-      [[btnBuy, '/checkout'], [btnQuote, '/quote']].forEach(function(item){
-        var button = item[0];
-        if(!button) return;
-        if(count){
-          button.href = item[1] + q;
-          button.removeAttribute('aria-disabled');
-          button.removeAttribute('tabindex');
-        } else {
-          button.removeAttribute('href');
-          button.setAttribute('aria-disabled', 'true');
-          button.setAttribute('tabindex', '-1');
-        }
-      });
-    }
-    cards.forEach(function(c){ c.querySelector('input').addEventListener('change', render); });
-    render();
-    ready = true;
-  })();
-</script>
-
-<!-- ================= CTA ================= -->
+<!-- ================= ติดต่อ ================= -->
 <section class="cta-final" id="contact">
   <div class="wrap">
     <div class="cta-box">
       <h2>เริ่มคืนเวลาให้ห้องเรียน</h2>
-      <p>ทดลองใช้ฟรี ไม่ต้องติดตั้งโปรแกรม ใช้ได้ทันทีผ่านเบราว์เซอร์ สอบถามหรือขอทดลองใช้ทาง Facebook</p>
-      <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+      <p>ลองระบบตัวอย่างได้ทันที หรือสอบถามรายละเอียดทาง Facebook</p>
+      <div class="cta-btns">
         <form class="try-form" method="post" action="/sandbox/start" onsubmit="tryStart(this)">
-          <button class="btn btn-try" type="submit"><svg class="ico"><use href="#ic-play"/></svg> ทดลองใช้ระบบตัวอย่าง</button>
+          <button class="btn btn-white" type="submit"><svg class="ico"><use href="#ic-play"/></svg> ลองใช้ระบบตัวอย่าง</button>
         </form>
-        <a class="btn btn-white" href="https://www.facebook.com/profile.php?id=61590718498881&locale=th_TH" target="_blank" rel="noopener"><svg class="ico"><use href="#ic-facebook"/></svg> ติดต่อทาง Facebook</a>
-        <a class="btn btn-ghost" href="/login" style="color:#fff; border-color:rgba(255,255,255,.5);">เข้าสู่ระบบ</a>
+        <a class="btn btn-line" href="https://www.facebook.com/profile.php?id=61590718498881&locale=th_TH" target="_blank" rel="noopener"><svg class="ico"><use href="#ic-facebook"/></svg> ติดต่อทาง Facebook</a>
+        <a class="btn btn-line" href="/login">เข้าสู่ระบบ</a>
       </div>
     </div>
   </div>
@@ -1236,26 +741,104 @@
 
 <footer>
   <div class="wrap foot">
-    <a class="brand" href="/"><img src="/static/logo-ekkasan.png" alt="" onerror="this.remove()">Easy <b>Ekkasan</b></a>
-    <span>ระบบจัดการเอกสารและพัสดุโรงเรียน</span>
-    <a href="/guide" style="color:var(--blue); font-weight:600;">วิธีใช้งาน</a>
-    {% if kb_count %}<a href="/knowledge" style="color:var(--blue); font-weight:600;">คลังความรู้</a>{% endif %}
-    <a class="fb-link" href="https://www.facebook.com/profile.php?id=61590718498881&locale=th_TH" target="_blank" rel="noopener"
-       style="display:inline-flex; align-items:center; gap:7px; color:var(--blue); font-weight:600;">
-      <svg class="ico"><use href="#ic-facebook"/></svg> ติดตามเราบน Facebook
-    </a>
-    <span>© 2569 Easy Ekkasan</span>
+    <div>
+      <a class="brand" href="/"><img src="/static/logo-ekkasan.png" alt="" onerror="this.remove()">Easy <b>Ekkasan</b></a>
+      <p>ระบบงานโรงเรียน รวมงานเอกสารหลักไว้ในที่เดียว ให้ครูมีเวลาให้ห้องเรียนมากขึ้น</p>
+    </div>
+    <div><h4>ฟังก์ชัน</h4><ul>
+      <li><a href="#modules">ครบทุกงาน</a></li><li><a href="#how">วิธีใช้งาน</a></li><li><a href="#pricing">แพ็กเกจ</a></li></ul></div>
+    <div><h4>ช่วยเหลือ</h4><ul>
+      <li><a href="/guide">คู่มือการใช้งาน</a></li>{% if kb_count %}<li><a href="/knowledge">คลังความรู้</a></li>{% endif %}
+      <li><a href="#faq">คำถามที่พบบ่อย</a></li></ul></div>
+    <div><h4>ติดต่อ</h4><ul>
+      <li><a class="fb-link" href="https://www.facebook.com/profile.php?id=61590718498881&locale=th_TH" target="_blank" rel="noopener">Facebook</a></li>
+      <li><a href="/privacy">นโยบายความเป็นส่วนตัว</a></li><li><a href="/login">เข้าสู่ระบบ</a></li></ul></div>
   </div>
+  <div class="wrap foot-bottom">© 2569 Easy Ekkasan</div>
 </footer>
 
+<dialog class="vbox" id="vbox"><button class="x" type="button" aria-label="ปิดวิดีโอ">×</button><iframe title="วิดีโอแนะนำ Easy Ekkasan" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></dialog>
+
 <script>
+  // นับถอยหลังบนการ์ดแพ็กเกจ (วันสิ้นสุดมาจาก seller_config)
+  (function(){
+    var box = document.querySelector('.bc-count[data-deadline]');
+    if(!box) return;
+    var end = new Date(box.dataset.deadline + 'T23:59:59');
+    var U = [['วัน',86400],['ชม.',3600],['นาที',60],['วิ',1]];
+    function tick(){
+      var s = Math.max(0, Math.floor((end - new Date())/1000));
+      box.innerHTML = U.map(function(u){ var v = Math.floor(s/u[1]); s -= v*u[1];
+        return '<span class="cbox"><b>' + String(v).padStart(2,'0') + '</b><span>' + u[0] + '</span></span>'; }).join('');
+    }
+    tick(); setInterval(tick, 1000);
+  })();
+
+  // คิดยอดงานที่เลือก (ต้องตรงกับ price_for() ฝั่งเซิร์ฟเวอร์ seller_config.py ที่นี่แค่แสดงผล)
+  (function(){
+    var BUNDLE = {{ px.bundle | tojson }};
+    var FULL = {{ full | tojson }};
+    var TIERS = {{ tiers | tojson }};
+    var cards = [].slice.call(document.querySelectorAll('#pickList .mcard'));
+    var NMODS = cards.length;
+    var $ = function(id){ return document.getElementById(id); };
+    var fmt = function(n){ return n.toLocaleString('en-US'); };
+    function render(){
+      var chosen = cards.filter(function(c){ return c.querySelector('input').checked; });
+      cards.forEach(function(c){ c.classList.toggle('on', c.querySelector('input').checked); });
+      var count = chosen.length;
+      var listSum = chosen.reduce(function(s,c){ return s + (+c.dataset.price); }, 0);
+      var total = count === NMODS ? BUNDLE : (count ? Math.max(0, listSum - (TIERS[count] || 0)) : 0);
+      var discount = Math.max(0, listSum - total);
+      var label = count === NMODS ? 'ครบทุกงาน' : (count ? chosen.map(function(c){ return c.dataset.name; }).join(' + ') : '');
+      $('sbSel').textContent = count ? label : 'ยังไม่ได้เลือกงาน';
+      $('sumTotal').textContent = fmt(total);
+      $('sbBeforeLabel').textContent = count === NMODS ? 'ราคาปกติทั้งชุด' : 'ราคาสินค้า';
+      $('sbBefore').textContent = fmt(listSum) + ' บาท';
+      $('sbDiscountLabel').textContent = count === NMODS ? 'ส่วนลดแพ็กเกจ' : 'ส่วนลดที่ได้รับ';
+      $('sbDiscount').textContent = '−' + fmt(discount) + ' บาท';
+      $('sbNet').textContent = fmt(total) + ' บาท';
+      $('sbSaved').textContent = fmt(discount) + ' บาท';
+      var sv = $('sbSave'), up = $('sbUpsell');
+      sv.style.display = count ? '' : 'none'; up.textContent = '';
+      if(count === NMODS) sv.textContent = 'ส่วนลดแพ็กเกจ: −' + fmt(FULL - BUNDLE) + ' บาท';
+      else if(count >= 2){ sv.textContent = 'ส่วนลดเลือก ' + count + ' งาน: −' + fmt(discount) + ' บาท';
+        if(BUNDLE > total) up.textContent = 'เพิ่มอีก ' + fmt(BUNDLE - total) + ' บาท ได้ครบทั้ง ' + NMODS + ' งาน'; }
+      else if(count === 1) sv.textContent = 'ราคาเต็ม (เลือก 2 งานขึ้นไปได้ส่วนลด)';
+      var q = '?packages=' + encodeURIComponent(label) + '&amount=' + total;
+      [[$('btnBuy'), '/checkout'], [$('btnQuote'), '/quote']].forEach(function(it){
+        var b = it[0]; if(!b) return;
+        if(count){ b.href = it[1] + q; b.removeAttribute('aria-disabled'); b.removeAttribute('tabindex'); }
+        else { b.removeAttribute('href'); b.setAttribute('aria-disabled','true'); b.setAttribute('tabindex','-1'); }
+      });
+    }
+    cards.forEach(function(c){ c.querySelector('input').addEventListener('change', render); });
+    render();
+  })();
+
+  // วิดีโอแนะนำ (เปิดในกล่อง ปิดแล้วหยุดเล่น)
+  (function(){
+    var dlg = document.getElementById('vbox'); if(!dlg) return;
+    var fr = dlg.querySelector('iframe');
+    function close(){ fr.src = 'about:blank'; if(dlg.open) dlg.close(); }
+    document.querySelectorAll('[data-video]').forEach(function(b){
+      b.addEventListener('click', function(){
+        fr.src = 'https://www.youtube-nocookie.com/embed/' + b.dataset.video + '?rel=0&autoplay=1';
+        if(dlg.showModal) dlg.showModal(); else window.open('https://youtu.be/' + b.dataset.video, '_blank');
+      });
+    });
+    dlg.querySelector('.x').addEventListener('click', close);
+    dlg.addEventListener('click', function(e){ if(e.target === dlg) close(); });
+    dlg.addEventListener('close', function(){ fr.src = 'about:blank'; });
+  })();
+
   function tryStart(form){
     var b = form.querySelector('button');
     setTimeout(function(){ b.disabled = true; b.textContent = 'กำลังเตรียมระบบตัวอย่าง…'; }, 0);
   }
   window.addEventListener('pageshow', function(){
     document.querySelectorAll('.try-form button').forEach(function(b){
-      if (b.disabled) { b.disabled = false; b.innerHTML = '<svg class="ico"><use href="#ic-play"/></svg> ทดลองใช้ระบบตัวอย่าง'; }
+      if (b.disabled) { b.disabled = false; b.innerHTML = '<svg class="ico"><use href="#ic-play"/></svg> ลองใช้ระบบตัวอย่าง'; }
     });
   });
 </script>
