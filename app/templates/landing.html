@@ -47,363 +47,379 @@
   @font-face { font-family: "Prompt"; font-weight: 700; font-display: swap; src: url("/static/fonts/Prompt-Bold.ttf") format("truetype"); }
 
   :root{
-    --blue:#2563eb; --blue-deep:#1d4ed8; --navy:#0b2a6b; --indigo:#4f46e5; --cyan:#06b6d4;
-    --ink:#0f172a; --muted:#5b6b84; --line:#e6ebf3;
-    --soft-blue:#f2f7ff; --soft-violet:#f6f3ff; --green:#16a34a;
-    --grad:linear-gradient(110deg,#06b6d4 0%,#3b82f6 45%,#6366f1 100%);
-    --shadow:0 12px 34px rgba(30,58,138,.08);
+    --blue:#1d6fe8; --blue-deep:#1446c8; --navy:#0b1f4d; --indigo:#5b4fe0; --cyan:#12b3d9;
+    --ink:#0b1f4d; --muted:#4a5a78; --line:#e3e9f4;
+    --grad:linear-gradient(100deg,#12b8d8 0%,#2f7cf0 55%,#5b4fe0 100%);
+    --shadow:0 14px 40px rgba(37,72,160,.10);
+    --glass:rgba(255,255,255,.82);
   }
   *{ margin:0; padding:0; box-sizing:border-box; }
   html{ scroll-behavior:smooth; }
   html, body{ overflow-x:hidden; }
   section[id]{ scroll-margin-top:84px; }
-  body{ font-family:"Prompt","Sarabun","Leelawadee UI","Segoe UI",system-ui,-apple-system,"Noto Sans Thai",sans-serif;
-        color:var(--ink); background:#fff; line-height:1.65; }
+  body{ font-family:"Prompt","Sarabun","Leelawadee UI","Segoe UI",system-ui,sans-serif; color:var(--ink); line-height:1.6;
+        background:linear-gradient(180deg,#eef4ff 0%,#f6f3ff 18%,#f2f8ff 40%,#f7f4ff 62%,#eef6ff 82%,#fff 100%); }
   a{ text-decoration:none; color:inherit; }
   img{ max-width:100%; display:block; }
   .wrap{ max-width:1180px; margin:0 auto; padding:0 24px; }
   section{ position:relative; }
-  .ico{ width:1em; height:1em; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; vertical-align:-0.125em; flex:none; }
-  .grad-text{ background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .ico{ width:1em; height:1em; fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; vertical-align:-0.125em; flex:none; }
+  .hl{ color:var(--blue); }
+  .swoosh{ position:relative; display:inline-block; }
+  .swoosh::after{ content:""; position:absolute; left:42%; right:-2%; bottom:-10px; height:12px;
+    background:no-repeat center/100% 100% url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 12' preserveAspectRatio='none'%3E%3Cpath d='M2 9 Q100 -2 198 7' fill='none' stroke='%2322a6e6' stroke-width='3.2' stroke-linecap='round'/%3E%3C/svg%3E"); }
 
   /* ปุ่ม */
-  .btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; border-radius:999px; padding:12px 24px;
-        font-size:15px; font-weight:600; cursor:pointer; border:0; transition:.18s; white-space:nowrap; font-family:inherit; line-height:1.2; }
-  .btn-primary{ background:var(--grad); color:#fff; box-shadow:0 10px 22px rgba(59,130,246,.28); }
-  .btn-primary:hover{ transform:translateY(-2px); box-shadow:0 14px 28px rgba(79,70,229,.3); }
-  .btn-ghost{ background:#fff; color:var(--navy); border:1.5px solid #d7e1f0; }
-  .btn-ghost:hover{ border-color:var(--blue); color:var(--blue); }
-  .btn-white{ background:#fff; color:var(--blue-deep); }
+  .btn{ display:inline-flex; align-items:center; justify-content:center; gap:10px; border-radius:999px; padding:12px 24px;
+        font-size:15px; font-weight:700; cursor:pointer; border:0; transition:.18s; white-space:nowrap; font-family:inherit; line-height:1.2; }
+  .btn-primary{ background:var(--grad); color:#fff; box-shadow:0 12px 26px rgba(47,124,240,.32); }
+  .btn-primary:hover{ transform:translateY(-2px); box-shadow:0 16px 30px rgba(91,79,224,.34); }
+  .btn-solid{ background:linear-gradient(100deg,#1d6fe8,#1446c8); color:#fff; box-shadow:0 10px 22px rgba(29,111,232,.3); }
+  .btn-solid:hover{ transform:translateY(-2px); }
+  .btn-ghost{ background:#fff; color:var(--navy); box-shadow:inset 0 0 0 2px #2f7cf0, 0 8px 18px rgba(37,72,160,.08); }
+  .btn-ghost:hover{ color:var(--blue); }
+  .btn-white{ background:#fff; color:var(--navy); box-shadow:0 10px 22px rgba(11,31,77,.15); }
   .btn-white:hover{ transform:translateY(-2px); }
+  .btn-line{ background:rgba(255,255,255,.08); color:#fff; box-shadow:inset 0 0 0 2px rgba(255,255,255,.85); }
+  .btn-line:hover{ background:rgba(255,255,255,.16); }
   .btn[disabled]{ opacity:.75; cursor:wait; transform:none; }
   .try-form{ display:contents; }
-  .try-note{ flex-basis:100%; font-size:13px; color:var(--muted); }
   .try-msg{ flex-basis:100%; padding:10px 14px; border-radius:12px; font-size:14px; background:linear-gradient(120deg,#fff7ed,#ffedd5); color:#9a3412; }
+  .pill-more{ display:inline-flex; align-items:center; gap:8px; background:#fff; color:var(--blue-deep); font-weight:700; font-size:14px;
+              padding:8px 18px; border-radius:999px; box-shadow:inset 0 0 0 1.5px #c9d8f6, 0 6px 14px rgba(37,72,160,.08); width:fit-content; transition:.18s; }
 
   /* เมนูบน */
-  header{ position:sticky; top:0; z-index:50; background:rgba(255,255,255,.94); backdrop-filter:blur(10px); box-shadow:0 1px 0 var(--line); }
-  .nav{ display:flex; align-items:center; justify-content:space-between; height:72px; gap:16px; }
-  .brand{ display:flex; align-items:center; gap:10px; font-size:21px; font-weight:700; color:var(--navy); white-space:nowrap; }
-  .brand img{ height:38px; }
-  .brand b{ color:var(--blue); }
-  .nav-links{ display:flex; gap:30px; font-size:15px; color:#334a6d; font-weight:500; }
+  header{ position:sticky; top:0; z-index:50; background:rgba(255,255,255,.9); backdrop-filter:blur(12px); box-shadow:0 1px 0 rgba(37,72,160,.08); }
+  .nav{ display:flex; align-items:center; justify-content:space-between; height:78px; gap:16px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-size:24px; font-weight:700; color:var(--navy); white-space:nowrap; }
+  .brand img{ height:42px; }
+  .nav-links{ display:flex; gap:36px; font-size:16px; color:var(--navy); font-weight:500; }
   .nav-links a:hover{ color:var(--blue); }
-  .nav-cta{ display:flex; gap:10px; align-items:center; }
-  .nav-cta .btn{ padding:9px 20px; font-size:14px; }
+  .nav-cta{ display:flex; gap:12px; align-items:center; }
+  .nav-cta .btn{ padding:10px 24px; font-size:15px; }
+  .nav-cta .btn-ghost{ box-shadow:inset 0 0 0 2px var(--blue-deep); color:var(--blue-deep); }
 
   /* ส่วนเปิดหน้า */
-  .hero{ padding:56px 0 30px; background:
-          radial-gradient(900px 420px at 85% 10%, #eaf2ff 0, transparent 70%),
-          radial-gradient(700px 380px at 0% 90%, #f3efff 0, transparent 70%); }
-  .hero-grid{ display:grid; grid-template-columns:.95fr 1.05fr; gap:44px; align-items:center; }
-  .chip{ display:inline-flex; align-items:center; gap:8px; background:#eaf2ff; color:var(--blue-deep); font-size:13.5px; font-weight:600;
-         border-radius:999px; padding:7px 16px; margin-bottom:18px; }
-  h1{ font-size:44px; line-height:1.25; font-weight:700; letter-spacing:-.5px; color:var(--navy); }
+  .hero{ padding:40px 0 0; }
+  .hero-grid{ display:grid; grid-template-columns:1fr 1.02fr; gap:30px; align-items:center; }
+  .chip{ display:inline-block; background:linear-gradient(100deg,#c9f3fb,#d9ecff); color:var(--navy); font-size:16px; font-weight:700;
+         border-radius:999px; padding:6px 20px; margin-bottom:20px; }
+  h1{ font-size:43px; white-space:nowrap; line-height:1.35; font-weight:700; color:var(--navy); letter-spacing:-.3px; }
   h1 span{ display:block; }
-  .lead{ margin:18px 0 26px; color:var(--muted); font-size:17px; max-width:31em; }
+  h1 .l2{ color:var(--blue); }
+  .lead{ margin:26px 0 30px; color:#2d3d5c; font-size:19px; line-height:1.7; max-width:27em; }
   .hero-actions{ display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
-  .hero-actions .btn{ padding:14px 26px; font-size:16px; }
-  .play-ic{ width:26px; height:26px; border-radius:50%; background:#eaf2ff; color:var(--blue); display:inline-flex; align-items:center; justify-content:center; }
-  .play-ic .ico{ width:11px; height:11px; }
-  .live{ margin-top:22px; padding:12px 18px; border-radius:14px; width:fit-content; max-width:100%; background:linear-gradient(120deg,#ecfdf5,#eff6ff); }
-  .live-tag{ display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; color:#047857; }
+  .hero-actions .btn{ padding:17px 30px; font-size:18px; }
+  .hero-actions .btn-ghost .ico{ color:var(--blue-deep); width:20px; height:20px; }
+  .hero-actions .btn-ghost .ico use{ }
+  .try-note{ display:flex; align-items:center; gap:8px; margin-top:18px; font-size:15.5px; color:#2d3d5c; }
+  .try-note .ico{ color:var(--blue); width:20px; height:20px; }
+  .live{ margin-top:16px; padding:10px 16px; border-radius:14px; width:fit-content; max-width:100%; background:var(--glass); font-size:14px; }
+  .live-tag{ display:flex; align-items:center; gap:7px; font-size:12px; font-weight:600; color:#047857; }
   .live-tag i{ width:8px; height:8px; border-radius:50%; background:#10b981; }
-  .live-txt{ margin-top:3px; font-size:15px; line-height:1.6; }
-  .live-txt span{ white-space:nowrap; }
-  .live-txt b{ font-size:18px; color:var(--blue-deep); }
+  .live-txt span{ white-space:nowrap; margin-right:6px; }
+  .live-txt b{ color:var(--blue-deep); }
 
-  .shot{ position:relative; padding:20px 26px 40px 10px; }
-  .browser{ position:relative; z-index:2; background:#fff; border-radius:16px; overflow:hidden;
-            box-shadow:0 30px 70px rgba(30,58,138,.18), 0 0 0 1px rgba(15,23,42,.05); }
-  .browser-bar{ display:flex; align-items:center; gap:7px; padding:10px 14px; background:#f3f6fb; }
-  .browser-bar i{ width:10px; height:10px; border-radius:50%; background:#ff6b6b; }
-  .browser-bar i:nth-child(2){ background:#fbbf24; } .browser-bar i:nth-child(3){ background:#34d399; }
-  .browser-bar span{ flex:1; margin-left:10px; background:#fff; border-radius:8px; font-size:11.5px; color:#8090a8; padding:3px 12px; }
+  /* กรอบหน้าจอเอียง 3D */
+  .stage{ position:relative; perspective:1600px; padding:10px 0 70px; }
+  .browser{ position:relative; z-index:2; background:#fff; border-radius:18px; overflow:hidden; padding:0 0 6px;
+            box-shadow:0 0 0 6px rgba(255,255,255,.85), 0 0 0 7px rgba(150,175,230,.35), 0 40px 80px rgba(37,72,160,.22); }
+  .tilt{ transform:rotateY(-14deg) rotateX(5deg) rotateZ(.6deg); transform-origin:60% 50%; }
+  .tilt-r{ transform:rotateY(12deg) rotateX(4deg); transform-origin:40% 50%; }
+  .browser-bar{ display:flex; align-items:center; gap:7px; padding:11px 16px; background:linear-gradient(#f7f9fd,#eef3fb); }
+  .browser-bar i{ width:11px; height:11px; border-radius:50%; background:#ff5f57; }
+  .browser-bar i:nth-child(2){ background:#febc2e; } .browser-bar i:nth-child(3){ background:#28c840; }
+  .browser-bar span{ flex:1; margin:0 14px; background:#fff; border-radius:999px; font-size:12px; color:#56688a; padding:4px 14px; }
   .browser img{ width:100%; height:auto; }
-  .shot-school{ position:absolute; z-index:3; width:38%; left:-12%; bottom:-4%; filter:drop-shadow(0 16px 24px rgba(30,58,138,.22)); }
-  .shot-doc{ position:absolute; z-index:3; width:78px; right:0; top:-2%; filter:drop-shadow(0 12px 18px rgba(30,58,138,.2)); animation:float 5s ease-in-out infinite; }
-  .shot-note{ position:absolute; z-index:3; right:10px; bottom:6px; font-size:11.5px; color:var(--muted); background:rgba(255,255,255,.9); padding:3px 10px; border-radius:999px; }
-  @keyframes float{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-8px);} }
+  .st-school{ position:absolute; z-index:3; width:52%; right:12%; bottom:-6px; filter:drop-shadow(0 18px 26px rgba(37,72,160,.25)); }
+  .st-word{ position:absolute; z-index:4; width:118px; right:-4px; bottom:14px; filter:drop-shadow(0 16px 22px rgba(37,72,160,.25)); transform:rotate(8deg); }
+  .st-note{ position:absolute; z-index:5; left:8px; bottom:16px; font-size:12px; color:var(--muted); background:var(--glass); padding:3px 12px; border-radius:999px; }
 
   /* แถบจุดเด่น */
-  .perks{ margin-top:34px; display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:#fff; border-radius:20px; box-shadow:var(--shadow); padding:10px; }
-  .perk{ display:flex; align-items:center; gap:14px; padding:14px 18px; }
-  .perk + .perk{ box-shadow:-1px 0 0 var(--line); }
-  .perk img, .perk .pk-svg{ width:52px; height:52px; flex:none; }
-  .pk-svg{ border-radius:15px; background:linear-gradient(135deg,#a5f3fc,#818cf8); color:#fff; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 16px rgba(99,102,241,.25); }
-  .pk-svg .ico{ width:26px; height:26px; }
-  .perk b{ display:block; font-size:16px; color:var(--navy); }
-  .perk span{ font-size:13px; color:var(--muted); line-height:1.45; display:block; }
+  .perks{ position:relative; z-index:5; margin-top:6px; display:grid; grid-template-columns:repeat(3,1fr); background:#fff; border-radius:24px; box-shadow:var(--shadow); padding:16px 10px; }
+  .perk{ display:flex; align-items:center; gap:16px; padding:6px 26px; }
+  .perk + .perk{ box-shadow:-1.5px 0 0 var(--line); }
+  .perk .pi{ width:62px; height:62px; flex:none; object-fit:contain; }
+  .pk-svg{ width:62px; height:62px; flex:none; display:flex; align-items:center; justify-content:center; color:var(--blue); }
+  .pk-svg .ico{ width:46px; height:46px; stroke-width:1.8; }
+  .perk b{ display:block; font-size:19px; color:var(--navy); line-height:1.3; }
+  .perk span{ font-size:15px; color:#2d3d5c; display:block; }
 
   /* หัวข้อ */
-  .sec{ padding:76px 0; }
-  .sec.alt-blue{ background:var(--soft-blue); }
-  .sec.alt-violet{ background:var(--soft-violet); }
-  .sec-head{ text-align:center; max-width:680px; margin:0 auto 40px; }
-  .eyebrow{ display:inline-block; font-size:13px; font-weight:600; color:var(--indigo); background:#eef0ff; padding:4px 14px; border-radius:999px; margin-bottom:10px; }
-  .sec-head h2, .split h2{ font-size:34px; font-weight:700; color:var(--navy); line-height:1.35; }
-  .sec-head p{ color:var(--muted); margin-top:10px; font-size:15.5px; }
+  .sec{ padding:70px 0; }
+  .sec-head{ text-align:center; max-width:760px; margin:0 auto 40px; }
+  .sec-head h2{ font-size:44px; font-weight:700; color:var(--navy); line-height:1.35; }
+  .sec-head p{ color:#2d3d5c; margin-top:16px; font-size:20px; }
+  .h2{ font-size:38px; font-weight:700; color:var(--navy); line-height:1.35; }
+  .sub{ color:#2d3d5c; font-size:19px; margin-top:12px; }
 
   /* 7 งาน */
-  .mods-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:18px; }
-  .mod{ --c:#2563eb; --cs:#eaf2ff; position:relative; display:flex; flex-direction:column; background:#fff; border-radius:20px; padding:22px 20px 18px;
-        box-shadow:0 0 0 1px var(--line), 0 8px 22px rgba(30,58,138,.05); transition:.2s; }
-  .mod:hover{ transform:translateY(-4px); box-shadow:0 0 0 1.5px var(--c), 0 18px 36px rgba(30,58,138,.12); }
-  .mod:focus-visible{ outline:3px solid var(--c); outline-offset:3px; }
-  .mod img{ width:58px; height:58px; margin-bottom:12px; }
-  .mod h3{ font-size:17.5px; color:var(--navy); margin-bottom:6px; }
-  .mod p{ font-size:13.5px; color:var(--muted); line-height:1.55; flex:1; }
-  .mod .more{ margin-top:14px; font-size:13.5px; font-weight:600; color:var(--c); display:flex; align-items:center; gap:6px; }
-  .mod::before{ content:""; position:absolute; left:20px; right:20px; top:0; height:4px; border-radius:0 0 6px 6px; background:var(--c); opacity:.85; }
-  .free-tag{ position:absolute; top:16px; right:16px; font-size:12px; font-weight:700; color:#0e7490; background:#cffafe; border-radius:999px; padding:3px 11px; }
-  .m-proc{ --c:#0284c7; } .m-fin{ --c:#16a34a; } .m-admin{ --c:#9333ea; } .m-lunch{ --c:#ea580c; }
-  .m-hr{ --c:#0d9488; } .m-acad{ --c:#4f46e5; } .m-gen{ --c:#0891b2; }
+  .mods-grid{ display:grid; grid-template-columns:repeat(6,1fr); gap:18px; }
+  .mod{ --bg:linear-gradient(135deg,#e6f1ff,#f1f6ff); grid-column:span 2; display:flex; align-items:center; gap:18px; min-height:170px;
+        background:var(--bg); border-radius:24px; padding:20px 22px; transition:.2s; position:relative; }
+  .mod.w3{ grid-column:span 3; }
+  .mod:hover{ transform:translateY(-4px); box-shadow:0 18px 36px rgba(37,72,160,.14); }
+  .mod:hover .pill-more{ box-shadow:inset 0 0 0 1.5px var(--blue), 0 8px 16px rgba(37,72,160,.14); }
+  .mod:focus-visible{ outline:3px solid var(--blue); outline-offset:3px; }
+  .mod .mi{ width:132px; height:118px; object-fit:contain; flex:none; filter:drop-shadow(0 12px 16px rgba(37,72,160,.16)); }
+  .mod h3{ font-size:26px; color:var(--navy); line-height:1.3; }
+  .mod p{ font-size:16.5px; color:#2d3d5c; line-height:1.45; margin:6px 0 12px; }
+  .free-tag{ position:absolute; top:14px; right:16px; font-size:15px; font-weight:700; color:#fff; background:linear-gradient(100deg,#22c55e,#16a34a); border-radius:999px; padding:3px 16px; }
+  .m-proc{ --bg:linear-gradient(135deg,#e3efff,#eef5ff); } .m-fin{ --bg:linear-gradient(135deg,#dcf7ec,#ebfbf4); }
+  .m-admin{ --bg:linear-gradient(135deg,#eee8ff,#f5f1ff); } .m-lunch{ --bg:linear-gradient(135deg,#fff0e3,#fff6ee); }
+  .m-hr{ --bg:linear-gradient(135deg,#dcf6f6,#ebfbfb); } .m-acad{ --bg:linear-gradient(135deg,#ebe9ff,#f3f2ff); }
+  .m-gen{ --bg:linear-gradient(135deg,#dcf5fb,#ecfaff); }
 
   /* flow */
-  .flow{ display:grid; grid-template-columns:1fr auto 1fr auto 1fr; align-items:stretch; gap:14px; }
-  .step{ background:#fff; border-radius:20px; padding:26px 22px; text-align:center; box-shadow:var(--shadow); }
-  .step img{ width:70px; height:70px; margin:0 auto 12px; }
-  .step .num{ display:inline-flex; width:28px; height:28px; border-radius:50%; background:var(--grad); color:#fff; font-weight:700; font-size:14px; align-items:center; justify-content:center; margin-bottom:8px; }
-  .step h3{ font-size:18px; color:var(--navy); margin-bottom:6px; }
-  .step p{ font-size:13.5px; color:var(--muted); }
-  .arrow{ display:flex; align-items:center; color:#93a8d6; font-size:28px; }
-  .flow-note{ text-align:center; margin-top:22px; font-size:13.5px; color:var(--muted); }
-  .flow-note b{ color:var(--indigo); }
+  .flow-band{ background:linear-gradient(100deg,#35c6e4 0%,#4c8df2 50%,#7a62ea 100%); border-radius:28px; padding:30px 30px 22px; box-shadow:var(--shadow); }
+  .flow{ display:grid; grid-template-columns:1fr auto 1fr auto 1fr; align-items:center; gap:14px; }
+  .step{ display:flex; align-items:center; gap:14px; background:rgba(255,255,255,.88); border-radius:22px; padding:18px 18px; min-height:130px;
+         box-shadow:0 10px 24px rgba(20,40,120,.14), inset 0 0 0 1.5px rgba(255,255,255,.9); }
+  .step img{ width:96px; height:96px; object-fit:contain; flex:none; filter:drop-shadow(0 10px 14px rgba(37,72,160,.18)); }
+  .step .t{ display:flex; align-items:flex-start; gap:9px; }
+  .step .num{ flex:none; width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,#2fa8f0,#1d6fe8); color:#fff; font-weight:700; font-size:17px; display:flex; align-items:center; justify-content:center; }
+  .step h3{ font-size:21px; color:var(--navy); line-height:1.3; }
+  .step p{ font-size:14px; color:#2d3d5c; margin-top:6px; line-height:1.45; }
+  .arrow{ color:#fff; font-size:30px; display:flex; }
+  .flow-note{ display:flex; align-items:center; justify-content:center; gap:14px; margin-top:18px; color:#fff; font-size:17px; font-weight:500; }
+  .flow-note .ico{ width:26px; height:26px; }
+  .flow-note i{ width:2px; height:24px; background:rgba(255,255,255,.7); }
 
-  /* ซ้ายขวา */
-  .split{ display:grid; grid-template-columns:1fr 1.1fr; gap:52px; align-items:center; }
-  .split.rev{ grid-template-columns:1.1fr 1fr; }
-  .split .sub{ color:var(--muted); margin:12px 0 22px; font-size:15.5px; }
-  .rows{ list-style:none; display:grid; gap:14px; margin-bottom:26px; }
-  .rows li{ display:flex; gap:14px; align-items:flex-start; background:#fff; border-radius:16px; padding:14px 16px; box-shadow:0 0 0 1px var(--line); }
-  .rows img{ width:44px; height:44px; flex:none; }
-  .rows b{ display:block; font-size:15.5px; color:var(--navy); }
-  .rows span{ font-size:13.5px; color:var(--muted); }
-
-  .vid{ position:relative; display:block; border-radius:20px; overflow:hidden; box-shadow:var(--shadow); background:#0b2a6b; aspect-ratio:16/9; cursor:pointer; border:0; width:100%; padding:0; }
-  .vid img{ width:100%; height:100%; object-fit:cover; opacity:.92; }
-  .vid .pl{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
-  .vid .pl span{ width:74px; height:74px; border-radius:50%; background:rgba(255,255,255,.95); color:var(--blue); display:flex; align-items:center; justify-content:center; box-shadow:0 10px 30px rgba(0,0,0,.25); }
-  .vid .pl .ico{ width:26px; height:26px; margin-left:4px; }
-  .vid-fallback{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:var(--grad); }
-  .guide-btns{ display:flex; gap:12px; flex-wrap:wrap; }
+  /* กล่องซ้ายขวา */
+  .panel{ display:grid; grid-template-columns:.9fr 1.1fr; gap:34px; align-items:center; border-radius:28px; padding:36px 40px; box-shadow:var(--shadow); }
+  .panel.white{ background:rgba(255,255,255,.92); }
+  .panel.cyan{ background:linear-gradient(110deg,#d4f3fb 0%,#e6f4ff 55%,#eef0ff 100%); }
+  .checks{ list-style:none; display:grid; gap:16px; margin-top:28px; }
+  .checks li{ display:flex; gap:12px; align-items:center; font-size:18px; color:#1f2f52; }
+  .checks .ck{ flex:none; width:28px; height:28px; border-radius:50%; box-shadow:inset 0 0 0 2.5px var(--blue); color:var(--blue); display:flex; align-items:center; justify-content:center; }
+  .checks .ck .ico{ width:15px; height:15px; stroke-width:3; }
+  .panel .stage{ padding:0; }
+  .guide-btns{ display:flex; gap:14px; flex-wrap:wrap; margin-top:30px; }
+  .guide-btns .btn{ padding:16px 28px; font-size:17px; }
+  .vid-wrap{ position:relative; }
+  .vid-tag{ position:absolute; z-index:5; top:-16px; left:18px; display:flex; align-items:center; gap:10px; background:var(--grad); color:#fff; font-weight:700; font-size:16px; padding:8px 22px; border-radius:14px; box-shadow:0 10px 20px rgba(47,124,240,.3); }
+  .vid-btn{ position:absolute; z-index:4; inset:0; display:flex; align-items:center; justify-content:center; border:0; background:transparent; cursor:pointer; }
+  .vid-btn span{ width:86px; height:86px; border-radius:50%; background:linear-gradient(135deg,#2fa8f0,#1446c8); color:#fff; display:flex; align-items:center; justify-content:center; box-shadow:0 0 0 7px rgba(255,255,255,.85), 0 16px 34px rgba(20,60,160,.35); transition:.18s; }
+  .vid-btn:hover span{ transform:scale(1.06); }
+  .vid-btn .ico{ width:32px; height:32px; margin-left:5px; }
   dialog.vbox{ border:0; padding:0; border-radius:16px; width:min(920px,94vw); background:#000; overflow:hidden; }
   dialog.vbox::backdrop{ background:rgba(8,15,40,.72); }
   dialog.vbox iframe{ display:block; width:100%; aspect-ratio:16/9; border:0; }
   dialog.vbox .x{ position:absolute; top:8px; right:8px; z-index:2; width:36px; height:36px; border-radius:50%; border:0; background:rgba(255,255,255,.9); font-size:20px; cursor:pointer; }
 
+  /* คลังความรู้ */
+  .kb-head{ display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin-bottom:26px; }
+  .kb-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; }
+  .lk-card{ min-width:0; background:#fff; border-radius:22px; overflow:hidden; box-shadow:var(--shadow); transition:.2s; }
+  .lk-card:hover{ transform:translateY(-4px); }
+  .lk-card-link{ display:flex; flex-direction:column; height:100%; }
+  .lk-cover{ aspect-ratio:16/7; position:relative; overflow:hidden; }
+  .lk-cover-image{ width:100%; height:100%; object-fit:cover; }
+  .lk-tone-0 .lk-cover{ background:linear-gradient(135deg,#bfe3ff,#d9d4ff); } .lk-tone-1 .lk-cover{ background:linear-gradient(135deg,#ffd9c8,#ffe9c2); } .lk-tone-2 .lk-cover{ background:linear-gradient(135deg,#c5f1e0,#c9ecff); }
+  .lk-cover-fallback{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+  .lk-cover-fallback strong{ font-size:46px; font-weight:700; color:var(--blue-deep); background:rgba(255,255,255,.9); padding:6px 26px; border-radius:16px; transform:rotate(-5deg); box-shadow:0 12px 24px rgba(37,72,160,.16); }
+  .lk-tone-1 .lk-cover-fallback strong{ color:#d9461b; } .lk-tone-2 .lk-cover-fallback strong{ color:#0b7a52; }
+  .lk-content{ display:flex; flex-direction:column; padding:16px 20px 18px; flex:1; }
+  .lk-content h3{ font-size:20px; line-height:1.4; color:var(--navy); flex:1; overflow-wrap:anywhere; }
+  .lk-card-footer{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:14px; }
+  .lk-tag{ display:inline-flex; align-items:center; gap:6px; background:#eef2f9; color:#33466b; font-size:13.5px; padding:4px 14px; border-radius:999px; }
+  .lk-read{ display:inline-flex; align-items:center; gap:6px; color:var(--blue-deep); font-size:15px; font-weight:700; }
+
   /* แพ็กเกจ */
-  .pk-wrap{ display:grid; grid-template-columns:1.45fr 1fr; gap:24px; align-items:start; }
+  .pk-wrap{ display:grid; grid-template-columns:1.55fr 1fr; gap:18px; align-items:stretch; }
+  .pk-box{ background:rgba(255,255,255,.9); border-radius:26px; padding:24px 22px; box-shadow:var(--shadow); }
+  .pk-box h3{ font-size:30px; color:var(--navy); margin:0 0 14px 8px; }
   .pk-list{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-  .mcard{ display:flex; align-items:center; gap:12px; background:#fff; border-radius:16px; padding:14px 16px; cursor:pointer; transition:.16s; position:relative;
-          box-shadow:0 0 0 1.5px var(--line); }
-  .mcard:hover{ box-shadow:0 0 0 1.5px #a9c2f3; }
-  .mcard.on{ box-shadow:0 0 0 2px var(--blue), 0 10px 22px rgba(37,99,235,.1); background:#f7faff; }
+  .mcard{ position:relative; display:flex; align-items:center; gap:12px; background:#f7f9fd; border-radius:18px; padding:16px 14px 16px 18px; cursor:pointer; transition:.16s;
+          box-shadow:inset 0 0 0 1.5px #dfe6f2; }
+  .mcard:hover{ box-shadow:inset 0 0 0 1.5px #9dbbf2; }
+  .mcard.on{ background:linear-gradient(135deg,#eaf3ff,#f3f8ff); box-shadow:inset 0 0 0 2px #3b82f6; }
   .mcard input{ position:absolute; opacity:0; pointer-events:none; }
   .mcard:focus-within{ outline:3px solid #93c5fd; outline-offset:2px; }
-  .mcard img{ width:44px; height:44px; flex:none; }
-  .mc-body{ flex:1; min-width:0; }
-  .mc-body h4{ font-size:15px; color:var(--navy); line-height:1.3; }
-  .mc-body p{ font-size:12px; color:var(--muted); line-height:1.4; }
-  .mc-price{ font-weight:700; font-size:15px; color:var(--navy); white-space:nowrap; text-align:right; }
-  .mc-price small{ display:block; font-size:11px; font-weight:500; color:var(--muted); }
-  .mc-box{ flex:0 0 24px; height:24px; border-radius:7px; box-shadow:inset 0 0 0 2px #cfd9ea; display:flex; align-items:center; justify-content:center; color:#fff; }
-  .mc-box .ico{ width:14px; height:14px; opacity:0; }
+  .mc-box{ position:absolute; top:14px; left:14px; width:24px; height:24px; border-radius:6px; background:#fff; box-shadow:inset 0 0 0 2px #b9c6dc; display:flex; align-items:center; justify-content:center; color:#fff; }
+  .mc-box .ico{ width:15px; height:15px; opacity:0; stroke-width:3; }
   .mcard.on .mc-box{ background:var(--blue); box-shadow:none; }
   .mcard.on .mc-box .ico{ opacity:1; }
-  .mfree{ grid-column:1/-1; display:flex; align-items:center; gap:12px; background:linear-gradient(120deg,#ecfeff,#f0f9ff); border-radius:16px; padding:12px 16px; }
-  .mfree img{ width:40px; height:40px; }
-  .mfree div{ flex:1; font-size:14px; font-weight:600; color:var(--navy); }
-  .mfree small{ display:block; font-weight:500; color:var(--muted); font-size:12px; }
-  .mfree .tag{ font-size:12.5px; font-weight:700; color:#0e7490; background:#cffafe; padding:4px 12px; border-radius:999px; white-space:nowrap; }
-  .tier-hint{ grid-column:1/-1; font-size:13px; color:var(--muted); text-align:center; }
+  .mcard img{ width:92px; height:80px; object-fit:contain; flex:none; margin-left:24px; }
+  .mc-body{ flex:1; min-width:0; }
+  .mc-body h4{ font-size:19px; color:var(--navy); line-height:1.3; }
+  .mc-price{ display:inline-flex; align-items:baseline; gap:4px; margin-top:8px; background:#fff; color:var(--blue-deep); font-weight:700; font-size:15px; padding:4px 14px; border-radius:999px; box-shadow:inset 0 0 0 1.5px #c9d8f6; }
+  .mc-price small{ font-size:11.5px; font-weight:500; color:var(--muted); }
+  .mfree{ grid-column:1/-1; display:flex; align-items:center; gap:18px; background:linear-gradient(100deg,#dcf7ec,#e4f3ff); border-radius:18px; padding:10px 22px; }
+  .mfree img{ width:96px; height:70px; object-fit:contain; }
+  .mfree i{ width:2px; height:40px; background:#b9cbe6; }
+  .mfree div{ font-size:20px; font-weight:700; color:var(--navy); }
+  .mfree b{ color:#16a34a; font-size:24px; }
+  .mfree small{ display:block; font-size:13px; font-weight:500; color:var(--muted); }
 
-  .bundle{ position:relative; border-radius:24px; padding:30px 26px 24px; color:#fff; text-align:center; overflow:hidden;
-           background:linear-gradient(150deg,#06b6d4 0%,#3b82f6 50%,#6366f1 100%); box-shadow:0 24px 50px rgba(79,70,229,.28); }
-  .bundle::before{ content:""; position:absolute; width:240px; height:240px; border-radius:50%; background:rgba(255,255,255,.1); top:-110px; right:-80px; }
-  .bundle > *{ position:relative; }
-  .bd-badge{ display:inline-flex; align-items:center; gap:6px; background:#fff; color:var(--indigo); font-weight:700; font-size:13px; padding:5px 16px; border-radius:999px; }
-  .bd-badge .ico{ fill:#f59e0b; stroke:#f59e0b; }
-  .bundle img.bd-school{ width:170px; margin:12px auto 4px; filter:drop-shadow(0 12px 18px rgba(0,0,0,.18)); }
-  .bundle h3{ font-size:26px; line-height:1.25; }
-  .bundle .bd-sub{ font-size:14px; opacity:.92; margin-top:4px; }
-  .bd-promo{ display:inline-block; background:#fbbf24; color:#7c4a03; font-weight:700; font-size:12.5px; padding:4px 13px; border-radius:999px; margin:12px 0 6px; }
-  .bc-count{ display:flex; gap:5px; justify-content:center; margin-bottom:8px; }
-  .bc-count .cbox{ background:#fff; border-radius:10px; padding:5px 0 4px; width:46px; text-align:center; }
-  .bc-count .cbox b{ display:block; font-size:17px; font-weight:800; line-height:1.05; color:var(--navy); font-variant-numeric:tabular-nums; }
+  .bundle{ position:relative; border-radius:26px; padding:28px 26px 26px; background:linear-gradient(160deg,#f1f6ff,#ebe9ff); box-shadow:var(--shadow), inset 0 0 0 2px #fff; display:flex; flex-direction:column; }
+  .bd-badge{ display:inline-block; width:fit-content; background:var(--grad); color:#fff; font-weight:700; font-size:18px; padding:5px 20px; border-radius:999px; }
+  .bd-school{ position:absolute; top:-16px; right:14px; width:170px; filter:drop-shadow(0 12px 18px rgba(37,72,160,.2)); }
+  .bundle h3{ font-size:34px; color:var(--navy); line-height:1.25; margin-top:24px; }
+  .bd-list{ list-style:none; display:grid; gap:8px; margin:14px 0 16px; padding-bottom:16px; box-shadow:0 1.5px 0 #d6def0; }
+  .bd-list li{ display:flex; align-items:center; gap:10px; font-size:16.5px; color:#1f2f52; }
+  .bd-list .ck{ flex:none; width:22px; height:22px; border-radius:50%; box-shadow:inset 0 0 0 2px var(--blue); color:var(--blue); display:flex; align-items:center; justify-content:center; }
+  .bd-list .ck .ico{ width:12px; height:12px; stroke-width:3; }
+  .bd-price{ background:linear-gradient(135deg,#e7e4ff,#eef1ff); border-radius:20px; padding:14px 16px; text-align:center; }
+  .bd-price .was{ font-size:14px; color:var(--muted); }
+  .bd-price b{ display:block; font-size:46px; font-weight:800; color:var(--navy); letter-spacing:-1px; line-height:1.15; }
+  .bd-price span{ font-size:15px; color:#2d3d5c; }
+  .bd-price .save{ display:inline-block; margin-top:6px; background:#dcfce7; color:#15803d; font-weight:700; font-size:13px; padding:3px 12px; border-radius:999px; }
+  .bd-promo{ font-size:13px; font-weight:700; color:#b45309; text-align:center; margin-top:8px; }
+  .bc-count{ display:flex; gap:5px; justify-content:center; margin-top:6px; }
+  .bc-count .cbox{ background:#fff; border-radius:10px; padding:4px 0 3px; width:44px; text-align:center; }
+  .bc-count .cbox b{ display:block; font-size:16px; font-weight:800; line-height:1.05; color:var(--navy); font-variant-numeric:tabular-nums; }
   .bc-count .cbox span{ font-size:9.5px; color:#5b7099; }
-  .bc-slots{ margin:0 auto 8px; max-width:230px; font-size:12px; }
+  .bc-slots{ margin:8px auto 0; max-width:230px; font-size:12px; color:#40598a; }
   .bc-slots .srow{ display:flex; justify-content:space-between; font-weight:600; margin-bottom:4px; }
-  .bc-bar{ height:7px; border-radius:999px; background:rgba(255,255,255,.35); overflow:hidden; }
-  .bc-bar i{ display:block; height:100%; background:#fbbf24; border-radius:999px; }
-  .bd-was{ margin-top:14px; font-size:14px; opacity:.92; }
-  .bd-save{ display:inline-block; background:rgba(255,255,255,.22); font-weight:700; font-size:13px; padding:4px 14px; border-radius:999px; margin:6px 0; }
-  .bd-price b{ font-size:52px; font-weight:800; letter-spacing:-2px; line-height:1.05; }
-  .bd-price span{ display:block; font-size:14px; font-weight:600; opacity:.92; }
-  .purchase-actions{ display:flex; flex-direction:column; gap:10px; width:100%; margin-top:16px; }
-  .purchase-actions .btn{ min-height:46px; }
-  .bundle .btn-white .ico{ color:var(--blue-deep); }
-  .btn-quote{ background:transparent; color:#fff; box-shadow:inset 0 0 0 2px rgba(255,255,255,.7); }
-  .btn-quote:hover{ background:rgba(255,255,255,.12); }
-  .trial-link{ display:inline-block; font-weight:600; text-decoration:underline; text-underline-offset:3px; padding:10px 4px 0; }
-  .purchase-actions a[aria-disabled="true"]{ opacity:.45; cursor:not-allowed; }
+  .bc-bar{ height:7px; border-radius:999px; background:#fff; overflow:hidden; }
+  .bc-bar i{ display:block; height:100%; background:#f59e0b; }
+  .bundle .btn{ margin-top:16px; padding:16px 20px; font-size:18px; }
+  .bd-links{ display:flex; justify-content:center; gap:18px; margin-top:10px; font-size:14px; font-weight:600; color:var(--blue-deep); }
+  .bd-links a{ text-decoration:underline; text-underline-offset:3px; }
 
-  .sbar{ display:grid; grid-template-columns:1.2fr .8fr 1fr; gap:22px; align-items:center; background:#fff; border-radius:20px; padding:22px 26px; margin-top:22px; box-shadow:var(--shadow); }
-  .sb-title{ font-weight:700; font-size:15px; color:var(--navy); }
-  .sb-sel{ color:var(--muted); font-size:13px; margin-top:2px; }
-  .sb-save{ display:inline-block; background:#dcfce7; color:#15803d; font-weight:700; font-size:12.5px; padding:3px 11px; border-radius:999px; margin-top:7px; }
-  .sb-upsell{ margin-top:6px; font-size:12.5px; font-weight:700; color:var(--indigo); }
-  .sb-mid{ text-align:center; }
-  .sb-lbl{ font-size:13px; color:var(--muted); }
-  .sb-total b{ font-size:36px; font-weight:800; letter-spacing:-1.5px; color:var(--navy); }
-  .sb-total small{ font-size:14px; color:var(--muted); }
-  .sb-rows{ display:grid; gap:4px; font-size:13px; color:var(--muted); }
-  .sb-row{ display:flex; justify-content:space-between; gap:10px; }
-  .sb-row strong{ color:var(--ink); }
-  .sb-row.discount strong{ color:#dc2626; }
-  .sb-row.net strong{ color:var(--blue-deep); }
-  .sb-right{ grid-column:1/-1; display:flex; gap:12px; align-items:center; justify-content:flex-end; flex-wrap:wrap; padding-top:14px; box-shadow:0 -1px 0 var(--line); }
-  .sb-right .btn-quote{ color:var(--blue-deep); box-shadow:inset 0 0 0 2px var(--blue); }
-  .sb-right .btn-quote:hover{ background:#eff6ff; }
-  .sb-right .trial-link{ color:var(--blue-deep); padding:0 6px; }
-  .sb-note{ font-size:12px; color:var(--muted); margin-right:auto; }
-  .price-foot{ text-align:center; color:var(--muted); font-size:13px; margin-top:18px; }
+  .sbar{ display:flex; align-items:center; gap:22px; background:#fff; border-radius:22px; padding:14px 16px 14px 28px; margin-top:16px; box-shadow:var(--shadow); flex-wrap:wrap; }
+  .sb-count{ display:flex; align-items:center; gap:14px; font-size:20px; font-weight:700; color:var(--navy); padding-right:22px; box-shadow:1.5px 0 0 var(--line); }
+  .sb-count .ico{ width:32px; height:32px; color:var(--blue); stroke-width:2; }
+  .sb-mid{ flex:1; min-width:220px; font-size:15px; color:#2d3d5c; }
+  .sb-mid b{ font-size:24px; color:var(--navy); }
+  .sb-sel{ font-size:13px; color:var(--muted); }
+  .sb-save{ display:inline-block; background:#dcfce7; color:#15803d; font-weight:700; font-size:12.5px; padding:2px 10px; border-radius:999px; margin-left:6px; }
+  .sb-upsell{ font-size:13px; font-weight:700; color:var(--indigo); }
+  .sb-act{ display:flex; align-items:center; gap:14px; }
+  .sb-act .q{ font-size:14px; font-weight:600; color:var(--blue-deep); text-decoration:underline; text-underline-offset:3px; }
+  .sb-act .btn{ padding:15px 26px; font-size:17px; }
+  .sb-act a[aria-disabled="true"]{ opacity:.45; cursor:not-allowed; }
+  .price-foot{ text-align:center; color:#2d3d5c; font-size:14px; margin-top:12px; }
+  .trust{ display:grid; grid-template-columns:repeat(3,1fr); background:rgba(255,255,255,.9); border-radius:22px; padding:14px 10px; margin-top:16px; box-shadow:var(--shadow); }
+  .trust div{ display:flex; align-items:center; justify-content:center; gap:16px; font-size:17px; color:#1f2f52; font-weight:500; }
+  .trust div + div{ box-shadow:-1.5px 0 0 var(--line); }
+  .trust .ico{ width:38px; height:38px; color:var(--blue); stroke-width:1.8; }
 
   /* คำถาม */
-  .faq{ max-width:860px; margin:0 auto; display:grid; gap:12px; }
-  .faq details{ background:#fff; border-radius:16px; box-shadow:0 0 0 1px var(--line); }
-  .faq summary{ list-style:none; cursor:pointer; padding:18px 22px; font-weight:600; font-size:16px; color:var(--navy); display:flex; justify-content:space-between; gap:14px; align-items:center; }
+  .faq-head{ display:flex; align-items:center; gap:16px; margin-bottom:22px; }
+  .faq-q{ width:58px; height:58px; flex:none; border-radius:18px 18px 18px 6px; background:linear-gradient(135deg,#a78bfa,#6d4fe0); color:#fff; font-size:34px; font-weight:700; display:flex; align-items:center; justify-content:center; box-shadow:0 10px 20px rgba(109,79,224,.3); }
+  .faq{ display:grid; gap:10px; }
+  .faq details{ background:#fff; border-radius:14px; box-shadow:inset 0 0 0 1.5px #dfe6f2; overflow:hidden; }
+  .faq details[open]{ background:linear-gradient(100deg,#e3f2fd,#eef4ff); box-shadow:none; }
+  .faq summary{ list-style:none; cursor:pointer; padding:14px 26px; font-weight:700; font-size:19px; color:var(--navy); display:flex; justify-content:space-between; gap:14px; align-items:center; }
   .faq summary::-webkit-details-marker{ display:none; }
-  .faq summary::after{ content:""; flex:none; width:30px; height:30px; border-radius:50%; transition:.2s;
-    background:linear-gradient(var(--indigo),var(--indigo)) center/12px 2px no-repeat, linear-gradient(var(--indigo),var(--indigo)) center/2px 12px no-repeat, #eef2ff; }
-  .faq details[open] summary::after{ transform:rotate(45deg); }
-  .faq details p{ padding:0 22px 18px; color:var(--muted); font-size:14.5px; }
-  .faq a{ color:var(--blue); font-weight:600; }
+  .faq summary::after{ content:""; flex:none; width:12px; height:12px; border-right:2.5px solid var(--navy); border-bottom:2.5px solid var(--navy); transform:rotate(45deg) translate(-3px,-3px); transition:.2s; }
+  .faq details[open] summary::after{ transform:rotate(-135deg) translate(-3px,-3px); }
+  .faq details p{ margin:0 12px 12px; padding:12px 14px; background:rgba(255,255,255,.7); border-radius:10px; color:#2d3d5c; font-size:16.5px; }
+  .faq a{ color:var(--blue-deep); font-weight:600; }
 
   /* ปิดท้าย */
-  .cta-final{ padding:20px 0 76px; }
-  .cta-box{ background:linear-gradient(115deg,#06b6d4 0%,#3b82f6 45%,#4f46e5 100%); border-radius:28px; color:#fff; padding:52px 30px; text-align:center; position:relative; overflow:hidden; }
-  .cta-box::before{ content:""; position:absolute; width:260px; height:260px; border-radius:50%; background:rgba(255,255,255,.09); top:-100px; right:-60px; }
-  .cta-box::after{ content:""; position:absolute; width:170px; height:170px; border-radius:50%; background:rgba(255,255,255,.08); bottom:-70px; left:-40px; }
+  .cta-final{ padding:20px 0 40px; }
+  .cta-box{ background:linear-gradient(100deg,#5fd6ef 0%,#3d8ff3 45%,#5b62ea 80%,#9a7cf0 100%); border-radius:28px; color:#fff; padding:40px 30px 30px; text-align:center; position:relative; overflow:hidden; box-shadow:var(--shadow); }
   .cta-box > *{ position:relative; z-index:1; }
-  .cta-box h2{ font-size:34px; font-weight:700; margin-bottom:8px; }
-  .cta-box p{ color:#e0ecff; margin-bottom:26px; }
-  .cta-btns{ display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
-  .btn-line{ background:transparent; color:#fff; box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.7); }
-  .btn-line:hover{ background:rgba(255,255,255,.12); }
+  .cta-box h2{ font-size:46px; font-weight:700; line-height:1.3; }
+  .cta-box p{ font-size:20px; color:#f0f6ff; margin:6px 0 22px; }
+  .cta-btns{ display:flex; gap:24px; justify-content:center; flex-wrap:wrap; }
+  .cta-btns .btn{ padding:15px 40px; font-size:19px; min-width:270px; }
+  .cta-login{ display:inline-block; margin-top:16px; color:#fff; font-size:16px; text-decoration:underline; text-underline-offset:4px; }
+  .cta-plane{ position:absolute; right:40px; top:26px; width:110px; z-index:0; opacity:.95; }
 
-  footer{ background:#0b1f4d; color:#c5d3ee; padding:46px 0 26px; }
-  .foot{ display:grid; grid-template-columns:1.4fr 1fr 1fr 1fr; gap:28px; }
-  .foot .brand{ color:#fff; font-size:19px; }
-  .foot .brand b{ color:#7dd3fc; }
-  .foot .brand img{ height:32px; }
-  .foot p{ font-size:13.5px; margin-top:10px; max-width:26em; }
-  .foot h4{ color:#fff; font-size:14.5px; margin-bottom:10px; }
-  .foot ul{ list-style:none; display:grid; gap:7px; font-size:13.5px; }
-  .foot a:hover{ color:#fff; }
-  .foot-bottom{ margin-top:30px; padding-top:18px; box-shadow:0 -1px 0 rgba(255,255,255,.1); font-size:12.5px; text-align:center; }
+  footer{ background:rgba(255,255,255,.92); padding:30px 0 18px; }
+  .foot{ display:grid; grid-template-columns:1.5fr 1fr 1fr 1fr; gap:28px; }
+  .foot .brand{ font-size:26px; }
+  .foot .brand img{ height:48px; }
+  .foot .fb-desc{ font-size:14.5px; color:#2d3d5c; margin-top:2px; }
+  .foot > div:first-child{ padding-right:24px; box-shadow:1.5px 0 0 var(--line); }
+  .foot h4{ color:var(--navy); font-size:17px; margin-bottom:6px; }
+  .foot ul{ padding-left:18px; display:grid; gap:3px; font-size:14.5px; color:#2d3d5c; }
+  .foot a:hover{ color:var(--blue); }
+  .foot-bottom{ display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-top:22px; padding-top:14px; box-shadow:0 -1.5px 0 var(--line); font-size:14px; color:#2d3d5c; }
+  .foot-bottom nav{ display:flex; gap:22px; }
 
   /* จอกลาง / มือถือ */
-  @media (max-width:1020px){
-    .nav-links{ gap:20px; font-size:14px; }
-    .mods-grid{ grid-template-columns:repeat(3,1fr); }
+  @media (max-width:1060px){
+    .nav-links{ gap:22px; font-size:15px; }
+    h1{ font-size:36px; }
+    .mod h3{ font-size:22px; } .mod .mi{ width:100px; }
   }
   @media (max-width:900px){
-    h1{ font-size:38px; }
-    .hero{ padding-top:34px; }
-    .hero-grid, .split, .split.rev, .pk-wrap{ grid-template-columns:1fr; gap:30px; }
-    .split.rev .split-media{ order:2; }
+    .hero-grid, .panel, .pk-wrap{ grid-template-columns:1fr; gap:26px; }
+    .panel{ padding:26px 22px; }
+    .tilt, .tilt-r{ transform:none; }
     .nav-links{ position:absolute; left:0; right:0; top:100%; display:flex; overflow-x:auto; gap:22px; padding:8px 20px 10px;
                 background:rgba(255,255,255,.97); box-shadow:0 1px 0 var(--line); white-space:nowrap; scrollbar-width:none; }
     .nav-links::-webkit-scrollbar{ display:none; }
-    section[id]{ scroll-margin-top:120px; }
-    body{ padding-top:0; }
-    .hero{ margin-top:42px; }
-    .perks{ grid-template-columns:1fr; padding:6px; }
-    .perk + .perk{ box-shadow:0 -1px 0 var(--line); }
+    section[id]{ scroll-margin-top:124px; }
+    .hero{ margin-top:44px; }
+    .perks, .trust{ grid-template-columns:1fr; margin-top:10px; }
+    .perk + .perk, .trust div + div{ box-shadow:0 -1.5px 0 var(--line); }
+    .perk{ padding:12px 14px; } .trust div{ justify-content:flex-start; padding:10px 14px; }
     .mods-grid{ grid-template-columns:1fr 1fr; }
+    .mod, .mod.w3{ grid-column:span 1; }
     .flow{ grid-template-columns:1fr; }
-    .arrow{ justify-content:center; transform:rotate(90deg); font-size:22px; }
-    .sbar{ grid-template-columns:1fr; text-align:center; }
-    .sb-right{ justify-content:center; }
-    .sb-note{ margin:0; flex-basis:100%; }
+    .arrow{ justify-content:center; transform:rotate(90deg); }
+    .kb-grid{ grid-template-columns:1fr; }
+    .kb-head{ flex-direction:column; align-items:flex-start; }
+    .sb-count{ box-shadow:none; padding:0; }
     .foot{ grid-template-columns:1fr 1fr; }
+    .foot > div:first-child{ box-shadow:none; grid-column:1/-1; }
+    .cta-plane{ display:none; }
   }
-  @media (max-width:560px){
+  @media (max-width:600px){
     .wrap{ padding:0 16px; }
-    h1{ font-size:31px; }
-    .lead{ font-size:15.5px; }
-    .hero-actions .btn{ width:100%; }
-    .shot{ padding:10px 6px 26px; }
-    .shot-school{ width:34%; left:-4%; }
-    .shot-doc{ width:56px; }
-    .sec{ padding:54px 0; }
-    .sec-head h2, .split h2{ font-size:26px; }
+    h1{ font-size:30px; white-space:normal; }
+    .chip{ font-size:14px; }
+    .lead{ font-size:16px; margin:16px 0 22px; }
+    .hero-actions .btn{ width:100%; padding:15px 20px; font-size:17px; }
+    .st-word{ width:70px; } .st-school{ width:46%; right:14%; }
+    .stage{ padding-bottom:50px; }
+    .sec{ padding:50px 0; }
+    .sec-head h2, .h2{ font-size:28px; } .sec-head p, .sub{ font-size:16px; }
     .mods-grid{ grid-template-columns:1fr; }
+    .mod{ min-height:0; } .mod .mi{ width:86px; height:86px; } .mod h3{ font-size:21px; } .mod p{ font-size:15px; }
     .pk-list{ grid-template-columns:1fr; }
-    .nav{ height:60px; gap:8px; }
-    .brand{ font-size:16px; gap:7px; }
-    .brand img{ height:28px; }
-    .nav-cta{ gap:6px; }
-    .nav-cta .btn{ padding:7px 12px; font-size:13px; }
-    .live-txt span{ display:block; }
-    .cta-box{ padding:40px 18px; }
-    .cta-box h2{ font-size:26px; }
-    .cta-btns .btn{ width:100%; }
-    .guide-btns .btn{ flex:1; }
+    .pk-box h3, .bundle h3{ font-size:26px; }
+    .bd-school{ width:120px; top:-6px; }
+    .flow-band{ padding:20px 16px; }
+    .flow-note{ font-size:14.5px; text-align:left; }
+    .nav{ height:62px; gap:8px; }
+    .brand{ font-size:17px; gap:7px; } .brand img{ height:30px; }
+    .nav-cta{ gap:6px; } .nav-cta .btn{ padding:7px 12px; font-size:13px; }
+    .guide-btns .btn{ flex:1; padding:14px 16px; font-size:15px; }
+    .faq summary{ font-size:16.5px; padding:14px 18px; }
+    .cta-box{ padding:32px 18px 24px; } .cta-box h2{ font-size:30px; } .cta-box p{ font-size:16px; }
+    .cta-btns{ gap:12px; } .cta-btns .btn{ min-width:0; width:100%; }
+    .sbar{ padding:16px; } .sb-act{ width:100%; flex-wrap:wrap; justify-content:center; } .sb-act .btn{ width:100%; }
     .foot{ grid-template-columns:1fr; }
-    .bd-price b{ font-size:44px; }
   }
   @media (max-width:380px){
-    .brand{ font-size:14.5px; }
+    .brand{ font-size:15px; }
     .nav-cta .btn{ padding:7px 10px; font-size:12.5px; }
-    .nav-cta .btn-ghost{ box-shadow:none; border:0; padding:7px 4px; }
+    .nav-cta .btn-ghost{ box-shadow:none; padding:7px 4px; }
   }
-  @media (prefers-reduced-motion: reduce){ .shot-doc{ animation:none; } .mod:hover{ transform:none; } }
-  /* บทความบน landing ใช้ข้อมูลเผยแพร่ชุดเดียวกับคลังความรู้ */
-  .landing-knowledge{padding:84px 0 72px;background:#f7f9fd;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-  .lk-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:28px;margin-bottom:30px}
-  .lk-eyebrow{display:inline-flex;align-items:center;gap:7px;color:var(--blue);font-size:13px;font-weight:600;margin-bottom:12px}
-  .lk-eyebrow .ico{width:17px;height:17px}.lk-heading h2{font-size:32px;line-height:1.45;letter-spacing:-.5px;font-weight:700}.lk-heading h2>span{color:var(--blue)}
-  .lk-heading p{font-size:14px;line-height:1.9;color:var(--muted);margin-top:12px;max-width:620px}
-  .lk-all{flex:none;background:white;font-size:14px;gap:9px}.lk-all .ico{width:17px;height:17px}
-  .lk-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
-  .lk-card{min-width:0;background:#fff;border:1px solid #e0e7f0;border-radius:18px;overflow:hidden;box-shadow:0 5px 18px #142e5b05;transition:transform .2s,box-shadow .2s}
-  .lk-card:hover{transform:translateY(-5px);box-shadow:0 14px 30px #142e5b12}.lk-card-link{display:flex;flex-direction:column;height:100%;color:var(--ink);text-decoration:none}
-  .lk-card-link:focus-visible{outline:3px solid var(--blue);outline-offset:-3px;border-radius:18px}.lk-cover{aspect-ratio:16/9;position:relative;overflow:hidden;background:#edf1f9}
-  .lk-cover-image{display:block;width:100%;height:100%;object-fit:cover;transition:transform .35s}.lk-card:hover .lk-cover-image{transform:scale(1.025)}
-  .lk-tone-0{--cover-bg:#e7eaff;--cover-ink:#4338ca;--cover-soft:#c5cdff}.lk-tone-1{--cover-bg:#fff0dc;--cover-ink:#b64c0b;--cover-soft:#ffd5a0}.lk-tone-2{--cover-bg:#dbf3ef;--cover-ink:#087f72;--cover-soft:#a6ded5}
-  .lk-cover-fallback{position:absolute;inset:0;background:var(--cover-bg);color:var(--cover-ink);display:flex;align-items:center;justify-content:center;overflow:hidden}.lk-cover-fallback:before{content:'';position:absolute;width:220px;height:220px;border:40px solid var(--cover-soft);border-radius:50%;right:-80px;bottom:-130px;opacity:.7}
-  .lk-cover-caption{position:absolute;top:14px;left:18px;font-size:10px;font-weight:600;letter-spacing:.2px}.lk-paper{position:relative;width:66%;min-height:62%;padding:17px 20px;background:#ffffffed;box-shadow:8px 9px 0 #ffffff60,0 8px 15px #1b225417;transform:rotate(-5deg);border-radius:7px}
-  .lk-paper>span{font-size:10px;font-weight:600;display:block}.lk-paper strong{display:block;font-size:34px;line-height:1.5;font-weight:700;overflow-wrap:anywhere}.lk-paper i{display:block;width:68%;height:3px;background:var(--cover-soft);border-radius:4px;margin-top:6px}.lk-paper i:last-child{width:45%}
-  .lk-cover-corner{position:absolute;bottom:12px;right:15px;font-size:8px;font-weight:600;letter-spacing:1px;opacity:.65}
-  .lk-content{display:flex;flex-direction:column;padding:21px;flex:1}.lk-tags{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;font-size:11px;color:var(--blue);font-weight:600}
-  .lk-content h3{font-size:17px;line-height:1.65;font-weight:600;overflow-wrap:anywhere}.lk-content>p{color:var(--muted);font-size:12px;line-height:1.9;margin-top:10px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere}
-  .lk-card-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto;padding-top:23px;font-size:11px;color:#7b879b}.lk-read{display:inline-flex;align-items:center;gap:5px;color:var(--blue);font-size:12px;font-weight:600}.lk-read .ico{width:15px;height:15px;flex:none}
-  .lk-note{font-size:12px;color:var(--muted);text-align:center;margin-top:26px}.hero-knowledge{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--blue);margin-top:0;margin-bottom:24px;text-underline-offset:4px}.hero-knowledge .ico{width:16px;height:16px}
-  @media(max-width:960px){.lk-grid{gap:14px}.lk-content{padding:17px}.lk-content h3{font-size:16px}.lk-heading h2{font-size:29px}.lk-paper{padding:14px}.lk-paper strong{font-size:27px}}
-  @media(max-width:720px){.landing-knowledge{padding:54px 0}.lk-heading{align-items:flex-start;flex-direction:column;gap:18px}.lk-heading h2{font-size:27px}.lk-grid{grid-template-columns:1fr;gap:22px}.lk-card{max-width:540px;width:100%;margin:0 auto}.lk-content{padding:21px}.lk-content h3{font-size:18px}.lk-content>p{font-size:13px}.lk-paper{padding:18px 24px}.lk-paper strong{font-size:40px}.lk-note{text-align:left;line-height:1.9}.lk-cover-caption{font-size:11px}.lk-card-footer{font-size:12px}}
-  @media(prefers-reduced-motion:reduce){.lk-card,.lk-cover-image{transition:none}.lk-card:hover,.lk-card:hover .lk-cover-image{transform:none}}
+  @media (prefers-reduced-motion: reduce){ .mod:hover, .lk-card:hover{ transform:none; } }
 </style>
 </head>
 <body>
-{% set I = '/static/images/home3d/' %}
+{# ภาพ 3D ของหน้านี้อยู่ที่ /static/landing/3d/ วางไฟล์ชื่อเดิมทับเพื่อเปลี่ยนภาพ #}
+{% set A = '/static/landing/3d/' %}
 <svg style="display:none" xmlns="http://www.w3.org/2000/svg">
-  <symbol id="ic-spark" viewBox="0 0 24 24"><path d="M12 3l1.9 5.9L20 12l-6.1 3.1L12 21l-1.9-5.9L4 12l6.1-3.1z"/></symbol>
   <symbol id="ic-play" viewBox="0 0 24 24"><polygon points="7 4 20 12 7 20 7 4" fill="currentColor" stroke="none"/></symbol>
   <symbol id="ic-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14"/><polyline points="12 5 19 12 12 19"/></symbol>
   <symbol id="ic-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
-  <symbol id="ic-doc" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8M8 17h5"/></symbol>
-  <symbol id="ic-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></symbol>
+  <symbol id="ic-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="16.5 9 10.5 15 7.5 12"/></symbol>
+  <symbol id="ic-book" viewBox="0 0 24 24"><path d="M2 4.5h6a4 4 0 0 1 4 4V21a3 3 0 0 0-3-3H2z"/><path d="M22 4.5h-6a4 4 0 0 0-4 4V21a3 3 0 0 1 3-3h7z"/></symbol>
   <symbol id="ic-phone" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></symbol>
-  <symbol id="ic-facebook" viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></symbol>
-  <symbol id="ic-star" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></symbol>
+  <symbol id="ic-cart" viewBox="0 0 24 24"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.6 12.2a2 2 0 0 0 2 1.6h8.2a2 2 0 0 0 2-1.5L22 7H6"/></symbol>
+  <symbol id="ic-chat" viewBox="0 0 24 24"><path d="M21 12a8.5 8.5 0 0 1-12.4 7.5L3 21l1.6-5.2A8.5 8.5 0 1 1 21 12z"/><path d="M8 12h.01M12 12h.01M16 12h.01"/></symbol>
+  <symbol id="ic-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/></symbol>
+  <symbol id="ic-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+  <symbol id="ic-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></symbol>
+  <symbol id="ic-box" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></symbol>
+  <symbol id="ic-facebook" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#1877f2" stroke="none"/><path d="M15.5 8H14a1.5 1.5 0 0 0-1.5 1.5V22M10 13h5" stroke="#fff"/></symbol>
+  <symbol id="ic-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
 </svg>
 
 <!-- ================= เมนูบน ================= -->
 <header>
   <div class="wrap nav">
-    <a class="brand" href="/landing"><img src="/static/logo-ekkasan.png" alt="Easy Ekkasan" onerror="this.remove()">Easy <b>Ekkasan</b></a>
+    <a class="brand" href="/landing"><img src="/static/logo-ekkasan.png" alt="Easy Ekkasan" onerror="this.remove()">Easy Ekkasan</a>
     <nav class="nav-links" aria-label="เมนูหลัก">
       <a href="#modules">ฟังก์ชัน</a>
       <a href="#how">วิธีใช้งาน</a>
@@ -413,7 +429,7 @@
     </nav>
     <div class="nav-cta">
       <a class="btn btn-ghost" href="/login">เข้าสู่ระบบ</a>
-      <a class="btn btn-primary" href="/register">ทดลองใช้ฟรี</a>
+      <a class="btn btn-solid" href="/register">ทดลองใช้ฟรี</a>
     </div>
   </div>
 </header>
@@ -422,24 +438,23 @@
 <section class="hero">
   <div class="wrap hero-grid">
     <div>
-      <span class="chip"><svg class="ico"><use href="#ic-spark"/></svg> ระบบงานโรงเรียน ลดงานเอกสารให้ครู</span>
-      <h1><span>งานโรงเรียนเชื่อมถึงกัน</span><span class="grad-text">ครูมีเวลาให้ห้องเรียนมากขึ้น</span></h1>
-      <p class="lead">รวมงานพัสดุ การเงิน ธุรการ อาหารกลางวัน บุคคล วิชาการ และบริหารทั่วไป ไว้ในระบบเดียว
-        กรอกข้อมูลครั้งเดียว ใช้ต่อได้ทุกเอกสาร แล้วดาวน์โหลดเป็นไฟล์ Word พร้อมพิมพ์</p>
+      <span class="chip">ออกแบบเพื่อโรงเรียนไทย</span>
+      <h1><span>งานโรงเรียนเชื่อมถึงกัน</span><span class="l2 swoosh">ครูมีเวลาให้ห้องเรียนมากขึ้น</span></h1>
+      <p class="lead">รวมงานพัสดุ การเงิน ธุรการ อาหารกลางวัน บุคคล และวิชาการ ลดการกรอกซ้ำ พร้อมออกเอกสาร Word</p>
       <div class="hero-actions" id="try">
         {% if sandbox_msg or request.query_params.get('sandbox') == 'ended' %}
         <div class="try-msg">{{ sandbox_msg or 'ระบบตัวอย่างชุดเดิมครบ 24 ชั่วโมงและถูกลบแล้ว กดปุ่มด้านล่างเพื่อเปิดชุดใหม่ได้เลย' }}</div>
         {% endif %}
         <form class="try-form" method="post" action="/sandbox/start" onsubmit="tryStart(this)">
-          <button class="btn btn-primary" type="submit"><svg class="ico"><use href="#ic-play"/></svg> ลองใช้ระบบตัวอย่าง</button>
+          <button class="btn btn-primary" type="submit" aria-label="ทดลองใช้ระบบตัวอย่าง">ลองใช้ระบบตัวอย่าง <svg class="ico"><use href="#ic-arrow-right"/></svg></button>
         </form>
         {% if video_id %}
-        <button class="btn btn-ghost" type="button" data-video="{{ video_id }}"><span class="play-ic"><svg class="ico"><use href="#ic-play"/></svg></span> ดูวิดีโอแนะนำ</button>
+        <button class="btn btn-ghost" type="button" data-video="{{ video_id }}"><svg class="ico"><use href="#ic-play"/></svg> ดูวิดีโอแนะนำ</button>
         {% else %}
-        <a class="btn btn-ghost" href="/guide"><span class="play-ic"><svg class="ico"><use href="#ic-play"/></svg></span> ดูวิธีใช้งาน</a>
+        <a class="btn btn-ghost" href="/guide"><svg class="ico"><use href="#ic-play"/></svg> ดูวิธีใช้งาน</a>
         {% endif %}
-        <p class="try-note">ทดลองใช้ระบบตัวอย่างได้ทันที ไม่ต้องสมัคร มีข้อมูลโรงเรียนสมมติครบทุกงาน ลบเองใน 24 ชั่วโมง</p>
       </div>
+      <p class="try-note"><svg class="ico"><use href="#ic-check-circle"/></svg> ดูตัวอย่างได้ทันที ไม่ต้องสมัคร</p>
       {% if live %}
       {# ตัวเลขจริงจากระบบ อัปเดตวันละครั้ง (app/services/public_stats.py) #}
       <div class="live">
@@ -451,23 +466,22 @@
       {% endif %}
     </div>
 
-    <div class="shot">
-      <div class="browser">
-        <div class="browser-bar"><i></i><i></i><i></i><span>easy-ekkasan.com</span></div>
-        <img src="/static/landing/screen-proc.jpg?v=1" width="1920" height="1200" alt="หน้างานพัสดุในระบบ Easy Ekkasan (ข้อมูลโรงเรียนสมมติ)" fetchpriority="high">
+    <div class="stage">
+      <div class="browser tilt">
+        <div class="browser-bar"><i></i><i></i><i></i><span>www.easy-ekkasan.com</span></div>
+        <img src="/static/landing/screen-home.jpg?v=1" width="1920" height="1200" alt="หน้าภาพรวมโรงเรียนในระบบ Easy Ekkasan (ข้อมูลสมมติ)" fetchpriority="high">
       </div>
-      <img class="shot-school" src="/static/landing/school.png" alt="" aria-hidden="true">
-      <img class="shot-doc" src="{{ I }}t_doc.png" alt="" aria-hidden="true">
-      <span class="shot-note">ภาพจากระบบจริง ข้อมูลสมมติ</span>
+      <img class="st-school" src="{{ A }}hero-school.png" alt="" aria-hidden="true">
+      <img class="st-word" src="{{ A }}word.png" alt="" aria-hidden="true">
     </div>
   </div>
 
   <!-- แถบจุดเด่น -->
   <div class="wrap">
     <div class="perks">
-      <div class="perk"><img src="/static/images/finance3d/link-records.png" alt="" aria-hidden="true"><div><b>ข้อมูลแต่ละงานเชื่อมกัน</b><span>รายชื่อครู ผู้ขาย นักเรียน และงบประมาณ กรอกครั้งเดียวใช้ได้ทุกงาน</span></div></div>
-      <div class="perk"><img src="{{ I }}t_doc.png" alt="" aria-hidden="true"><div><b>ดาวน์โหลด Word</b><span>เอกสารแบบราชการ ฟอนต์ TH Sarabun เปิดแก้ต่อได้ก่อนพิมพ์</span></div></div>
-      <div class="perk"><span class="pk-svg" aria-hidden="true"><svg class="ico"><use href="#ic-phone"/></svg></span><div><b>รองรับมือถือ</b><span>ใช้ผ่านเบราว์เซอร์ ไม่ต้องติดตั้งโปรแกรม เปิดได้ทั้งคอมและมือถือ</span></div></div>
+      <div class="perk"><img class="pi" src="{{ A }}link.png" alt="" aria-hidden="true"><div><b>ข้อมูลแต่ละงานเชื่อมกัน</b><span>ใช้ข้อมูลชุดเดียว ลดการกรอกซ้ำ</span></div></div>
+      <div class="perk"><img class="pi" src="{{ A }}word.png" alt="" aria-hidden="true"><div><b>ดาวน์โหลด Word</b><span>ออกเอกสารราชการได้ทันที</span></div></div>
+      <div class="perk"><img class="pi" src="{{ A }}phone.png" alt="" aria-hidden="true" onerror="this.outerHTML='<span class=&quot;pk-svg&quot;><svg class=&quot;ico&quot;><use href=&quot;#ic-phone&quot;/></svg></span>'"><div><b>รองรับมือถือ</b><span>ใช้งานได้ทุกที่ ทุกเวลา</span></div></div>
     </div>
   </div>
 </section>
@@ -476,128 +490,122 @@
 <section class="sec" id="modules">
   <div class="wrap">
     <div class="sec-head">
-      <span class="eyebrow">ฟังก์ชัน</span>
-      <h2>ครบทุกงาน <span class="grad-text">ในระบบเดียว</span></h2>
-      <p>เลือกใช้เฉพาะงานที่โรงเรียนต้องการได้ และข้อมูลของทุกงานเชื่อมถึงกัน</p>
+      <h2 class="swoosh">ครบทุกงาน ในระบบเดียว</h2>
+      <p>เริ่มจากงานที่ใช้ แล้วค่อยเพิ่มงานอื่นได้</p>
     </div>
     <div class="mods-grid">
-      <a class="mod m-proc" href="/guide"><img src="{{ I }}mod_procurement.png" alt="" aria-hidden="true"><h3>งานพัสดุ</h3>
-        <p>เอกสารจัดซื้อจัดจ้างครบชุด แผนจัดซื้อ ทะเบียนคุมสัญญา ทะเบียนครุภัณฑ์และบัญชีวัสดุ</p><span class="more">ดูรายละเอียด <svg class="ico"><use href="#ic-arrow-right"/></svg></span></a>
-      <a class="mod m-fin" href="/guide"><img src="{{ I }}mod_finance.png" alt="" aria-hidden="true"><h3>งานการเงิน</h3>
-        <p>ทะเบียนคุมเงิน สมุดเงินสด บัญชีแยกประเภท บันทึกขอเบิก และรายงานเงินคงเหลือประจำวัน</p><span class="more">ดูรายละเอียด <svg class="ico"><use href="#ic-arrow-right"/></svg></span></a>
-      <a class="mod m-admin" href="/guide"><img src="{{ I }}mod_admin.png" alt="" aria-hidden="true"><h3>งานธุรการ</h3>
-        <p>ทะเบียนหนังสือรับ-ส่ง บันทึกข้อความ คำสั่ง และหนังสือราชการ มี AI ช่วยร่างและอ่านหนังสือ</p><span class="more">ดูรายละเอียด <svg class="ico"><use href="#ic-arrow-right"/></svg></span></a>
-      <a class="mod m-lunch" href="/guide"><img src="{{ I }}mod_lunch.png" alt="" aria-hidden="true"><h3>อาหารกลางวัน</h3>
-        <p>คำนวณงบต่อหัว เอกสารจ้างเหมา จ้างแม่ครัว หรือซื้อวัตถุดิบ และภาวะโภชนาการนักเรียน</p><span class="more">ดูรายละเอียด <svg class="ico"><use href="#ic-arrow-right"/></svg></span></a>
-      <a class="mod m-hr" href="/guide"><img src="{{ I }}mod_hr.png" alt="" aria-hidden="true"><h3>งานบุคคล</h3>
-        <p>ทะเบียนบุคลากร ใบลาและขอไปราชการที่ครูส่งในระบบได้ ก.พ.7 และหนังสือรับรอง</p><span class="more">ดูรายละเอียด <svg class="ico"><use href="#ic-arrow-right"/></svg></span></a>
-      <a class="mod m-acad" href="/guide"><img src="{{ I }}mod_academic.png" alt="" aria-hidden="true"><h3>งานวิชาการ</h3>
-        <p>ผลการเรียน ปพ.5 ปพ.6 ตารางเรียน เช็กชื่อรายวัน แผนการสอน และงานนิเทศภายใน</p><span class="more">ดูรายละเอียด <svg class="ico"><use href="#ic-arrow-right"/></svg></span></a>
-      <a class="mod m-gen" href="/guide"><span class="free-tag">ใช้ฟรี</span><img src="{{ I }}mod_general.png" alt="" aria-hidden="true"><h3>งานบริหารทั่วไป</h3>
-        <p>บันทึกการเข้าแถว สถิติการมาเรียน คะแนนความประพฤติ และเงินออมนักเรียน เปิดให้ทุกโรงเรียนใช้ฟรี</p><span class="more">ดูรายละเอียด <svg class="ico"><use href="#ic-arrow-right"/></svg></span></a>
+      {% for cls, img, name, desc, wide in [
+        ('m-proc','proc','งานพัสดุ','จัดซื้อจัดจ้างและทะเบียนทรัพย์สิน',0),
+        ('m-fin','fin','งานการเงิน','เบิกจ่ายและทะเบียนคุมเงิน',0),
+        ('m-admin','admin','งานธุรการ','รับ-ส่งหนังสือและเอกสารราชการ',0),
+        ('m-lunch','lunch','อาหารกลางวัน','รอบจัดจ้าง เมนู และการเบิกจ่าย',1),
+        ('m-hr','hr','งานบุคคล','บุคลากร วันลา และไปราชการ',1),
+        ('m-acad','acad','งานวิชาการ','ห้องเรียน ตารางเรียน และผลการเรียน',1),
+        ('m-gen','general','งานบริหารทั่วไป','เข้าแถว ความประพฤติ และเงินออมนักเรียน',1)] %}
+      <a class="mod {{ cls }}{% if wide %} w3{% endif %}" href="/guide">
+        {% if img == 'general' %}<span class="free-tag">ใช้ฟรี</span>{% endif %}
+        <img class="mi" src="{{ A }}{{ img }}.png" alt="" aria-hidden="true">
+        <div><h3>{{ name }}</h3><p>{{ desc }}</p><span class="pill-more">ดูรายละเอียด <svg class="ico"><use href="#ic-arrow-right"/></svg></span></div>
+      </a>
+      {% endfor %}
     </div>
   </div>
 </section>
 
-<!-- ================= การเชื่อมข้อมูล ================= -->
-<section class="sec alt-blue" id="how">
+<!-- ================= กรอกครั้งเดียว ================= -->
+<section class="sec" id="how" style="padding-top:20px;">
   <div class="wrap">
-    <div class="sec-head">
-      <span class="eyebrow">วิธีใช้งาน</span>
-      <h2>กรอกครั้งเดียว <span class="grad-text">ใช้ต่อได้ทั้งงาน</span></h2>
-      <p>ข้อมูลที่กรอกตอนสร้างเรื่อง ถูกนำไปใช้ต่อในเอกสารทุกฉบับและงานที่เกี่ยวข้อง</p>
+    <div class="sec-head" style="margin-bottom:28px;">
+      <h2 class="swoosh">กรอกครั้งเดียว ใช้ต่อได้ทั้งงาน</h2>
+      <p>ข้อมูลเรื่องเดียวกัน เดินต่อได้ในระบบ</p>
     </div>
-    <div class="flow">
-      <div class="step"><img src="{{ I }}p_create.png" alt="" aria-hidden="true"><div class="num">1</div><h3>สร้างเรื่อง</h3>
-        <p>กรอกรายการ ผู้ขาย และงบประมาณ ระบบเลือกรายชื่อและเลขที่เอกสารให้</p></div>
-      <div class="arrow" aria-hidden="true"><svg class="ico"><use href="#ic-arrow-right"/></svg></div>
-      <div class="step"><img src="{{ I }}a_wait_dir.png" alt="" aria-hidden="true"><div class="num">2</div><h3>ส่งอนุมัติ</h3>
-        <p>เสนอผู้อำนวยการพิจารณาในระบบ อนุมัติแล้วแปะลายเซ็นในเอกสารให้</p></div>
-      <div class="arrow" aria-hidden="true"><svg class="ico"><use href="#ic-arrow-right"/></svg></div>
-      <div class="step"><img src="{{ I }}f_disburse.png" alt="" aria-hidden="true"><div class="num">3</div><h3>ออกเอกสาร / บันทึกจ่าย</h3>
-        <p>ดาวน์โหลดเอกสารครบชุดเป็น Word และบันทึกขอเบิกเข้าทะเบียนคุมเงิน</p></div>
+    <div class="flow-band">
+      <div class="flow">
+        <div class="step"><img src="{{ A }}step-create.png" alt="" aria-hidden="true"><div><div class="t"><span class="num">1</span><h3>สร้างเรื่อง</h3></div><p>กรอกรายการ ผู้ขาย และงบประมาณครั้งเดียว</p></div></div>
+        <span class="arrow" aria-hidden="true"><svg class="ico"><use href="#ic-arrow-right"/></svg></span>
+        <div class="step"><img src="{{ A }}step-approve.png" alt="" aria-hidden="true"><div><div class="t"><span class="num">2</span><h3>ส่งอนุมัติ</h3></div><p>เสนอ ผอ. ในระบบ อนุมัติแล้วแปะลายเซ็นให้</p></div></div>
+        <span class="arrow" aria-hidden="true"><svg class="ico"><use href="#ic-arrow-right"/></svg></span>
+        <div class="step"><img src="{{ A }}step-print.png" alt="" aria-hidden="true"><div><div class="t"><span class="num">3</span><h3>ออกเอกสาร / บันทึกจ่าย</h3></div><p>ดาวน์โหลด Word ครบชุด และลงทะเบียนคุมเงิน</p></div></div>
+      </div>
+      <p class="flow-note"><svg class="ico"><use href="#ic-gear"/></svg><i></i> เลือกใช้การอนุมัติตามการตั้งค่าของโรงเรียน</p>
     </div>
-    <p class="flow-note"><b>หมายเหตุ:</b> ขั้นส่งอนุมัติขึ้นอยู่กับการตั้งค่าของโรงเรียน เปิดหรือปิดได้</p>
   </div>
 </section>
 
 <!-- ================= ติดตามงาน ================= -->
-<section class="sec" id="features">
-  <div class="wrap split">
-    <div>
-      <span class="eyebrow">ติดตามงาน</span>
-      <h2>เห็นงานที่ต้องทำ<br><span class="grad-text">ไม่ต้องไล่เปิดหลายหน้า</span></h2>
-      <p class="sub">หน้าภาพรวมรวบรวมงานค้างของแต่ละคน ตามหน้าที่ที่ได้รับ</p>
-      <ul class="rows">
-        <li><img src="{{ I }}todo.png" alt="" aria-hidden="true"><div><b>สถานะของแต่ละเรื่อง</b><span>รู้ว่าเรื่องไหนยังเป็นร่าง รอตรวจรับ หรือเบิกจ่ายแล้ว</span></div></li>
-        <li><img src="{{ I }}leave_wait.png" alt="" aria-hidden="true"><div><b>งานรออนุมัติ</b><span>ใบลา แผนการสอน และเอกสารที่รอ ผอ. รวมอยู่ในกล่องเดียว</span></div></li>
-        <li><img src="/static/images/finance3d/link-records.png" alt="" aria-hidden="true"><div><b>ข้อมูลที่เชื่อมกัน</b><span>เรื่องจัดซื้อเชื่อมกับโครงการและทะเบียนคุมเงิน ไม่ต้องกรอกยอดซ้ำ</span></div></li>
-      </ul>
-      <form class="try-form" method="post" action="/sandbox/start" onsubmit="tryStart(this)">
-        <button class="btn btn-primary" type="submit"><svg class="ico"><use href="#ic-play"/></svg> ลองใช้ระบบตัวอย่าง</button>
-      </form>
-    </div>
-    <div class="split-media">
-      <div class="browser">
-        <div class="browser-bar"><i></i><i></i><i></i><span>easy-ekkasan.com</span></div>
-        <img src="/static/landing/screen-home.jpg?v=1" width="1920" height="1200" decoding="async" alt="หน้าภาพรวมโรงเรียน แสดงงานที่ต้องจัดการ (ข้อมูลโรงเรียนสมมติ)">
+<section class="sec" id="features" style="padding-top:10px;">
+  <div class="wrap">
+    <div class="panel white">
+      <div>
+        <h2 class="h2">เห็นงานที่ต้องทำ<br><span class="swoosh">ไม่ต้องไล่เปิดหลายหน้า</span></h2>
+        <ul class="checks">
+          <li><span class="ck"><svg class="ico"><use href="#ic-check"/></svg></span>ติดตามสถานะเรื่องและเอกสาร</li>
+          <li><span class="ck"><svg class="ico"><use href="#ic-check"/></svg></span>รู้ว่างานไหนรออนุมัติหรือส่งกลับแก้ไข</li>
+          <li><span class="ck"><svg class="ico"><use href="#ic-check"/></svg></span>ข้อมูลพัสดุและการเงินเชื่อมถึงกัน</li>
+        </ul>
+      </div>
+      <div class="stage" style="padding:0;">
+        <div class="browser tilt-r">
+          <div class="browser-bar"><i></i><i></i><i></i><span>www.easy-ekkasan.com</span></div>
+          <img src="/static/landing/screen-proc.jpg?v=1" width="1920" height="1200" decoding="async" alt="หน้างานพัสดุ แสดงขั้นตอนที่ต้องทำต่อ (ข้อมูลสมมติ)">
+        </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ================= คู่มือและวิดีโอ ================= -->
-<section class="sec alt-violet" id="guide">
-  <div class="wrap split rev">
-    <div class="split-media">
-      {% if video_id %}
-      <button class="vid" type="button" data-video="{{ video_id }}" aria-label="เล่นวิดีโอแนะนำการใช้งาน">
-        <img src="https://i.ytimg.com/vi/{{ video_id }}/hqdefault.jpg" alt="" loading="lazy">
-        <span class="pl"><span><svg class="ico"><use href="#ic-play"/></svg></span></span>
-      </button>
-      {% else %}
-      <a class="vid" href="/guide" aria-label="เปิดคู่มือการใช้งาน"><span class="vid-fallback"></span><span class="pl"><span><svg class="ico"><use href="#ic-book"/></svg></span></span></a>
-      {% endif %}
-    </div>
-    <div>
-      <span class="eyebrow">คู่มือ</span>
-      <h2>เริ่มต้นง่าย<br><span class="grad-text">มีคู่มือให้ดูทีละขั้น</span></h2>
-      <p class="sub">หน้าวิธีใช้งานมีขั้นตอนของแต่ละงานพร้อมวิดีโอสอน และในระบบมีรายการเริ่มต้นบอกว่าต้องตั้งค่าอะไรก่อน</p>
-      <div class="guide-btns">
-        {% if video_id %}<button class="btn btn-primary" type="button" data-video="{{ video_id }}"><svg class="ico"><use href="#ic-play"/></svg> ดูวิดีโอ</button>{% endif %}
-        <a class="btn btn-ghost" href="/guide"><svg class="ico"><use href="#ic-book"/></svg> เปิดคู่มือทั้งหมด</a>
+<!-- ================= คู่มือ ================= -->
+<section class="sec" id="guide" style="padding-top:0;">
+  <div class="wrap">
+    <div class="panel cyan">
+      <div>
+        <h2 class="h2"><span class="swoosh">เริ่มต้นง่าย มีคู่มือให้ดูทีละขั้น</span></h2>
+        <p class="sub">เลือกงานที่ใช้ แล้วดูวิธีทำตามหน้าจอ</p>
+        <div class="guide-btns">
+          {% if video_id %}<button class="btn btn-primary" type="button" data-video="{{ video_id }}"><svg class="ico"><use href="#ic-play"/></svg> ดูวิดีโอวิธีใช้งาน</button>{% endif %}
+          <a class="btn btn-ghost" href="/guide"><svg class="ico"><use href="#ic-book"/></svg> เปิดคู่มือทั้งหมด</a>
+        </div>
+      </div>
+      <div class="vid-wrap">
+        <span class="vid-tag"><svg class="ico"><use href="#ic-play"/></svg> คู่มือ Easy Ekkasan</span>
+        <div class="browser">
+          <div class="browser-bar"><i></i><i></i><i></i><span>www.easy-ekkasan.com</span></div>
+          <img src="/static/landing/screen-guide.jpg?v=1" width="1920" height="1200" decoding="async" alt="หน้างานการเงินในระบบ (ข้อมูลสมมติ)">
+        </div>
+        {% if video_id %}
+        <button class="vid-btn" type="button" data-video="{{ video_id }}" aria-label="เล่นวิดีโอวิธีใช้งาน"><span><svg class="ico"><use href="#ic-play"/></svg></span></button>
+        {% else %}
+        <a class="vid-btn" href="/guide" aria-label="เปิดคู่มือ"><span><svg class="ico"><use href="#ic-book"/></svg></span></a>
+        {% endif %}
       </div>
     </div>
   </div>
 </section>
 
 {% if kb_preview %}
-<section class="landing-knowledge" id="knowledge" aria-labelledby="landing-knowledge-title">
+<section class="sec" id="knowledge" aria-labelledby="landing-knowledge-title" style="padding-top:0;">
   <div class="wrap">
-    <div class="lk-heading">
+    <div class="kb-head">
       <div>
-        <span class="lk-eyebrow"><svg class="ico" aria-hidden="true"><use href="#ic-doc"/></svg> บทความล่าสุดจากคลังความรู้</span>
-        <h2 id="landing-knowledge-title">เรื่องงานโรงเรียน<br><span>อ่านให้เข้าใจ ก่อนลงมือทำ</span></h2>
-        <p>สรุปเรื่องระเบียบ เอกสาร และวิธีใช้งานระบบ อ่านฟรี ไม่ต้องเข้าสู่ระบบ</p>
+        <h2 class="h2" id="landing-knowledge-title"><span class="swoosh">เรื่องโรงเรียน อ่านให้เข้าใจง่าย</span></h2>
+        <p class="sub">บทความล่าสุดจากคลังความรู้</p>
       </div>
-      <a class="btn btn-ghost lk-all" href="/knowledge">ดูบทความทั้งหมด <svg class="ico" aria-hidden="true"><use href="#ic-arrow-right"/></svg></a>
+      <a class="btn btn-ghost" href="/knowledge">ดูบทความทั้งหมด <svg class="ico"><use href="#ic-arrow-right"/></svg></a>
     </div>
-    <div class="lk-grid">
+    <div class="kb-grid">
       {% for article in kb_preview %}
       <article class="lk-card lk-tone-{{ loop.index0 % 3 }}">
         <a class="lk-card-link" href="/knowledge/{{ article.slug }}">
           <div class="lk-cover">
             {% if article.image %}
-            <img class="lk-cover-image" src="{{ article.image }}" alt="{{ article.image_alt }}" width="640" height="360" loading="lazy" decoding="async">
+            <img class="lk-cover-image" src="{{ article.image }}" alt="{{ article.image_alt }}" width="640" height="280" loading="lazy" decoding="async">
             {% else %}
-            <div class="lk-cover-fallback" aria-hidden="true"><span class="lk-cover-caption">เรื่องที่ครูควรรู้</span><div class="lk-paper"><span>{{ article.category or 'งานโรงเรียน' }}</span><strong>{{ article.cover or 'คู่มือครู' }}</strong><i></i><i></i></div><span class="lk-cover-corner">EASY EKKASAN</span></div>
+            <div class="lk-cover-fallback" aria-hidden="true"><strong>{{ article.cover or 'คู่มือครู' }}</strong></div>
             {% endif %}
           </div>
           <div class="lk-content">
-            <div class="lk-tags"><span>{{ article.category or 'งานโรงเรียน' }}</span></div>
             <h3>{{ article.title }}</h3>
-            {% if article.description %}<p>{{ article.description }}</p>{% endif %}
-            <div class="lk-card-footer"><span>อ่าน {{ article.minutes }} นาที</span><span class="lk-read">อ่านบทความ <svg class="ico" aria-hidden="true"><use href="#ic-arrow-right"/></svg></span></div>
+            <div class="lk-card-footer"><span class="lk-tag"><svg class="ico"><use href="#ic-box"/></svg> {{ article.category or 'งานโรงเรียน' }}</span><span class="lk-read">อ่านบทความ <svg class="ico"><use href="#ic-arrow-right"/></svg></span></div>
           </div>
         </a>
       </article>
@@ -612,112 +620,90 @@
 {% set full = full_sum | default(px.p_proc + px.p_fin + px.p_admin + px.p_lunch + px.p_hr + px.p_acad) %}
 {% set save = bundle_save | default(1250) %}
 {% set tiers = tier_discount | default({2:100, 3:200, 4:300, 5:400}) %}
-<section class="sec alt-blue" id="pricing">
+<section class="sec" id="pricing" style="padding-top:20px;">
   <div class="wrap">
-    <div class="sec-head">
-      <span class="eyebrow">แพ็กเกจ</span>
-      <h2>เลือกให้พอดี<span class="grad-text">กับงานของโรงเรียน</span></h2>
-      <p>จ่ายรายปี ซื้อแยกเฉพาะงานได้ ยิ่งเลือกหลายงานยิ่งได้ส่วนลด ทดลองใช้ฟรี {{ trial_days }} วันก่อนตัดสินใจ</p>
+    <div class="sec-head" style="margin-bottom:26px;">
+      <h2 class="swoosh">เลือกให้พอดีกับงานของโรงเรียน</h2>
+      <p>ใช้เฉพาะงานที่ต้องการ หรือเลือกครบทุกงาน</p>
     </div>
 
     <div class="pk-wrap">
-      <div class="pk-list" id="pickList">
-        {% for key, name, desc, icon in [
-          ('p_proc','งานพัสดุ','จัดซื้อจัดจ้าง ครุภัณฑ์ วัสดุ','mod_procurement'),
-          ('p_fin','งานการเงิน','ทะเบียนคุมเงิน ขอเบิก รายงาน','mod_finance'),
-          ('p_admin','งานธุรการ','หนังสือรับ-ส่ง บันทึก คำสั่ง','mod_admin'),
-          ('p_lunch','งานอาหารกลางวัน','งบต่อหัว จ้างเหมา วัตถุดิบ','mod_lunch'),
-          ('p_hr','งานบุคคล','บุคลากร ใบลา ไปราชการ','mod_hr'),
-          ('p_acad','งานวิชาการ','ผลการเรียน ปพ. ตารางเรียน','mod_academic')] %}
-        <label class="mcard on" data-price="{{ px[key] }}" data-name="{{ name }}">
-          <input type="checkbox" checked>
-          <span class="mc-box"><svg class="ico"><use href="#ic-check"/></svg></span>
-          <img src="{{ I }}{{ icon }}.png" alt="" aria-hidden="true">
-          <span class="mc-body"><h4>{{ name }}</h4><p>{{ desc }}</p></span>
-          <span class="mc-price">{{ "{:,}".format(px[key]) }}<small>บาท/ปี</small></span>
-        </label>
-        {% endfor %}
-        <div class="mfree"><img src="{{ I }}mod_general.png" alt="" aria-hidden="true">
-          <div>งานบริหารทั่วไป<small>เข้าแถว การมาเรียน ความประพฤติ เงินออม พร้อมข้อมูลโรงเรียนและทะเบียนนักเรียนกลาง</small></div>
-          <span class="tag">ใช้ฟรี</span></div>
-        <p class="tier-hint">ส่วนลดเมื่อเลือกหลายงาน: {% for n, d in tiers|dictsort %}{{ n }} งาน ลด {{ "{:,}".format(d) }} บาท{% if not loop.last %}, {% endif %}{% endfor %} และครบ 6 งานใช้ราคาแพ็กเกจ</p>
+      <div class="pk-box">
+        <h3>เลือกงานที่ต้องการ</h3>
+        <div class="pk-list" id="pickList">
+          {% for key, name, icon in [('p_proc','งานพัสดุ','proc'),('p_fin','งานการเงิน','fin'),('p_admin','งานธุรการ','admin'),
+                                     ('p_lunch','อาหารกลางวัน','lunch'),('p_hr','งานบุคคล','hr'),('p_acad','งานวิชาการ','acad')] %}
+          <label class="mcard on" data-price="{{ px[key] }}" data-name="{{ name }}">
+            <input type="checkbox" checked aria-label="เลือก{{ name }}">
+            <span class="mc-box"><svg class="ico"><use href="#ic-check"/></svg></span>
+            <img src="{{ A }}{{ icon }}.png" alt="" aria-hidden="true">
+            <span class="mc-body"><h4>{{ name }}</h4><span class="mc-price">{{ "{:,}".format(px[key]) }} <small>บาท/ปี</small></span></span>
+          </label>
+          {% endfor %}
+          <div class="mfree"><img src="{{ A }}general.png" alt="" aria-hidden="true"><i></i>
+            <div>งานบริหารทั่วไป <b>ใช้ฟรี</b>ทุกโรงเรียน<small>ซื้อแยกหลายงานได้ส่วนลด: {% for n, d in tiers|dictsort %}{{ n }} งาน ลด {{ "{:,}".format(d) }} บาท{% if not loop.last %}, {% endif %}{% endfor %}</small></div></div>
+        </div>
       </div>
 
       <div class="bundle" aria-label="แพ็กเกจครบทุกงาน">
-        <span class="bd-badge"><svg class="ico"><use href="#ic-star"/></svg> แนะนำ</span>
-        <img class="bd-school" src="/static/landing/school.png" alt="" aria-hidden="true">
+        <img class="bd-school" src="{{ A }}hero-school.png" alt="" aria-hidden="true">
+        <span class="bd-badge">แนะนำ</span>
         <h3>แพ็กเกจครบทุกงาน</h3>
-        <p class="bd-sub">ได้ครบ 6 งานหลัก ในราคาคุ้มที่สุด</p>
-        {% if promo_end_iso %}
-        <div class="bd-promo">ราคานี้เหลืออีก {{ promo_days_left }} วัน</div>
-        <div class="bc-count" data-deadline="{{ promo_end_iso }}"></div>
-        {% endif %}
-        {% if promo_slots %}
-        <div class="bc-slots">
-          <div class="srow"><span>สิทธิ์ราคานี้</span><span>เหลือ <b>{{ promo_slots_left }}</b>/{{ promo_slots }}</span></div>
-          <div class="bc-bar"><i style="width:{{ (promo_slots_left / promo_slots * 100)|round(0,'floor') }}%"></i></div>
+        <ul class="bd-list">
+          <li><span class="ck"><svg class="ico"><use href="#ic-check"/></svg></span>ครบทั้ง 6 งานหลัก</li>
+          <li><span class="ck"><svg class="ico"><use href="#ic-check"/></svg></span>ข้อมูลโรงเรียนและทะเบียนนักเรียนกลาง</li>
+          <li><span class="ck"><svg class="ico"><use href="#ic-check"/></svg></span>อัปเดตระบบและคู่มือการใช้งาน</li>
+        </ul>
+        <div class="bd-price">
+          <div class="was">จากปกติ <s>{{ "{:,}".format(full) }}</s> บาท</div>
+          <b>{{ "{:,}".format(px.bundle) }}</b><span>บาท ต่อปี / โรงเรียน</span><br>
+          <span class="save">ประหยัด {{ "{:,}".format(save) }} บาท</span>
+          {% if promo_end_iso %}<div class="bd-promo">ราคานี้เหลืออีก {{ promo_days_left }} วัน</div><div class="bc-count" data-deadline="{{ promo_end_iso }}"></div>{% endif %}
+          {% if promo_slots %}
+          <div class="bc-slots"><div class="srow"><span>สิทธิ์ราคานี้</span><span>เหลือ <b>{{ promo_slots_left }}</b>/{{ promo_slots }}</span></div>
+            <div class="bc-bar"><i style="width:{{ (promo_slots_left / promo_slots * 100)|round(0,'floor') }}%"></i></div></div>
+          {% endif %}
         </div>
-        {% endif %}
-        <div class="bd-was">จากปกติ <s>{{ "{:,}".format(full) }}</s> บาท</div>
-        <div class="bd-save">ประหยัด {{ "{:,}".format(save) }} บาท</div>
-        <div class="bd-price"><b>{{ "{:,}".format(px.bundle) }}</b><span>บาท / ปี</span></div>
-        <div class="purchase-actions">
-          <a class="btn btn-white" href="/checkout?packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}">สั่งซื้อแพ็กเกจ <svg class="ico"><use href="#ic-arrow-right"/></svg></a>
-          <a class="btn btn-quote" href="/quote?packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}">ขอใบเสนอราคา</a>
-        </div>
-        <a class="trial-link" href="/register">ทดลองใช้ฟรี {{ trial_days }} วัน</a>
+        <a class="btn btn-primary" href="/checkout?packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}">เลือกแพ็กเกจครบทุกงาน <svg class="ico"><use href="#ic-arrow-right"/></svg></a>
+        <div class="bd-links"><a href="/quote?packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}">ขอใบเสนอราคา</a><a href="/register">ทดลองใช้ฟรี {{ trial_days }} วัน</a></div>
       </div>
     </div>
 
-    <!-- สรุปงานที่เลือก -->
     <div class="sbar">
-      <div>
-        <div class="sb-title">งานที่เลือก</div>
-        <div class="sb-sel" id="sbSel">เลือกครบทุกงาน</div>
-        <div class="sb-save" id="sbSave"></div>
+      <div class="sb-count"><svg class="ico"><use href="#ic-cart"/></svg> <span>เลือกแล้ว <span id="sbCount">6</span> งาน</span></div>
+      <div class="sb-mid">
+        ยอดรวม <b id="sumTotal">{{ "{:,}".format(px.bundle) }}</b> บาท/ปี <span class="sb-save" id="sbSave"></span>
+        <div class="sb-sel" id="sbSel">ครบทุกงาน</div>
         <div class="sb-upsell" id="sbUpsell"></div>
       </div>
-      <div class="sb-mid">
-        <div class="sb-lbl">ยอดชำระต่อปี</div>
-        <div class="sb-total"><b id="sumTotal">{{ "{:,}".format(px.bundle) }}</b> <small>บาท</small></div>
-      </div>
-      <div class="sb-rows">
-        <div class="sb-row"><span id="sbBeforeLabel">ราคาสินค้า</span><strong id="sbBefore">{{ "{:,}".format(full) }} บาท</strong></div>
-        <div class="sb-row discount"><span id="sbDiscountLabel">ส่วนลดที่ได้รับ</span><strong id="sbDiscount">−{{ "{:,}".format(save) }} บาท</strong></div>
-        <div class="sb-row net"><span>ยอดชำระ</span><strong id="sbNet">{{ "{:,}".format(px.bundle) }} บาท</strong></div>
-        <div class="sb-row"><span>คุณประหยัด</span><strong id="sbSaved">{{ "{:,}".format(save) }} บาท</strong></div>
-      </div>
-      <div class="sb-right">
-        <span class="sb-note">ทดลองใช้ก่อน ไม่ต้องจ่าย</span>
-        <a class="trial-link" href="/register" id="btnTrial">ทดลองใช้ฟรี {{ trial_days }} วัน</a>
-        <span class="purchase-actions" style="flex-direction:row; width:auto; margin:0; flex-wrap:wrap;">
-          <a class="btn btn-quote" href="/quote?packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}" id="btnQuote">ขอใบเสนอราคา</a>
-          <a class="btn btn-primary" href="/checkout?packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}" id="btnBuy">สั่งซื้องานที่เลือก <svg class="ico"><use href="#ic-arrow-right"/></svg></a>
-        </span>
+      <div class="sb-act">
+        <a class="q" href="/quote?packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}" id="btnQuote">ขอใบเสนอราคา</a>
+        <a class="btn btn-solid" href="/checkout?packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}" id="btnBuy">สรุปแพ็กเกจที่เลือก <svg class="ico"><use href="#ic-arrow-right"/></svg></a>
       </div>
     </div>
-    <p class="price-foot">ราคาและโปรโมชันเป็นราคาปัจจุบันจากระบบ ยอดสุดท้ายแสดงอีกครั้งในหน้าสั่งซื้อ</p>
+    <p class="price-foot">ราคาและส่วนลดแสดงตามแพ็กเกจปัจจุบันของระบบ ทดลองใช้ฟรี {{ trial_days }} วันก่อนตัดสินใจ</p>
+
+    <div class="trust">
+      <div><svg class="ico"><use href="#ic-book"/></svg> มีคู่มือการใช้งาน</div>
+      <div><svg class="ico"><use href="#ic-chat"/></svg> มีช่องทางติดต่อช่วยเหลือ</div>
+      <div><svg class="ico"><use href="#ic-refresh"/></svg> อัปเดตระบบต่อเนื่อง</div>
+    </div>
   </div>
 </section>
 
-<!-- ================= คำถามที่พบบ่อย ================= -->
-<section class="sec" id="faq">
+<!-- ================= คำถาม ================= -->
+<section class="sec" id="faq" style="padding-top:10px;">
   <div class="wrap">
-    <div class="sec-head">
-      <span class="eyebrow">คำถามที่พบบ่อย</span>
-      <h2>มีคำถาม? <span class="grad-text">เราช่วยตอบ</span></h2>
-    </div>
+    <div class="faq-head"><span class="faq-q" aria-hidden="true">?</span><h2 class="h2"><span class="swoosh">คำถามที่โรงเรียนมักถาม</span></h2></div>
     <div class="faq">
-      <details open><summary>ต้องติดตั้งโปรแกรมไหม</summary>
-        <p>ไม่ต้องติดตั้ง ใช้ผ่านเบราว์เซอร์ได้เลย ทั้งคอมพิวเตอร์ แท็บเล็ต และมือถือ ข้อมูลเก็บบนเซิร์ฟเวอร์และมีการสำรองข้อมูล</p></details>
-      <details><summary>เลือกซื้อเฉพาะบางงานได้ไหม</summary>
-        <p>ได้ เลือกเฉพาะงานที่ต้องใช้ ถ้าเลือกตั้งแต่ 2 งานขึ้นไปได้ส่วนลดเพิ่ม หรือเลือกแพ็กเกจครบทุกงานในราคาที่คุ้มที่สุด ส่วนงานบริหารทั่วไปใช้ได้ฟรีทุกโรงเรียน</p></details>
-      <details><summary>เอกสารที่ได้เป็นไฟล์อะไร แก้ไขได้ไหม</summary>
-        <p>ดาวน์โหลดเป็นไฟล์ Word (.docx) ตามแบบราชการ เปิดแก้ไขเพิ่มเติมได้ก่อนพิมพ์และเสนอเซ็น</p></details>
-      <details><summary>ทดลองใช้ก่อนได้ไหม</summary>
-        <p>ได้ 2 แบบ กด "ลองใช้ระบบตัวอย่าง" เพื่อดูระบบที่มีข้อมูลสมมติครบทุกงานโดยไม่ต้องสมัคร (ลบเองใน 24 ชั่วโมง) หรือสมัครทดลองใช้ฟรี {{ trial_days }} วันด้วยข้อมูลโรงเรียนของคุณเอง</p></details>
-      <details><summary>ติดปัญหาการใช้งาน ขอความช่วยเหลือได้ทางไหน</summary>
-        <p>ดูขั้นตอนและวิดีโอได้ที่ <a href="/guide">หน้าวิธีใช้งาน</a> ในระบบมีปุ่มแชทกับเจ้าหน้าที่ หรือทักทาง <a href="https://www.facebook.com/profile.php?id=61590718498881&locale=th_TH" target="_blank" rel="noopener">Facebook</a> ทีมช่วยเหลือตอบวันจันทร์ถึงศุกร์ 08.30-17.00 น.</p></details>
+      <details open><summary>ต้องติดตั้งโปรแกรมไหม?</summary>
+        <p>ไม่ต้องติดตั้ง ใช้งานผ่านเว็บเบราว์เซอร์ได้ทั้งคอมพิวเตอร์ แท็บเล็ต และมือถือ</p></details>
+      <details><summary>เลือกซื้อเฉพาะบางงานได้ไหม?</summary>
+        <p>ได้ เลือกเฉพาะงานที่ต้องใช้ ตั้งแต่ 2 งานขึ้นไปได้ส่วนลด หรือเลือกแพ็กเกจครบทุกงานในราคาคุ้มที่สุด ส่วนงานบริหารทั่วไปใช้ได้ฟรีทุกโรงเรียน</p></details>
+      <details><summary>ดาวน์โหลดเอกสารไปแก้ต่อได้ไหม?</summary>
+        <p>ได้ เอกสารดาวน์โหลดเป็นไฟล์ Word (.docx) ตามแบบราชการ เปิดแก้ไขเพิ่มเติมได้ก่อนพิมพ์</p></details>
+      <details><summary>เริ่มต้นใช้งานและขอความช่วยเหลืออย่างไร?</summary>
+        <p>กด "ลองใช้ระบบตัวอย่าง" เพื่อดูระบบที่มีข้อมูลสมมติโดยไม่ต้องสมัคร หรือสมัครทดลองใช้ฟรี {{ trial_days }} วัน ดูขั้นตอนได้ที่ <a href="/guide">หน้าวิธีใช้งาน</a> ในระบบมีปุ่มแชทกับเจ้าหน้าที่ หรือทักทาง <a href="https://www.facebook.com/profile.php?id=61590718498881&locale=th_TH" target="_blank" rel="noopener">Facebook</a> วันจันทร์ถึงศุกร์ 08.30-17.00 น.</p></details>
     </div>
   </div>
 </section>
@@ -726,15 +712,16 @@
 <section class="cta-final" id="contact">
   <div class="wrap">
     <div class="cta-box">
+      <img class="cta-plane" src="{{ A }}plane.png" alt="" aria-hidden="true" onerror="this.remove()">
       <h2>เริ่มคืนเวลาให้ห้องเรียน</h2>
-      <p>ลองระบบตัวอย่างได้ทันที หรือสอบถามรายละเอียดทาง Facebook</p>
+      <p>ลองระบบตัวอย่างก่อน หรือสอบถามให้เหมาะกับโรงเรียนของคุณ</p>
       <div class="cta-btns">
         <form class="try-form" method="post" action="/sandbox/start" onsubmit="tryStart(this)">
-          <button class="btn btn-white" type="submit"><svg class="ico"><use href="#ic-play"/></svg> ลองใช้ระบบตัวอย่าง</button>
+          <button class="btn btn-white" type="submit">ลองใช้ระบบตัวอย่าง <svg class="ico"><use href="#ic-arrow-right"/></svg></button>
         </form>
-        <a class="btn btn-line" href="https://www.facebook.com/profile.php?id=61590718498881&locale=th_TH" target="_blank" rel="noopener"><svg class="ico"><use href="#ic-facebook"/></svg> ติดต่อทาง Facebook</a>
-        <a class="btn btn-line" href="/login">เข้าสู่ระบบ</a>
+        <a class="btn btn-line" href="https://www.facebook.com/profile.php?id=61590718498881&locale=th_TH" target="_blank" rel="noopener"><svg class="ico" style="width:26px;height:26px;"><use href="#ic-facebook"/></svg> ติดต่อทาง Facebook</a>
       </div>
+      <a class="cta-login" href="/login">มีบัญชีแล้ว? เข้าสู่ระบบ</a>
     </div>
   </div>
 </section>
@@ -742,25 +729,19 @@
 <footer>
   <div class="wrap foot">
     <div>
-      <a class="brand" href="/"><img src="/static/logo-ekkasan.png" alt="" onerror="this.remove()">Easy <b>Ekkasan</b></a>
-      <p>ระบบงานโรงเรียน รวมงานเอกสารหลักไว้ในที่เดียว ให้ครูมีเวลาให้ห้องเรียนมากขึ้น</p>
+      <a class="brand" href="/"><img src="/static/logo-ekkasan.png" alt="" onerror="this.remove()">Easy Ekkasan</a>
+      <p class="fb-desc">ระบบจัดการงานและเอกสารโรงเรียน</p>
     </div>
-    <div><h4>ฟังก์ชัน</h4><ul>
-      <li><a href="#modules">ครบทุกงาน</a></li><li><a href="#how">วิธีใช้งาน</a></li><li><a href="#pricing">แพ็กเกจ</a></li></ul></div>
-    <div><h4>ช่วยเหลือ</h4><ul>
-      <li><a href="/guide">คู่มือการใช้งาน</a></li>{% if kb_count %}<li><a href="/knowledge">คลังความรู้</a></li>{% endif %}
-      <li><a href="#faq">คำถามที่พบบ่อย</a></li></ul></div>
-    <div><h4>ติดต่อ</h4><ul>
-      <li><a class="fb-link" href="https://www.facebook.com/profile.php?id=61590718498881&locale=th_TH" target="_blank" rel="noopener">Facebook</a></li>
-      <li><a href="/privacy">นโยบายความเป็นส่วนตัว</a></li><li><a href="/login">เข้าสู่ระบบ</a></li></ul></div>
+    <div><h4>ฟังก์ชัน</h4><ul><li><a href="#modules">งานพัสดุ</a></li><li><a href="#modules">งานการเงิน</a></li><li><a href="#modules">งานธุรการ</a></li></ul></div>
+    <div><h4>คู่มือและคลังความรู้</h4><ul><li><a href="#how">วิธีใช้งาน</a></li><li><a href="/guide">คู่มือการใช้งาน</a></li>{% if kb_count %}<li><a href="/knowledge">คลังความรู้</a></li>{% endif %}</ul></div>
+    <div><h4>ติดต่อเรา</h4><ul><li><a class="fb-link" href="https://www.facebook.com/profile.php?id=61590718498881&locale=th_TH" target="_blank" rel="noopener">สอบถามการใช้งาน</a></li><li><a href="#pricing">ขอคำแนะนำแพ็กเกจ</a></li><li><a href="https://www.facebook.com/profile.php?id=61590718498881&locale=th_TH" target="_blank" rel="noopener">ติดต่อทีมงาน</a></li></ul></div>
   </div>
-  <div class="wrap foot-bottom">© 2569 Easy Ekkasan</div>
+  <div class="wrap foot-bottom"><span>© 2569 Easy Ekkasan</span><nav><a href="/privacy">นโยบายความเป็นส่วนตัว</a></nav></div>
 </footer>
 
 <dialog class="vbox" id="vbox"><button class="x" type="button" aria-label="ปิดวิดีโอ">×</button><iframe title="วิดีโอแนะนำ Easy Ekkasan" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></dialog>
 
 <script>
-  // นับถอยหลังบนการ์ดแพ็กเกจ (วันสิ้นสุดมาจาก seller_config)
   (function(){
     var box = document.querySelector('.bc-count[data-deadline]');
     if(!box) return;
@@ -791,20 +772,14 @@
       var total = count === NMODS ? BUNDLE : (count ? Math.max(0, listSum - (TIERS[count] || 0)) : 0);
       var discount = Math.max(0, listSum - total);
       var label = count === NMODS ? 'ครบทุกงาน' : (count ? chosen.map(function(c){ return c.dataset.name; }).join(' + ') : '');
-      $('sbSel').textContent = count ? label : 'ยังไม่ได้เลือกงาน';
+      $('sbCount').textContent = count;
+      $('sbSel').textContent = count ? label + (discount ? ' (ราคาปกติ ' + fmt(listSum) + ' บาท)' : '') : 'ยังไม่ได้เลือกงาน';
       $('sumTotal').textContent = fmt(total);
-      $('sbBeforeLabel').textContent = count === NMODS ? 'ราคาปกติทั้งชุด' : 'ราคาสินค้า';
-      $('sbBefore').textContent = fmt(listSum) + ' บาท';
-      $('sbDiscountLabel').textContent = count === NMODS ? 'ส่วนลดแพ็กเกจ' : 'ส่วนลดที่ได้รับ';
-      $('sbDiscount').textContent = '−' + fmt(discount) + ' บาท';
-      $('sbNet').textContent = fmt(total) + ' บาท';
-      $('sbSaved').textContent = fmt(discount) + ' บาท';
       var sv = $('sbSave'), up = $('sbUpsell');
-      sv.style.display = count ? '' : 'none'; up.textContent = '';
-      if(count === NMODS) sv.textContent = 'ส่วนลดแพ็กเกจ: −' + fmt(FULL - BUNDLE) + ' บาท';
-      else if(count >= 2){ sv.textContent = 'ส่วนลดเลือก ' + count + ' งาน: −' + fmt(discount) + ' บาท';
-        if(BUNDLE > total) up.textContent = 'เพิ่มอีก ' + fmt(BUNDLE - total) + ' บาท ได้ครบทั้ง ' + NMODS + ' งาน'; }
-      else if(count === 1) sv.textContent = 'ราคาเต็ม (เลือก 2 งานขึ้นไปได้ส่วนลด)';
+      sv.style.display = discount ? '' : 'none'; up.textContent = '';
+      sv.textContent = 'ส่วนลด −' + fmt(discount) + ' บาท';
+      if(count >= 2 && count < NMODS && BUNDLE > total) up.textContent = 'เพิ่มอีก ' + fmt(BUNDLE - total) + ' บาท ได้ครบทั้ง ' + NMODS + ' งาน';
+      if(count === 1) up.textContent = 'เลือก 2 งานขึ้นไปได้ส่วนลด';
       var q = '?packages=' + encodeURIComponent(label) + '&amount=' + total;
       [[$('btnBuy'), '/checkout'], [$('btnQuote'), '/quote']].forEach(function(it){
         var b = it[0]; if(!b) return;
@@ -816,7 +791,6 @@
     render();
   })();
 
-  // วิดีโอแนะนำ (เปิดในกล่อง ปิดแล้วหยุดเล่น)
   (function(){
     var dlg = document.getElementById('vbox'); if(!dlg) return;
     var fr = dlg.querySelector('iframe');
@@ -838,7 +812,7 @@
   }
   window.addEventListener('pageshow', function(){
     document.querySelectorAll('.try-form button').forEach(function(b){
-      if (b.disabled) { b.disabled = false; b.innerHTML = '<svg class="ico"><use href="#ic-play"/></svg> ลองใช้ระบบตัวอย่าง'; }
+      if (b.disabled) { b.disabled = false; b.innerHTML = 'ลองใช้ระบบตัวอย่าง <svg class="ico"><use href="#ic-arrow-right"/></svg>'; }
     });
   });
 </script>
