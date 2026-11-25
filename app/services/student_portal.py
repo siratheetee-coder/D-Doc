@@ -35,18 +35,6 @@ def _count(marks):
     return c
 
 
-def _cal(year_be, month, marks):
-    """ปฏิทินรายวันของเดือน: รายการสัปดาห์ แต่ละช่อง = (วันที่, เครื่องหมาย) หรือ None ช่องว่างก่อนวันที่ 1"""
-    import calendar
-    if not year_be:
-        return []
-    y = year_be - 543 + (1 if month < 5 else 0)
-    first, n = calendar.monthrange(y, month)       # 0 = จันทร์
-    cells = [None] * first + [(d, marks[d - 1] if d <= len(marks) else ".") for d in range(1, n + 1)]
-    cells += [None] * (-len(cells) % 7)
-    return [cells[i:i + 7] for i in range(0, len(cells), 7)]
-
-
 def attendance(db, row):
     """เวลาเรียนแบบสดจากที่ครูเช็คชื่อ · overall = รายห้อง (subject_id NULL) · subjects = รายวิชา"""
     order = [5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3, 4]
@@ -66,8 +54,7 @@ def attendance(db, row):
                 continue
             for k in tot:
                 tot[k] += c[k]
-            months.append({"month": r.month, "present": c["/"], "days": days, "c": c, "marks": r.marks or "",
-                           "cal": _cal(yr, r.month, r.marks or "")})
+            months.append({"month": r.month, "present": c["/"], "days": days, "c": c, "marks": r.marks or ""})
         days = sum(tot.values())
         pct = round(tot["/"] * 100 / days, 1) if days else None
         # ขาดติดกันล่าสุด (นับจากวันเรียนล่าสุดย้อนกลับ ข้ามวันที่ยังไม่ใช่วันเรียน)
@@ -87,7 +74,23 @@ def attendance(db, row):
     names = {s.id: s for s in db.query(AcadSubject).filter(AcadSubject.id.in_(list(subs) or [0])).all()}
     subjects = [dict(summarize(v), subject=names.get(k)) for k, v in subs.items() if names.get(k)]
     subjects.sort(key=lambda x: (x["subject"].seq or 0, x["subject"].code or ""))
-    return {"overall": overall, "subjects": subjects}
+    # รายวัน: {"YYYY-MM-DD": {"m": เครื่องหมายรายห้อง, "s": [[ชื่อวิชา, เครื่องหมาย], ...]}}
+    daily = {}
+    if yr:
+        for r in rows:
+            sub = names.get(r.subject_id) if r.subject_id is not None else None
+            if r.subject_id is not None and not sub:
+                continue
+            y = yr - 543 + (1 if r.month < 5 else 0)
+            for i, ch in enumerate(r.marks or ""):
+                if ch not in "/ปลข":
+                    continue
+                d = daily.setdefault(f"{y:04d}-{r.month:02d}-{i + 1:02d}", {"m": "", "s": []})
+                if sub:
+                    d["s"].append([sub.name, ch])
+                else:
+                    d["m"] = ch
+    return {"overall": overall, "subjects": subjects, "daily": daily}
 
 
 def timetable(db, klass):
