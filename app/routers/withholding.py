@@ -4,10 +4,12 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import DisburseMemo,FinanceTxn,WithholdingCertificate as Certificate
 from app.services import withholding as wh
+from app.services import wht_ledger as wl
+from datetime import datetime
 from app.services.disburse_payments import lock
 from app.routers.pages import get_school,serve_generated
 from app.templating import templates
-from app.thai_utils import current_fiscal_year,fiscal_year_options,be_date_input
+from app.thai_utils import current_fiscal_year,fiscal_year_options,be_date_input,parse_be_date
 
 router=APIRouter()
 DOCX='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
@@ -16,6 +18,8 @@ DOCX='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 def hub(request:Request,year:int|None=None,q:str='',page:int=1,db:Session=Depends(get_db)):
     year=year or current_fiscal_year()
     if not 2500<=year<=2800:raise HTTPException(400,'ปีงบประมาณไม่ถูกต้อง')
+    if wl.sync(db):db.commit()
+    school=get_school(db)
     items=wh.rows(db,year,q[:200]);count=len(items);pages=max(1,(count+29)//30);page=max(1,min(page,pages))
     linked=db.query(Certificate.txn_id).filter(Certificate.txn_id.isnot(None))
     choices=wh.payment_query(db).filter(FinanceTxn.fiscal_year==year,FinanceTxn.id.notin_(linked))
@@ -25,7 +29,36 @@ def hub(request:Request,year:int|None=None,q:str='',page:int=1,db:Session=Depend
     all_years=[y for y, in db.query(FinanceTxn.fiscal_year).distinct()]+[y for y, in db.query(DisburseMemo.fiscal_year).distinct()]
     return templates.TemplateResponse('finance_withholding.html',dict(request=request,rows=items[(page-1)*30:page*30],
         count=count,page=page,pages=pages,q=q[:200],fiscal_year=year,years=fiscal_year_options(all_years,year,5,1),
-        choices=choices.order_by(FinanceTxn.date.desc(),FinanceTxn.id.desc()).limit(200).all(),be_date=be_date_input))
+        choices=choices.order_by(FinanceTxn.date.desc(),FinanceTxn.id.desc()).limit(200).all(),be_date=be_date_input,
+        track_from=wl.start_date(school),pending=wl.pending(db),remits=wl.remitted(db),wht_acc=wl.account(db,create=False),
+        msg=request.query_params.get('msg',''),today=be_date_input(datetime.now())))
+
+def _back(msg=''):
+    from urllib.parse import quote
+    return RedirectResponse('/finance/withholding'+('?msg='+quote(msg) if msg else '')+'#wht-hold',status_code=303)
+
+@router.post('/finance/withholding/track')
+async def track(request:Request,db:Session=Depends(get_db)):
+    form=await request.form();d=parse_be_date(str(form.get('start','')))
+    if not d:return _back('วันที่เริ่มคุมไม่ถูกต้อง')
+    lock(db);school=get_school(db);school.wht_track_from=d.strftime('%Y-%m-%d');db.flush();wl.sync(db);db.commit()
+    return _back('เริ่มคุมภาษีหัก ณ ที่จ่ายในบัญชีแล้ว')
+
+@router.post('/finance/withholding/remit')
+async def remit(request:Request,db:Session=Depends(get_db)):
+    form=await request.form();d=parse_be_date(str(form.get('date','')))
+    if not d:return _back('วันที่นำส่งไม่ถูกต้อง')
+    lock(db)
+    try:wl.remit(db,str(form.get('month','')),d,str(form.get('ref',''))[:100]);db.commit()
+    except ValueError as e:db.rollback();return _back(str(e))
+    return _back('บันทึกนำส่งภาษีแล้ว')
+
+@router.post('/finance/withholding/remit/{tid}/undo')
+def remit_undo(tid:int,db:Session=Depends(get_db)):
+    lock(db)
+    try:wl.undo(db,tid);db.commit()
+    except ValueError as e:db.rollback();return _back(str(e))
+    return _back('ยกเลิกการนำส่งแล้ว ภาษีกลับเป็นรอนำส่ง')
 
 @router.get('/finance/withholding/from-payment')
 def pick_payment(txn_id:int,db:Session=Depends(get_db)):

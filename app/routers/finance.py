@@ -419,6 +419,13 @@ def account_delete(aid: int, db: Session = Depends(get_db)):
     return RedirectResponse("/finance/accounts", status_code=303)
 
 
+def _wht_sync(db):
+    """ภาษีหัก ณ ที่จ่ายที่หักไว้ ให้ตรงกับบันทึกขอเบิกที่ลงจ่ายแล้ว (เรียกซ้ำได้)"""
+    from app.services import wht_ledger
+    if wht_ledger.sync(db):
+        db.commit()
+
+
 @router.get("/finance/accounts/{aid}", response_class=HTMLResponse)
 def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), year: int | None = None,
                    item: int = 0, subsidy_year: int = 0, subsidy_term: int = 0,
@@ -426,6 +433,7 @@ def account_ledger(aid: int, request: Request, db: Session = Depends(get_db), ye
     a = db.get(FinanceAccount, aid)
     if not a:
         return RedirectResponse("/finance/accounts", status_code=303)
+    _wht_sync(db)
     fy = year or current_fiscal_year()
     opening = opening_for(a, fy)
     txns = [t for t in a.txns if t.fiscal_year == fy]
@@ -1172,6 +1180,7 @@ def disburse_detail(mid: int, request: Request, db: Session = Depends(get_db)):
     m = db.get(DisburseMemo, mid)
     if not m:
         return RedirectResponse("/finance/disburse", status_code=303)
+    _wht_sync(db)
     from app.services import payment_date_edit
     payment_info=payments.summary(db,m)
     date_edit=payment_date_edit.context(db,m,payment_info['rows'])

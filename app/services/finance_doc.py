@@ -94,6 +94,10 @@ def _money_breakdown(doc, lines, bold_last=True, indent_cm=0):
         ind = OxmlElement("w:tblInd")
         ind.set(qn("w:w"), str(int(indent_cm * 567))); ind.set(qn("w:type"), "dxa")
         table._tbl.tblPr.append(ind)
+    # มีตัวเลขที่มีสตางค์ในตาราง ให้ทุกบรรทัดมีทศนิยม 2 ตำแหน่งเท่ากัน
+    if any("." in str(x[1]) for x in lines):
+        lines = [(l, (a + ".00" if a not in ("-", "") and "." not in a and a[-1].isdigit() else a), t)
+                 for l, a, t in lines]
     for i, (label, amount, tail) in enumerate(lines):
         cells = table.rows[i].cells
         bold = bold_last and (i == len(lines) - 1)
@@ -210,12 +214,23 @@ def _split_sources(doc, rows, wht, fine):
         _p(doc, text, indent=1.25, after=0)
 
 
+def _kind_subject(kind, subject):
+    """จัดจ้าง + ชื่อเรื่อง โดยไม่ซ้ำคำ: "จ้างซ่อม..." -> "จัดจ้างซ่อม..." "จัดซื้อวัสดุ" คงเดิม"""
+    subject = (subject or "").strip()
+    if subject.startswith(kind):
+        return subject
+    verb = kind[len("จัด"):] if kind.startswith("จัด") else ""
+    if verb and subject.startswith(verb):
+        return "จัด" + subject
+    return kind + subject
+
+
 def _disburse_purchase_body(doc, school, memo, kind, project_name, payee, src, amount, vat, goods, wht, fine, net):
     # ย่อหน้านำตามแบบโรงเรียน: ด้วยฝ่าย... จัดซื้อ/จัดจ้าง ... เพื่อใช้โครงการ... กิจกรรม... ราคา...
     hire = kind == "จัดจ้าง"
     dept, activity = _disburse_dept_activity(memo)
     runs = [("ด้วย", False), (dept or "ฝ่าย..............................", bool(dept)),
-            (f"  {kind}{(memo.subject or '').strip()}  เพื่อใช้", False),
+            (f"  {_kind_subject(kind, memo.subject)}  เพื่อใช้", False),
             (project_name or "โครงการ..............................", bool(project_name))]
     if activity:
         runs += [(" กิจกรรม", False), (activity, True)]

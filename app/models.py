@@ -48,6 +48,7 @@ class School(Base):
     academic_head_email = Column(String, default="")   # อีเมลหัวหน้าฝ่ายวิชาการ (รับแจ้งส่งแผนการสอน)
     hr_head_email = Column(String, default="")          # อีเมลหัวหน้าฝ่ายบุคคล (รับแจ้งใบลา)
     director_email = Column(String, default="")         # อีเมล ผอ./รองผอ. (รับแจ้งเรื่องที่รอลงนาม)
+    wht_track_from = Column(String, default="")         # เริ่มคุมภาษีหัก ณ ที่จ่ายในบัญชีตั้งแต่วันที่ (YYYY-MM-DD) ว่าง = ยังไม่คุม
     thai_digits = Column(Boolean, default=False)        # เอกสาร Word ใช้เลขไทย (แปลงตอนดาวน์โหลด serve_generated)
     approval_on = Column(Boolean, default=False)        # ส่งเรื่องพัสดุ/การเงินให้ ผอ. อนุมัติในระบบ (services/approval.py)
     student_portal = Column(Boolean, default=False)     # เปิดบัญชีนักเรียน (ดูเวลาเรียน ตารางเรียน เกรดที่เผยแพร่)
@@ -1126,6 +1127,8 @@ class FinanceTxn(Base):
     project_id = Column(Integer, ForeignKey("project.id"), nullable=True)   # โครงการในแผนที่ใช้เงินก้อนนี้
     loan_id = Column(Integer, ForeignKey("money_loan.id"), nullable=True)
     loan_return_id = Column(Integer, ForeignKey("loan_return.id"), nullable=True)
+    wht_memo_id = Column(Integer, nullable=True)     # รับภาษีหัก ณ ที่จ่ายของบันทึกขอเบิกนี้ (services/wht_ledger.py)
+    wht_remit_id = Column(Integer, nullable=True)    # นำส่งแล้วด้วยรายการจ่ายนี้
     linked_existing = Column(Boolean, default=False)  # Keep original ledger entry when unlinking/deleting its memo.
     lunch_year = Column(Integer, nullable=True)      # รายการรับเงินอาหารกลางวัน: ใช้กับโครงการปีการศึกษาไหน (เว้นว่าง = ตามวันที่รับ)
     eb_code = Column(String, default="")             # หมวด e-Budget (จ่าย = ส่วนที่ 4 · รับ = ส่วนที่ 3)
