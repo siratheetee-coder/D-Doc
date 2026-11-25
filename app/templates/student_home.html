@@ -8,7 +8,8 @@
 <style>
   *{box-sizing:border-box}
   body{margin:0;font-family:Prompt,system-ui,sans-serif;background:#f4f6fb;color:#1f2937}
-  .top{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:18px 16px 20px}
+  .top{background:linear-gradient(135deg,#0891b2,#4f46e5);color:#fff;padding:18px 16px 22px;border-radius:0 0 24px 24px;box-shadow:0 8px 24px rgba(79,70,229,.25)}
+  .top .me{display:flex;align-items:center;gap:12px}.top .me img{flex:none;width:56px;height:56px;border-radius:16px;box-shadow:0 6px 16px rgba(0,0,0,.2)}
   .top .in{max-width:860px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:10px}
   .top small{opacity:.85}
   .top a{color:#fff;text-decoration:none;font-size:14px;padding:6px 12px;border-radius:99px;background:rgba(255,255,255,.18)}
@@ -22,12 +23,14 @@
   .h3d{display:flex;align-items:center;gap:10px}
   .h3d img{width:44px;height:44px}
   .h3d img,.tabs a img{clip-path:inset(4% round 22%)}
-  .tabs a.on{background:linear-gradient(135deg,#312e81,#4c1d95);color:#fff}
+  .tabs a.on{background:linear-gradient(135deg,#0891b2,#4f46e5);color:#fff;box-shadow:0 6px 14px rgba(79,70,229,.3)}
   .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
-  .stat{padding:12px 14px;border-radius:14px;background:linear-gradient(135deg,#eef2ff,#e0e7ff)}
+  .stat{position:relative;padding:12px 14px 12px 18px;border-radius:16px;background:#fff;box-shadow:0 1px 3px rgba(15,23,42,.06),0 6px 18px rgba(15,23,42,.06);overflow:hidden}
+  .stat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:linear-gradient(180deg,#818cf8,#4f46e5)}
+  .stat b{color:#3730a3}
   .stat span{display:block;font-size:13px;color:#64748b}.stat b{font-size:22px}
-  .stat.warn{background:linear-gradient(135deg,#fef2f2,#fee2e2);color:#b91c1c}
-  .stat.ok{background:linear-gradient(135deg,#f0fdf4,#dcfce7)}
+  .stat.warn::before{background:linear-gradient(180deg,#f87171,#dc2626)}.stat.warn b{color:#dc2626}
+  .stat.ok::before{background:linear-gradient(180deg,#4ade80,#16a34a)}.stat.ok b{color:#16a34a}
   .muted{color:#64748b;font-size:14px}
   table{width:100%;border-collapse:collapse;font-size:14px}
   th{text-align:left;color:#64748b;font-weight:500;padding:6px 8px;font-size:13px}
@@ -35,7 +38,7 @@
   .scroll{overflow-x:auto}
   .ttchips{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:6px;margin-bottom:10px}
   .ttchips button{font:inherit;font-size:14px;border:0;padding:8px 2px;white-space:nowrap;border-radius:99px;background:linear-gradient(135deg,#eef2ff,#e0e7ff);color:#4338ca;cursor:pointer}
-  .ttchips button.on{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff}
+  .ttchips button.on{background:linear-gradient(135deg,#0891b2,#4f46e5);color:#fff}
   .ttdn{font-weight:600;margin:12px 0 4px}
   .ttrow{display:flex;gap:12px;align-items:center;padding:10px 12px;border-radius:12px;margin-bottom:6px;background:linear-gradient(135deg,#f8fafc,#f1f5f9)}
   .ttrow.brk{background:none;color:#94a3b8;padding:4px 12px}
@@ -49,7 +52,7 @@
 </head>
 <body>
 <div class="top"><div class="in">
-  <div><b style="font-size:18px">{{ name }}</b><br><small>นักเรียนและผู้ปกครองใช้ไอดีนี้ดูได้</small><br><small>{{ school.name if school else '' }}{% if klass %} ชั้น {{ klass.level }}{{ '/' ~ klass.room if klass.room }} ปีการศึกษา {{ klass.year }}{% endif %}</small></div>
+  <div class="me"><img src="/static/images/academic3d/students.png" alt="" aria-hidden="true"><div><b style="font-size:18px">{{ name }}</b><br><small>นักเรียนและผู้ปกครองใช้ไอดีนี้ดูได้</small><br><small>{{ school.name if school else '' }}{% if klass %} ชั้น {{ klass.level }}{{ '/' ~ klass.room if klass.room }} ปีการศึกษา {{ klass.year }}{% endif %}</small></div></div>
   <span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><a href="/account/password">เปลี่ยนรหัส</a><a href="/logout">ออกจากระบบ</a></span>
 </div></div>
 <div class="wrap">
@@ -91,7 +94,7 @@
     {% else %}
     {% for h in sv.hist %}<p style="margin:8px 0 0;font-size:14px"><b style="color:{{ '#059669' if h.t.kind == 'dep' else '#c2410c' }}">{{ 'ฝาก' if h.t.kind == 'dep' else 'ถอน' }} {{ "{:,.2f}".format(h.t.amount) }}</b> <span style="color:#64748b">{{ h.t.date[8:10]|int }}/{{ h.t.date[5:7] }}/{{ h.t.date[:4]|int + 543 }}</span></p>{% endfor %}
     <a href="/student/savings" class="sv-more"><span class="sv-more-ic"><img src="/static/images/home3d/calendar.png" alt="" aria-hidden="true"></span><span class="sv-more-t"><b>ดูประวัติทั้งหมด</b><small>แยกรายเดือน ฝาก ถอน คงเหลือ</small></span><span class="sv-more-go" aria-hidden="true">›</span></a>
-    <style>.sv-more{display:flex;align-items:center;gap:12px;margin-top:16px;padding:10px 12px 10px 10px;border-radius:18px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;text-decoration:none;box-shadow:0 8px 20px rgba(99,102,241,.3);transition:transform .15s,box-shadow .15s}.sv-more:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(99,102,241,.38)}.sv-more:active{transform:scale(.98)}.sv-more-ic{flex:none;width:44px;height:44px;border-radius:14px;background:rgba(255,255,255,.22);display:grid;place-items:center}.sv-more-ic img{width:30px;height:30px}.sv-more-t{flex:1;display:flex;flex-direction:column;line-height:1.35}.sv-more-t b{font-size:15.5px}.sv-more-t small{font-size:12.5px;opacity:.85}.sv-more-go{flex:none;width:32px;height:32px;border-radius:50%;background:#fff;color:#6366f1;display:grid;place-items:center;font-size:22px;font-weight:800;line-height:1}</style>
+    <style>.sv-more{display:flex;align-items:center;gap:12px;margin-top:16px;padding:10px 12px 10px 10px;border-radius:18px;background:linear-gradient(135deg,#0891b2,#4f46e5);color:#fff;text-decoration:none;box-shadow:0 8px 20px rgba(99,102,241,.3);transition:transform .15s,box-shadow .15s}.sv-more:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(99,102,241,.38)}.sv-more:active{transform:scale(.98)}.sv-more-ic{flex:none;width:44px;height:44px;border-radius:14px;background:rgba(255,255,255,.22);display:grid;place-items:center}.sv-more-ic img{width:30px;height:30px}.sv-more-t{flex:1;display:flex;flex-direction:column;line-height:1.35}.sv-more-t b{font-size:15.5px}.sv-more-t small{font-size:12.5px;opacity:.85}.sv-more-go{flex:none;width:32px;height:32px;border-radius:50%;background:#fff;color:#6366f1;display:grid;place-items:center;font-size:22px;font-weight:800;line-height:1}</style>
     {% endif %}
   </div>
   {% elif tab == 'savings' %}<div class="card"><h2 class="h3d"><img src="/static/images/home3d/f_bank.png" alt="" aria-hidden="true">เงินออม</h2><p class="muted">ยังไม่มีรายการฝากเงิน</p></div>
