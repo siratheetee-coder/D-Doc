@@ -61,6 +61,7 @@ def _student_page(request, db, tab):
             ctx["tt"] = sp.timetable(db, klass)
         if tab in ("home", "grades"):
             ctx["grades"] = sp.grades(db, row)
+            ctx["gpa"] = sp.gpa(ctx["grades"])
         if tab == "savings":
             ctx["sv"] = _savings(db, row.student_id, months=True)
         if tab == "home":

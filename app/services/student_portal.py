@@ -35,11 +35,24 @@ def _count(marks):
     return c
 
 
+def _cal(year_be, month, marks):
+    """ปฏิทินรายวันของเดือน: รายการสัปดาห์ แต่ละช่อง = (วันที่, เครื่องหมาย) หรือ None ช่องว่างก่อนวันที่ 1"""
+    import calendar
+    if not year_be:
+        return []
+    y = year_be - 543 + (1 if month < 5 else 0)
+    first, n = calendar.monthrange(y, month)       # 0 = จันทร์
+    cells = [None] * first + [(d, marks[d - 1] if d <= len(marks) else ".") for d in range(1, n + 1)]
+    cells += [None] * (-len(cells) % 7)
+    return [cells[i:i + 7] for i in range(0, len(cells), 7)]
+
+
 def attendance(db, row):
     """เวลาเรียนแบบสดจากที่ครูเช็คชื่อ · overall = รายห้อง (subject_id NULL) · subjects = รายวิชา"""
     order = [5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3, 4]
     rank = {m: i for i, m in enumerate(order)}
     rows = db.query(AcadAttendance).filter_by(acad_student_id=row.id).all()
+    yr = row.klass.year if row.klass else None
 
     def summarize(rs):
         tot = {"/": 0, "ป": 0, "ล": 0, "ข": 0}
@@ -53,7 +66,8 @@ def attendance(db, row):
                 continue
             for k in tot:
                 tot[k] += c[k]
-            months.append({"month": r.month, "present": c["/"], "days": days, "c": c, "marks": r.marks or ""})
+            months.append({"month": r.month, "present": c["/"], "days": days, "c": c, "marks": r.marks or "",
+                           "cal": _cal(yr, r.month, r.marks or "")})
         days = sum(tot.values())
         pct = round(tot["/"] * 100 / days, 1) if days else None
         # ขาดติดกันล่าสุด (นับจากวันเรียนล่าสุดย้อนกลับ ข้ามวันที่ยังไม่ใช่วันเรียน)
@@ -96,6 +110,12 @@ def grades(db, row):
             out.append(s)
     out.sort(key=lambda s: (s.term or 0, s.subject.seq or 0, s.subject.code or ""))
     return out
+
+
+def gpa(scores):
+    """เกรดเฉลี่ยจากวิชาที่เผยแพร่แล้ว ถ่วงด้วยหน่วยกิต (มัธยม) หรือเวลาเรียน (ประถม) ตัดทศนิยม ไม่ปัด"""
+    from app.services.academic import weighted_avg
+    return weighted_avg([(s.grade, (s.subject.credit or s.subject.hours or 1)) for s in scores])
 
 
 def student_name(db, student_id):

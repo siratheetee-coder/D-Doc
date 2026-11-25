@@ -49,6 +49,12 @@
   .alert.danger{background:linear-gradient(135deg,#fef2f2,#fee2e2);color:#b91c1c}
   .alert{padding:12px 14px;border-radius:14px;background:linear-gradient(135deg,#fff7ed,#fef3c7)}
 .tts .tt-t{display:block;font-size:.82em;color:#64748b;font-weight:400;margin-top:2px}
+.cal-pick{display:flex;gap:6px;flex-wrap:wrap;margin:16px 0 10px}.cal-pick button{border:0;border-radius:999px;padding:6px 14px;background:#eef2ff;color:#4338ca;font:inherit;cursor:pointer}.cal-pick button.on{background:linear-gradient(135deg,#0891b2,#4f46e5);color:#fff}
+.cal-h,.cal-r{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px}.cal-h span{text-align:center;font-size:.8em;color:#64748b}
+.cal .d{border-radius:10px;padding:4px 2px;text-align:center;background:#f8fafc;min-height:44px;font-size:.85em}.cal .d b{display:block;font-weight:600}.cal .d i{font-style:normal;font-size:.8em}
+.cal .ok{background:#dcfce7;color:#166534}.cal .sick{background:#fef9c3;color:#854d0e}.cal .leave{background:#e0e7ff;color:#3730a3}.cal .abs{background:#fee2e2;color:#b91c1c}.cal .none{color:#cbd5e1}
+.gr-more{display:block;text-align:center;padding:10px;border-radius:14px;background:linear-gradient(135deg,#0891b2,#4f46e5);color:#fff;text-decoration:none;font-weight:600}
+.gpa-card{display:flex;align-items:center;justify-content:space-between;gap:12px}.gpa-card b{font-size:2em;color:#4338ca}
 </style>
 </head>
 <body>
@@ -118,6 +124,14 @@
       <thead><tr><th>เดือน</th><th>มา</th><th>ป่วย</th><th>ลา</th><th>ขาด</th><th>วันเรียน</th></tr></thead>
       <tbody>{% for m in o.months %}<tr><td>{{ ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'][m.month] }}</td><td>{{ m.c['/'] }}</td><td>{{ m.c['ป'] }}</td><td>{{ m.c['ล'] }}</td><td>{{ m.c['ข'] }}</td><td>{{ m.days }}</td></tr>{% endfor %}</tbody>
     </table></div>
+    {% if o.months %}
+    <div class="cal-pick">{% for m in o.months %}<button type="button" data-m="{{ loop.index0 }}" class="{{ 'on' if loop.last }}">{{ ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'][m.month] }}</button>{% endfor %}</div>
+    {% for m in o.months %}<div class="cal" data-m="{{ loop.index0 }}" {{ '' if loop.last else 'hidden' }}>
+      <div class="cal-h">{% for w in ['จ','อ','พ','พฤ','ศ','ส','อา'] %}<span>{{ w }}</span>{% endfor %}</div>
+      {% for wk in m.cal %}<div class="cal-r">{% for c in wk %}{% if c %}{% set k = {'/':'ok','ป':'sick','ล':'leave','ข':'abs'}.get(c[1], 'none') %}<span class="d {{ k }}"><b>{{ c[0] }}</b>{% if k != 'none' %}<i>{{ {'/':'มา','ป':'ป่วย','ล':'ลา','ข':'ขาด'}[c[1]] }}</i>{% endif %}</span>{% else %}<span></span>{% endif %}{% endfor %}</div>{% endfor %}
+    </div>{% endfor %}
+    <script>(function(){var b=document.querySelectorAll('.cal-pick button');b.forEach(function(x){x.onclick=function(){b.forEach(function(y){y.classList.toggle('on',y===x)});document.querySelectorAll('.cal').forEach(function(c){c.hidden=c.dataset.m!==x.dataset.m})}})})();</script>
+    {% endif %}
     {% endif %}
     {% else %}<p class="muted" style="margin:0">ครูยังไม่ได้เช็คชื่อ</p>{% endif %}
     {% if tab == 'attendance' and att.subjects %}
@@ -167,10 +181,12 @@
   <div class="card">
     <h2 class="h3d"><img src="/static/images/home3d/myplans.png" alt="" aria-hidden="true">ผลการเรียน</h2>
     {% if grades %}
+    {% if gpa is not none %}<div class="stat gpa-card" style="margin-bottom:12px"><span>เกรดเฉลี่ย ({{ grades|length }} วิชาที่ครูเผยแพร่แล้ว)</span><b>{{ '%.2f'|format(gpa) }}</b></div>{% endif %}
+    {% if tab == 'home' %}<a href="/student/grades" class="gr-more">ดูผลการเรียนทุกวิชา ›</a>{% else %}
     <div class="scroll"><table>
       <thead><tr><th>วิชา</th><th>ภาค</th><th>คะแนน</th><th>เกรด</th></tr></thead>
       <tbody>{% for s in grades %}<tr><td>{{ s.subject.code }} {{ s.subject.name }}</td><td>{{ s.term or 'ทั้งปี' }}</td><td>{{ '%g'|format(s.score) if s.score is not none else '-' }}</td><td><span class="g">{{ s.grade or '-' }}</span></td></tr>{% endfor %}</tbody>
-    </table></div>
+    </table></div>{% endif %}
     {% else %}<p class="muted" style="margin:0">ยังไม่มีวิชาที่ครูเผยแพร่ผลการเรียน</p>{% endif %}
   </div>
   {% endif %}
