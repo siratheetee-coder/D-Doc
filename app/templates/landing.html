@@ -131,7 +131,7 @@
   .browser-bar i:nth-child(2){ background:#febc2e; } .browser-bar i:nth-child(3){ background:#28c840; }
   .browser-bar span{ flex:1; margin:0 14px; background:#fff; border-radius:999px; font-size:12px; color:#56688a; padding:4px 14px; }
   .browser img{ width:100%; height:auto; }
-  .st-school{ position:absolute; z-index:3; width:52%; right:12%; bottom:-6px; filter:drop-shadow(0 18px 26px rgba(37,72,160,.25)); }
+  .st-school{ position:absolute; z-index:3; width:58%; right:10%; bottom:-14px; filter:drop-shadow(0 18px 26px rgba(37,72,160,.25)); }
   .st-word{ position:absolute; z-index:4; width:118px; right:-4px; bottom:14px; filter:drop-shadow(0 16px 22px rgba(37,72,160,.25)); transform:rotate(8deg); }
   .st-note{ position:absolute; z-index:5; left:8px; bottom:16px; font-size:12px; color:var(--muted); background:var(--glass); padding:3px 12px; border-radius:999px; }
 
@@ -472,17 +472,17 @@
         <div class="browser-bar"><i></i><i></i><i></i><span>www.easy-ekkasan.com</span></div>
         <img src="/static/landing/screen-home.jpg?v=1" width="1920" height="1200" alt="หน้าภาพรวมโรงเรียนในระบบ Easy Ekkasan (ข้อมูลสมมติ)" fetchpriority="high">
       </div>
-      <img class="st-school" src="{{ A }}hero-school.png" alt="" aria-hidden="true">
-      <img class="st-word" src="{{ A }}word.png" alt="" aria-hidden="true">
+      <img class="st-school" src="{{ A }}hero-school.png?v=2" alt="" aria-hidden="true">
+      <img class="st-word" src="{{ A }}word.png?v=2" alt="" aria-hidden="true">
     </div>
   </div>
 
   <!-- แถบจุดเด่น -->
   <div class="wrap">
     <div class="perks">
-      <div class="perk"><img class="pi" src="{{ A }}link.png" alt="" aria-hidden="true"><div><b>ข้อมูลแต่ละงานเชื่อมกัน</b><span>ใช้ข้อมูลชุดเดียว ลดการกรอกซ้ำ</span></div></div>
-      <div class="perk"><img class="pi" src="{{ A }}word.png" alt="" aria-hidden="true"><div><b>ดาวน์โหลด Word</b><span>ออกเอกสารราชการได้ทันที</span></div></div>
-      <div class="perk"><img class="pi" src="{{ A }}phone.png" alt="" aria-hidden="true" onerror="this.outerHTML='<span class=&quot;pk-svg&quot;><svg class=&quot;ico&quot;><use href=&quot;#ic-phone&quot;/></svg></span>'"><div><b>รองรับมือถือ</b><span>ใช้งานได้ทุกที่ ทุกเวลา</span></div></div>
+      <div class="perk"><img class="pi" src="{{ A }}link.png?v=2" alt="" aria-hidden="true"><div><b>ข้อมูลแต่ละงานเชื่อมกัน</b><span>ใช้ข้อมูลชุดเดียว ลดการกรอกซ้ำ</span></div></div>
+      <div class="perk"><img class="pi" src="{{ A }}word.png?v=2" alt="" aria-hidden="true"><div><b>ดาวน์โหลด Word</b><span>ออกเอกสารราชการได้ทันที</span></div></div>
+      <div class="perk"><img class="pi" src="{{ A }}phone.png?v=2" alt="" aria-hidden="true" onerror="this.outerHTML='<span class=&quot;pk-svg&quot;><svg class=&quot;ico&quot;><use href=&quot;#ic-phone&quot;/></svg></span>'"><div><b>รองรับมือถือ</b><span>ใช้งานได้ทุกที่ ทุกเวลา</span></div></div>
     </div>
   </div>
 </section>
@@ -505,7 +505,7 @@
         ('m-gen','general','งานบริหารทั่วไป','เข้าแถว ความประพฤติ และเงินออมนักเรียน',1)] %}
       <a class="mod {{ cls }}{% if wide %} w3{% endif %}" href="/guide">
         {% if img == 'general' %}<span class="free-tag">ใช้ฟรี</span>{% endif %}
-        <img class="mi" src="{{ A }}{{ img }}.png" alt="" aria-hidden="true">
+        <img class="mi" src="{{ A }}{{ img }}.png?v=2" alt="" aria-hidden="true">
         <div><h3>{{ name }}</h3><p>{{ desc }}</p><span class="pill-more">ดูรายละเอียด <svg class="ico"><use href="#ic-arrow-right"/></svg></span></div>
       </a>
       {% endfor %}
@@ -522,11 +522,11 @@
     </div>
     <div class="flow-band">
       <div class="flow">
-        <div class="step"><img src="{{ A }}step-create.png" alt="" aria-hidden="true"><div><div class="t"><span class="num">1</span><h3>สร้างเรื่อง</h3></div><p>กรอกรายการ ผู้ขาย และงบประมาณครั้งเดียว</p></div></div>
+        <div class="step"><img src="{{ A }}step-create.png?v=2" alt="" aria-hidden="true"><div><div class="t"><span class="num">1</span><h3>สร้างเรื่อง</h3></div><p>กรอกรายการ ผู้ขาย และงบประมาณครั้งเดียว</p></div></div>
         <span class="arrow" aria-hidden="true"><svg class="ico"><use href="#ic-arrow-right"/></svg></span>
-        <div class="step"><img src="{{ A }}step-approve.png" alt="" aria-hidden="true"><div><div class="t"><span class="num">2</span><h3>ส่งอนุมัติ</h3></div><p>เสนอ ผอ. ในระบบ อนุมัติแล้วแปะลายเซ็นให้</p></div></div>
+        <div class="step"><img src="{{ A }}step-approve.png?v=2" alt="" aria-hidden="true"><div><div class="t"><span class="num">2</span><h3>ส่งอนุมัติ</h3></div><p>เสนอ ผอ. ในระบบ อนุมัติแล้วแปะลายเซ็นให้</p></div></div>
         <span class="arrow" aria-hidden="true"><svg class="ico"><use href="#ic-arrow-right"/></svg></span>
-        <div class="step"><img src="{{ A }}step-print.png" alt="" aria-hidden="true"><div><div class="t"><span class="num">3</span><h3>ออกเอกสาร / บันทึกจ่าย</h3></div><p>ดาวน์โหลด Word ครบชุด และลงทะเบียนคุมเงิน</p></div></div>
+        <div class="step"><img src="{{ A }}step-print.png?v=2" alt="" aria-hidden="true"><div><div class="t"><span class="num">3</span><h3>ออกเอกสาร / บันทึกจ่าย</h3></div><p>ดาวน์โหลด Word ครบชุด และลงทะเบียนคุมเงิน</p></div></div>
       </div>
       <p class="flow-note"><svg class="ico"><use href="#ic-gear"/></svg><i></i> เลือกใช้การอนุมัติตามการตั้งค่าของโรงเรียน</p>
     </div>
@@ -638,17 +638,17 @@
           <label class="mcard on" data-price="{{ px[key] }}" data-name="{{ name }}">
             <input type="checkbox" checked aria-label="เลือก{{ name }}">
             <span class="mc-box"><svg class="ico"><use href="#ic-check"/></svg></span>
-            <img src="{{ A }}{{ icon }}.png" alt="" aria-hidden="true">
+            <img src="{{ A }}{{ icon }}.png?v=2" alt="" aria-hidden="true">
             <span class="mc-body"><h4>{{ name }}</h4><span class="mc-price">{{ "{:,}".format(px[key]) }} <small>บาท/ปี</small></span></span>
           </label>
           {% endfor %}
-          <div class="mfree"><img src="{{ A }}general.png" alt="" aria-hidden="true"><i></i>
+          <div class="mfree"><img src="{{ A }}general.png?v=2" alt="" aria-hidden="true"><i></i>
             <div>งานบริหารทั่วไป <b>ใช้ฟรี</b>ทุกโรงเรียน<small>ซื้อแยกหลายงานได้ส่วนลด: {% for n, d in tiers|dictsort %}{{ n }} งาน ลด {{ "{:,}".format(d) }} บาท{% if not loop.last %}, {% endif %}{% endfor %}</small></div></div>
         </div>
       </div>
 
       <div class="bundle" aria-label="แพ็กเกจครบทุกงาน">
-        <img class="bd-school" src="{{ A }}hero-school.png" alt="" aria-hidden="true">
+        <img class="bd-school" src="{{ A }}hero-school.png?v=2" alt="" aria-hidden="true">
         <span class="bd-badge">แนะนำ</span>
         <h3>แพ็กเกจครบทุกงาน</h3>
         <ul class="bd-list">
@@ -714,7 +714,7 @@
 <section class="cta-final" id="contact">
   <div class="wrap">
     <div class="cta-box">
-      <img class="cta-plane" src="{{ A }}plane.png" alt="" aria-hidden="true" onerror="this.remove()">
+      <img class="cta-plane" src="{{ A }}plane.png?v=2" alt="" aria-hidden="true" onerror="this.remove()">
       <h2>เริ่มคืนเวลาให้ห้องเรียน</h2>
       <p>ลองระบบตัวอย่างก่อน หรือสอบถามให้เหมาะกับโรงเรียนของคุณ</p>
       <div class="cta-btns">
