@@ -192,7 +192,7 @@ def checkout_promptpay(amount: str = ""):
 
 
 # ---------------- ขอใบเสนอราคา ----------------
-def _quote_price(request, selected):
+def _quote_price(request, selected, years=1):
     from app.accounts import purchase_account, tenant_billing
     from app.modules import parse_modules, MODULE_KEYS
     from app.seller_config import price_addon
@@ -201,7 +201,7 @@ def _quote_price(request, selected):
     owned = parse_modules((bill or {}).get("modules"))
     days = (bill or {}).get("days_left") or 0
     addon = bool(bill and bill["plan"] == "member" and days > 0 and owned and owned != set(MODULE_KEYS))
-    pf = price_addon(set(selected) - owned, days) if addon else price_for(selected)
+    pf = price_addon(set(selected) - owned, days) if addon else price_for(selected, years)
     return pf, account, addon
 
 
@@ -214,7 +214,7 @@ def _quote_owned(request):
     return parse_modules((bill or {}).get("modules"))
 
 
-def _quote_ctx(request, selected, prefill, *, error=""):
+def _quote_ctx(request, selected, prefill, *, error="", years=1):
     """บริบทหน้าขอใบเสนอราคา: เลือกแพ็กเกจในหน้านี้ได้เลย และบอกราคาทันที
 
     ราคายังคำนวณที่เซิร์ฟเวอร์ด้วย price_for เหมือนหน้าสั่งซื้อ (แหล่งความจริงเดียวของราคา)
@@ -223,34 +223,39 @@ def _quote_ctx(request, selected, prefill, *, error=""):
     from app.accounts import tenant_billing
     from app.modules import MODULE_KEYS, MODULE_PRICE_KEY
     from app.seller_config import pricing_context
-    pf, account, addon = _quote_price(request, selected)
+    from app.seller_config import addon_frac, TERM_FACTOR, term_years
+    years = term_years(years)
+    pf, account, addon = _quote_price(request, selected, years)
     ctx = pricing_context()
     px = ctx["prices"]
     frac = 1.0
     if addon and account:
         bill = tenant_billing(account["tenant_id"])
-        frac = max(0.0, min(1.0, ((bill or {}).get("days_left") or 0) / 365.0))
+        frac = addon_frac((bill or {}).get("days_left") or 0)
     prefill = dict(prefill or {})
     prefill["packages"] = pf["label"]
     prefill["amount"] = pf["total"] if pf["count"] else ""
     return {"request": request, "prefill": prefill, "account": account, "addon": addon,
-            "error": error,
+            "error": error, "years": 1 if addon else years, "term_factor": TERM_FACTOR,
             "selected_mods": sorted(pf["modules"].split(",")) if pf["modules"] else [],
             "unit_price": {k: int(round(px[MODULE_PRICE_KEY[k]] * frac)) for k in MODULE_KEYS},
             "owned_mods": sorted(_quote_owned(request)), **ctx}
 
 
 @router.get("/quote", response_class=HTMLResponse)
-def quote_page(request: Request, packages: str = "", amount: str = "", mod: list[str] = Query([])):
+def quote_page(request: Request, packages: str = "", amount: str = "", mod: list[str] = Query([]),
+               years: str = "1"):
     selected = set(mod or []) or modules_from_label(packages)
-    return templates.TemplateResponse("quote.html", _quote_ctx(request, selected, {}))
+    return templates.TemplateResponse("quote.html", _quote_ctx(request, selected, {}, years=years))
 
 
 @router.post("/quote")
 def quote_submit(request: Request, school_name: str = Form(""), address: str = Form(""), tax_id: str = Form(""),
                  contact_name: str = Form(""), email: str = Form(""), phone: str = Form(""),
                  mod: list[str] = Form([]), packages: str = Form(""), amount: str = Form(""),
-                 note: str = Form(""), ft: str = Form(""), website: str = Form("")):
+                 note: str = Form(""), ft: str = Form(""), website: str = Form(""), years: str = Form("1")):
+    from app.seller_config import term_years
+    years = term_years(years)
     from app.services import form_guard
     why = form_guard.is_bot(ft, website)
     if why:                     # บอท: ตอบเหมือนสำเร็จ แต่ไม่บันทึก ไม่แจ้งเจ้าของ
@@ -258,7 +263,7 @@ def quote_submit(request: Request, school_name: str = Form(""), address: str = F
         return RedirectResponse("/sale-thanks?type=quote", status_code=303)
     extra = (note or "").strip()
     # ราคาคำนวณที่เซิร์ฟเวอร์เหมือนหน้าสั่งซื้อ · ถ้าไม่ได้ส่ง mod มา ลองแกะจากข้อความ packages เดิม
-    pf, account, addon = _quote_price(request, set(mod or []) or modules_from_label(packages))
+    pf, account, addon = _quote_price(request, set(mod or []) or modules_from_label(packages), years)
     if addon:
         extra = ("[ซื้อเพิ่มกลางรอบ prorate] " + extra).strip()
     if not pf["count"] or not school_name.strip() or not contact_name.strip() or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email.strip()):
@@ -266,19 +271,19 @@ def quote_submit(request: Request, school_name: str = Form(""), address: str = F
             request, set(mod or []) or modules_from_label(packages),
             {"school_name": school_name, "address": address, "tax_id": tax_id,
              "contact_name": contact_name, "email": email, "phone": phone, "note": note},
-            error="กรุณาเลือกงานที่ต้องการ และกรอกชื่อโรงเรียน ผู้ติดต่อ และอีเมลให้ครบถ้วน"),
+            years=years, error="กรุณาเลือกงานที่ต้องการ และกรอกชื่อโรงเรียน ผู้ติดต่อ และอีเมลให้ครบถ้วน"),
             status_code=400)
     lid = add_lead(kind="quote", school_name=school_name.strip(), address=address.strip(),
                    tax_id=tax_id.strip(), contact_name=contact_name.strip(), email=email.strip(),
                    phone=phone.strip(), packages=pf["label"] or packages.strip(),
-                   modules=pf["modules"], amount=float(pf["total"]),
+                   modules=pf["modules"], amount=float(pf["total"]), years=pf.get("years", 1),
                    note=extra, tenant_id=account["tenant_id"] if account else None,
                    login_user=account["username"] if account else "")
     try:
         from app.services.mailer import send_order_notice
         send_order_notice("quote", school=school_name.strip(), contact=contact_name.strip(),
                           email=email.strip(), phone=phone.strip(),
-                          packages=pf["label"] or packages.strip(),
+                          packages=_term_label(pf["label"] or packages.strip(), pf.get("years", 1)),
                           amount=float(pf["total"]), ref=lid, note=extra)
     except Exception:
         pass
@@ -287,12 +292,17 @@ def quote_submit(request: Request, school_name: str = Form(""), address: str = F
 
 # ---------------- สั่งซื้อ / ชำระเงิน ----------------
 @router.get("/checkout", response_class=HTMLResponse)
-def checkout_page(request: Request, packages: str = "", amount: str = ""):
+def checkout_page(request: Request, packages: str = "", amount: str = "", years: str = "1"):
     # ต้องลงทะเบียน/เข้าสู่ระบบก่อน (ผูกคำสั่งซื้อกับบัญชีอีเมล)
     if not request.session.get("uid"):
         from urllib.parse import quote as _q
         return RedirectResponse(f"/register?next=checkout&packages={_q(packages)}&amount={amount}", status_code=303)
-    return _render_checkout(request, packages)
+    return _render_checkout(request, packages, years=years)
+
+
+def _term_label(label: str, years: int) -> str:
+    """ข้อความแพ็กเกจพร้อมระยะเวลา ใช้ในอีเมล/คอนโซล (lead.packages เก็บชื่องานล้วนไว้แกะสิทธิ์)"""
+    return f"{label} ({years} ปี)" if years and years > 1 else label
 
 
 def _checkout_account_required(request, packages=""):
@@ -326,12 +336,13 @@ def _checkout_account_required(request, packages=""):
         db.close()
 
 
-def _render_checkout(request, packages="", *, selected=None, form_data=None, error=""):
+def _render_checkout(request, packages="", *, selected=None, form_data=None, error="", years=1):
     from app.seller_config import pricing_context
     from app.accounts import tenant_billing, purchase_account
     from app.modules import MODULE_KEYS, MODULE_PRICE_KEY, parse_modules
     from app.thai_utils import thai_date
-    from app.seller_config import price_addon
+    from app.seller_config import price_addon, addon_frac, TERM_FACTOR, term_years
+    years = term_years(years)
     account = purchase_account(request.session.get("uid"))
     if not account:
         return _checkout_account_required(request, packages)
@@ -342,18 +353,21 @@ def _render_checkout(request, packages="", *, selected=None, form_data=None, err
     # โหมด "ซื้อเพิ่มกลางรอบ": เป็นสมาชิกที่ยังไม่หมดอายุ + เคยซื้อบางงานแล้ว (ยังไม่ครบทุกงาน)
     addon = bool(bill and bill["plan"] == "member" and days_left > 0
                  and owned and owned != set(MODULE_KEYS))
-    frac = max(0.0, min(1.0, days_left / 365.0)) if addon else 1.0
+    frac = addon_frac(days_left) if addon else 1.0
     addon_price = {k: int(round(px[MODULE_PRICE_KEY[k]] * frac)) for k in MODULE_KEYS}
     if selected is None:
         selected = modules_from_label(packages) if packages else (set() if addon else set(MODULE_KEYS))
     selected = set(selected) - owned if addon else set(selected)
-    pf = price_addon(selected, days_left) if addon else price_for(selected)
+    pf = price_addon(selected, days_left) if addon else price_for(selected, years)
+    if not addon and pf.get("capped"):
+        selected = set(MODULE_KEYS)
     mode = "ซื้อเพิ่ม" if addon else ("ต่ออายุ" if bill and bill["plan"] == "member" else "สั่งซื้อ")
     return templates.TemplateResponse("checkout.html", {
         "request": request, "packages": packages,
         "amount": pf["total"], "seller": _seller_ctx(),
         "selected_mods": sorted(selected), "form": form_data or {}, "error": error,
-        "mode": mode, "quote_url": "/quote?" + urlencode({"packages": pf["label"], "amount": pf["total"]}),
+        "mode": mode, "years": 1 if addon else years, "term_factor": TERM_FACTOR,
+        "quote_url": "/quote?" + urlencode({"packages": pf["label"], "amount": pf["total"], "years": years}),
         "acct_email": account["username"],
         "acct_school": account["school_name"],
         "addon": addon, "owned_mods": sorted(owned), "days_left": days_left,
@@ -387,7 +401,9 @@ async def checkout_submit(request: Request, school_name: str = Form(""), contact
                           packages: str = Form(""), amount: str = Form(""), note: str = Form(""),
                           addr_no: str = Form(""), addr_moo: str = Form(""), addr_tambon: str = Form(""),
                           addr_amphoe: str = Form(""), addr_province: str = Form(""), addr_zip: str = Form(""),
-                          slip: UploadFile = File(None), quoted_total: str = Form("")):
+                          slip: UploadFile = File(None), quoted_total: str = Form(""), years: str = Form("1")):
+    from app.seller_config import term_years
+    years = term_years(years)
     # ผูกคำสั่งซื้อกับบัญชีที่ล็อกอิน (อีเมล = username, tenant) เพื่อให้ "อนุมัติ" ต่ออายุบัญชีเดิม
     if not request.session.get("uid"):
         return RedirectResponse("/register?next=checkout", status_code=303)
@@ -401,7 +417,7 @@ async def checkout_submit(request: Request, school_name: str = Form(""), contact
                  "addr_no": addr_no, "addr_moo": addr_moo, "addr_tambon": addr_tambon,
                  "addr_amphoe": addr_amphoe, "addr_province": addr_province, "addr_zip": addr_zip, "note": note}
     def invalid(message):
-        return _render_checkout(request, selected=mod, form_data=form_data, error=message)
+        return _render_checkout(request, selected=mod, form_data=form_data, error=message, years=years)
     address = _join_address(addr_no, addr_moo, addr_tambon, addr_amphoe, addr_province, addr_zip)
     # ราคา/รายการงาน คำนวณที่เซิร์ฟเวอร์เสมอ - ห้ามเชื่อ amount/packages ที่ส่งมาจากหน้าเว็บ
     # (ของเดิมรับ hidden field ตรง ๆ ทำให้โพสต์ "ครบทุกงาน ราคา 1 บาท" ได้)
@@ -421,7 +437,7 @@ async def checkout_submit(request: Request, school_name: str = Form(""), contact
         pf = price_addon(new_mods, days_left)   # prorate ตามวันที่เหลือ (co-term)
         note = ("[ซื้อเพิ่มกลางรอบ prorate] " + (note or "")).strip()
     else:
-        pf = price_for(sel)                     # ซื้อใหม่/ต่ออายุ = ราคาเต็ม
+        pf = price_for(sel, years)              # ซื้อใหม่/ต่ออายุ = ราคาเต็มตามจำนวนปีที่เลือก
         if not pf["count"]:
             return invalid("กรุณาเลือกแพ็กเกจก่อนชำระเงิน")
     if pf["total"] <= 0:
@@ -445,14 +461,14 @@ async def checkout_submit(request: Request, school_name: str = Form(""), contact
     lid = add_lead(kind="order", school_name=school_name.strip() or request.session.get("name", ""),
                    contact_name=contact_name.strip(), email=email, phone=phone.strip(),
                    packages=pf["label"], modules=pf["modules"], amount=float(pf["total"]),
-                   address=address,
+                   years=pf.get("years", 1), address=address,
                    slip_file=slip_name, tenant_id=tid, login_user=email, note=(note or "").strip())
     # แจ้งผู้ขายทันที (อีเมล) - ล้มเหลวก็ไม่กระทบการสั่งซื้อ
     try:
         from app.services.mailer import send_order_notice
         send_order_notice("order", school=school_name.strip() or request.session.get("name", ""),
                           contact=contact_name.strip(), email=email, phone=phone.strip(),
-                          packages=pf["label"], amount=float(pf["total"]), ref=lid,
+                          packages=_term_label(pf["label"], pf.get("years", 1)), amount=float(pf["total"]), ref=lid,
                           note=(note or "").strip(), has_slip=bool(slip_name))
     except Exception:
         pass

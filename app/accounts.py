@@ -159,6 +159,7 @@ class Lead(AccBase):
     packages = Column(String, default="")         # งานที่เลือก (ข้อความ - ใช้แสดงผล/ใบเสนอราคา)
     modules = Column(String, default="")          # งานที่เลือก (CSV - ค่าที่ระบบใช้จริงตอนอนุมัติ)
     amount = Column(Float, default=0.0)
+    years = Column(Integer, default=1)            # แพ็กเกจกี่ปี (1/3/5) - อนุมัติแล้วต่ออายุ 365 x ปี
     slip_file = Column(String, default="")        # ชื่อไฟล์สลิป (เฉพาะ order)
     note = Column(Text, default="")
     status = Column(String, default="ใหม่")        # ใหม่ / ตอบแล้ว / ปิด / อนุมัติแล้ว / ทดลองใช้
@@ -402,6 +403,7 @@ def _ensure_engine():
                     "ALTER TABLE account ADD COLUMN reset_expires DATETIME",
                     "ALTER TABLE tenant ADD COLUMN modules VARCHAR DEFAULT ''",
                     "ALTER TABLE lead ADD COLUMN modules VARCHAR DEFAULT ''",
+                    "ALTER TABLE lead ADD COLUMN years INTEGER DEFAULT 1",
                     # ระบบสิทธิ์รายบัญชี: ไอดีหลัก (เห็นทุกงาน+จัดการผู้ใช้) + งานที่ไอดีย่อยเข้าได้
                     "ALTER TABLE account ADD COLUMN is_owner BOOLEAN DEFAULT 0",
                     "ALTER TABLE account ADD COLUMN modules VARCHAR DEFAULT ''",
@@ -2153,7 +2155,7 @@ def reset_password_with_token(token: str, new_password: str) -> dict:
         db.close()
 
 
-def renew_lead(lead_id: int, days: int = 365) -> dict | None:
+def renew_lead(lead_id: int, days: int | None = None) -> dict | None:
     """(B) อนุมัติคำสั่งซื้อ -> ต่ออายุบัญชีเดิมของลูกค้า +days (ไม่สร้างบัญชีใหม่ ใช้อีเมลเดิม)
     หา tenant จาก lead.tenant_id ก่อน ถ้าไม่มีลองจับคู่จากอีเมล · คืน {username, tenant_id, expiry} หรือ {error}"""
     from datetime import date, timedelta
@@ -2162,6 +2164,8 @@ def renew_lead(lead_id: int, days: int = 365) -> dict | None:
         lead = db.get(Lead, lead_id)
         if not lead:
             return None
+        if days is None:                       # แพ็กเกจหลายปี: ต่ออายุ 365 x ปี
+            days = 365 * (lead.years if lead.years in (1, 3, 5) else 1)
         tid = lead.tenant_id
         email = (lead.email or "").strip().lower()
         if not tid and email:

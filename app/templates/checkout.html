@@ -221,6 +221,13 @@
     </div>
   </div>
   {% endif %}{# not addon: promo + save ladder #}
+  {% if not addon %}
+  <div class="yr-toggle" id="yrToggle" role="group" aria-label="ระยะเวลาแพ็กเกจ">
+    <input type="hidden" name="years" value="{{ years }}" form="orderForm">
+    {% for y, t in [(1,''),(3,'ประหยัด 17%'),(5,'ประหยัด 25%')] %}<button type="button" data-y="{{ y }}"{{ ' class=on' if years == y }}>{{ y }} ปี{% if t %}<small>{{ t }}</small>{% endif %}</button>{% endfor %}
+  </div>
+  <p class="yr-note">จ่ายครั้งเดียว ราคาคงที่ตลอดสัญญา โควตา AI ได้เท่าแพ็กเกจรายปีทุกปี ยกเลิกกลางสัญญาไม่คืนเงิน</p>
+  {% endif %}
   <div class="co-list" id="coList">
     {% for it in [
         ('procurement','p_proc','พัสดุ','งานพัสดุ','จัดซื้อจัดจ้าง ทรัพย์สิน/ครุภัณฑ์ ใบเบิกพัสดุ สัญญา ตัวช่วยกรอก e-GP'),
@@ -243,8 +250,8 @@
   </div>
   {% if not addon %}<button type="button" class="btn btn-ghost" id="coAll" style="margin-top:12px; width:100%;">เลือกครบทุกงาน (คุ้มสุด {{ "{:,}".format(px.bundle) }} บาท)</button>{% endif %}
   <div class="bank-row" style="margin-top:14px; border-bottom:0;">
-    <span style="font-weight:600;">ยอดชำระ ({{ mode }}{{ '' if addon else ' 1 ปี' }}) <span class="co-save" id="coSave" style="display:none; margin-left:8px;"></span></span>
-    <span class="amt"><span id="coAmount">{{ "{:,}".format(amount) }}</span> <small style="font-size:14px; color:var(--muted); font-weight:500;">{{ 'บาท' if addon else 'บาท/ปี' }}</small></span>
+    <span style="font-weight:600;">ยอดชำระ ({{ mode }}{% if not addon %} <span id="coYears">{{ years }}</span> ปี{% endif %}) <span class="co-save" id="coSave" style="display:none; margin-left:8px;"></span></span>
+    <span class="amt"><span id="coAmount">{{ "{:,}".format(amount) }}</span> <small id="coUnit" style="font-size:14px; color:var(--muted); font-weight:500;">{{ 'บาท' if addon or years > 1 else 'บาท/ปี' }}</small></span>
   </div>
   {% if not addon %}
   <div style="margin-top:12px; padding-top:12px; border-top:1px dashed var(--line); font-size:14px; color:var(--muted); display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
@@ -335,6 +342,7 @@
   </fieldset>
 </form>
 
+<script src="/static/term-price.js?v=1"></script>
 <script>
   (function(){
     var BUNDLE = {{ px.bundle | tojson }};
@@ -360,15 +368,25 @@
     var ADDON = {{ addon | tojson }};
     // โหมดซื้อเพิ่ม: ใช้ราคา prorate ต่องาน งานที่มีอยู่แล้ว (disabled) ไม่นับ ไม่มีส่วนลดขั้นบันได
     function priceOf(it){ return ADDON ? (+it.dataset.addonPrice) : (+it.dataset.price); }
+    var T = window.ddocTerm;
+    var years = ADDON ? function(){ return 1; } : T.toggle(document.getElementById('yrToggle'), function(){ invalidate(); });
     function calc(){
+      var y = years();
       var chosen = items.filter(function(it){ var i=it.querySelector('input'); return i.checked && !i.disabled; });
-      items.forEach(function(it){ it.classList.toggle('on', it.querySelector('input').checked); });
+      items.forEach(function(it){
+        it.classList.toggle('on', it.querySelector('input').checked);
+        var pe = it.querySelector('.co-price'); if(pe && !ADDON) pe.textContent = fmt(T.term(+it.dataset.price, y));
+      });
       var count = chosen.length;
       var listSum = chosen.reduce(function(s,it){ return s + priceOf(it); }, 0);
-      // ส่วนลดขั้นบันได (เฉพาะซื้อปกติ): 2 งาน -100, 3 งาน -200, ... ครบทุกงาน = ราคาแพ็ก
-      var total = ADDON ? listSum
-                  : (count === NMODS ? BUNDLE : (count ? Math.max(0, listSum - (TIERS[count] || 0)) : 0));
-      var savings = ADDON ? 0 : (listSum - total);
+      // ส่วนลดขั้นบันได + จำนวนปี + ไม่เกินราคาครบทุกงาน (เฉพาะซื้อปกติ)
+      var pr = ADDON ? null : T.pick(listSum, count, NMODS, TIERS, BUNDLE, y);
+      if(pr && pr.capped){ items.forEach(function(it){ var i=it.querySelector('input'); if(!i.disabled) i.checked = true; it.classList.add('on'); }); chosen = items.slice(); count = NMODS; }
+      var total = ADDON ? listSum : pr.total;
+      var savings = ADDON ? 0 : (pr.full - total);
+      var yEl = document.getElementById('coYears'); if(yEl) yEl.textContent = y;
+      var allB = document.getElementById('coAll'); if(allB) allB.textContent = 'เลือกครบทุกงาน (คุ้มสุด ' + fmt(T.term(BUNDLE, y)) + ' บาท' + (y > 1 ? ' / ' + y + ' ปี' : '') + ')';
+      var uEl = document.getElementById('coUnit'); if(uEl) uEl.textContent = (ADDON || y > 1) ? 'บาท' : 'บาท/ปี';
       if(amtEl) amtEl.textContent = fmt(total);
       if(saveEl){
         if(savings > 0){ saveEl.style.display = ''; saveEl.textContent = 'ประหยัด ' + fmt(savings) + ' บาท'; }
@@ -391,7 +409,7 @@
       if(quote){
         if(valid){
           var label = count === NMODS ? 'ครบทุกงาน' : chosen.map(function(it){ return it.dataset.name; }).join(' + ');
-          quote.href = '/quote?packages=' + encodeURIComponent(label) + '&amount=' + total;
+          quote.href = '/quote?packages=' + encodeURIComponent(label) + '&amount=' + total + '&years=' + y;
           quote.removeAttribute('aria-disabled');
         } else { quote.removeAttribute('href'); quote.setAttribute('aria-disabled', 'true'); }
       }

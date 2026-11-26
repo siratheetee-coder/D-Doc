@@ -103,6 +103,39 @@ REGULAR_PRICES = {"p_proc": 990, "p_fin": 990, "p_admin": 390, "p_lunch": 690, "
 # ส่วนลดตามจำนวนงานที่เลือก (ยิ่งซื้อยิ่งลด) · ครบทุกงานใช้ราคา bundle แทน
 TIER_DISCOUNT = {2: 100, 3: 200, 4: 300, 5: 400}
 
+# แพ็กเกจหลายปี: จ่ายครั้งเดียว 3 ปี = ราคา 2.5 ปี, 5 ปี = ราคา 3.75 ปี (ปัดลงท้าย 90)
+# ครบทุกงาน 3,190 -> 3 ปี 7,990 / 5 ปี 11,990 · ต้องตรงกับ static/term-price.js
+TERM_FACTOR = {1: 1.0, 3: 2.5, 5: 3.75}
+
+
+def term_years(v) -> int:
+    """จำนวนปีที่เลือก (รับเฉพาะ 1/3/5 อย่างอื่นถือเป็น 1 ปี)"""
+    try:
+        y = int(str(v).strip() or 1)
+    except (TypeError, ValueError):
+        return 1
+    return y if y in TERM_FACTOR else 1
+
+
+def term_total(annual: int, years: int) -> int:
+    """ราคาต่อปี -> ราคาจ่ายครั้งเดียวตามจำนวนปี (1 ปี = ราคาเดิม)"""
+    import math
+    years = term_years(years)
+    if years == 1 or annual <= 0:
+        return int(annual)
+    v = annual * TERM_FACTOR[years]
+    return int(math.floor((v - 90) / 100 + 0.5) * 100 + 90)
+
+
+def term_rate(days_left: int) -> float:
+    """ส่วนลดต่อปีของสัญญาที่ถืออยู่ (ใช้คิดซื้อเพิ่มกลางสัญญา) ดูจากวันคงเหลือ"""
+    d = int(days_left or 0)
+    if d > 3 * 366:
+        return TERM_FACTOR[5] / 5
+    if d > 366:
+        return TERM_FACTOR[3] / 3
+    return 1.0
+
 
 def pricing_context():
     """คืนราคาที่ใช้จริง + สถานะโปรโมชั่น (สำหรับหน้า landing/checkout)
@@ -147,25 +180,37 @@ def pricing_context():
             "promo_slots_left": 0, "promo_end_iso": "", **_extra(reg)}
 
 
-def price_for(modules) -> dict:
+def price_for(modules, years=1) -> dict:
     """คำนวณราคาของชุดงานที่เลือก - **แหล่งความจริงเดียวของราคา**
 
     ฝั่งเซิร์ฟเวอร์ต้องเรียกอันนี้เสมอ ห้ามเชื่อยอดเงินที่ส่งมาจากหน้าเว็บ
     (JS บนหน้า checkout/landing มีหน้าที่แค่แสดงผลให้ตรงกับสูตรนี้)
+    ถ้าราคาที่เลือกไม่ถูกกว่าครบทุกงาน -> ได้ครบทุกงานในราคาแพ็กแทน (capped=True)
 
-    คืน {modules, count, list_sum, discount, total, label}
+    คืน {modules, count, list_sum, discount, total, label, years, annual, capped}
     """
     from app.modules import MODULE_KEYS, MODULE_PRICE_KEY, parse_modules, modules_csv, label_for
     px = pricing_context()["prices"]
+    years = term_years(years)
     mods = parse_modules(modules_csv(modules))
     n = len(mods)
+    capped = False
+    if n and n < len(MODULE_KEYS):
+        annual = max(0, sum(px[MODULE_PRICE_KEY[k]] for k in MODULE_KEYS if k in mods) - TIER_DISCOUNT.get(n, 0))
+        if term_total(annual, years) >= term_total(px["bundle"], years):
+            mods, n, capped = set(MODULE_KEYS), len(MODULE_KEYS), True
     list_sum = sum(px[MODULE_PRICE_KEY[k]] for k in MODULE_KEYS if k in mods)
-    if n == len(MODULE_KEYS):                 # ครบทุกงาน -> ราคาแพ็ก
-        total = px["bundle"]
-    else:
-        total = max(0, list_sum - TIER_DISCOUNT.get(n, 0))
-    return {"modules": modules_csv(mods), "count": n, "list_sum": list_sum,
-            "discount": max(0, list_sum - total), "total": total, "label": label_for(mods)}
+    annual = px["bundle"] if n == len(MODULE_KEYS) else max(0, list_sum - TIER_DISCOUNT.get(n, 0))
+    total = term_total(annual, years)
+    return {"modules": modules_csv(mods), "count": n, "list_sum": list_sum * years,
+            "discount": max(0, list_sum * years - total), "total": total, "label": label_for(mods),
+            "years": years, "annual": annual, "capped": capped}
+
+
+def addon_frac(days_left) -> float:
+    """สัดส่วนราคาต่อปีที่ต้องจ่ายเมื่อซื้อเพิ่มกลางสัญญา = (วันคงเหลือ/365) x ส่วนลดสัญญาหลายปี"""
+    d = max(0, min(int(days_left or 0), 5 * 366 + 31))
+    return round(d / 365.0 * term_rate(d), 4)
 
 
 def price_addon(modules, days_left: int) -> dict:
@@ -176,7 +221,7 @@ def price_addon(modules, days_left: int) -> dict:
     px = pricing_context()["prices"]
     # รับได้ทั้ง CSV string และ set/list (string ส่งเข้า modules_csv ตรง ๆ จะถูกแตกเป็นตัวอักษร)
     mods = parse_modules(modules) if isinstance(modules, str) else parse_modules(modules_csv(modules))
-    frac = max(0.0, min(1.0, (days_left or 0) / 365.0))
+    frac = addon_frac(days_left)
     per = {k: int(round(px[MODULE_PRICE_KEY[k]] * frac)) for k in MODULE_KEYS if k in mods}
     annual = sum(px[MODULE_PRICE_KEY[k]] for k in MODULE_KEYS if k in mods)
     return {"modules": modules_csv(mods), "count": len(mods), "per": per,

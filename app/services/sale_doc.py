@@ -22,6 +22,15 @@ _STATIC = Path(__file__).resolve().parent.parent / "static"
 BLUE = RGBColor(0x1d, 0x4e, 0xd8)
 
 
+
+def _lead_years(lead) -> int:
+    """จำนวนปีของแพ็กเกจในคำขอ (lead เก่าไม่มีค่า = 1 ปี)"""
+    try:
+        y = int(lead.get("years") or 1)
+    except (TypeError, ValueError):
+        return 1
+    return y if y in (1, 3, 5) else 1
+
 def _safe(text: str) -> str:
     from app.services.filenames import fit_name
     return fit_name(_safe_chars(text))
@@ -152,7 +161,8 @@ def _customer_box(doc, label, lead):
 
 def _items_table(doc, lead):
     amount = float(lead.get("amount") or 0)
-    desc = f"ค่าบริการระบบบริหารงานเอกสารโรงเรียน Easy Ekkasan - {lead.get('packages') or 'ครบทุกงาน'} (สมาชิกรายปี)"
+    y = _lead_years(lead)
+    desc = f"ค่าบริการระบบบริหารงานเอกสารโรงเรียน Easy Ekkasan - {lead.get('packages') or 'ครบทุกงาน'} " + (f"(ระยะเวลา {y} ปี ชำระครั้งเดียว)" if y > 1 else "(สมาชิกรายปี)")
     headers = ["ลำดับ", "รายการ", "จำนวน", "ราคาต่อหน่วย", "จำนวนเงิน (บาท)"]
     widths = [Cm(1.4), Cm(8.6), Cm(1.9), Cm(2.7), Cm(2.9)]
     table = doc.add_table(rows=1, cols=5)
@@ -164,7 +174,7 @@ def _items_table(doc, lead):
     r = table.add_row().cells
     _set_cell(r[0], "1", align="center")
     _set_cell(r[1], desc)
-    _set_cell(r[2], "1 ปี", align="center")
+    _set_cell(r[2], f"{y} ปี", align="center")
     _set_cell(r[3], _fmt(amount), align="right")
     _set_cell(r[4], _fmt(amount), align="right")
     for i, w in enumerate(widths):
@@ -397,7 +407,8 @@ def _render_sale_pdf(lead, seller, doc_no, doc_date, kind):
 
     # ---- ตารางรายการ ----
     amount = float(lead.get("amount") or 0)
-    desc = "ค่าบริการระบบบริหารงานเอกสารโรงเรียน Easy Ekkasan - " + (lead.get("packages") or "ครบทุกงาน") + " (สมาชิกรายปี)"
+    y = _lead_years(lead)
+    desc = "ค่าบริการระบบบริหารงานเอกสารโรงเรียน Easy Ekkasan - " + (lead.get("packages") or "ครบทุกงาน") + (f" (ระยะเวลา {y} ปี ชำระครั้งเดียว)" if y > 1 else " (สมาชิกรายปี)")
     cols = [_ML, 180, 726, 858, 1000, _MR]
     heads = ["ลำดับ", "รายการ", "จำนวน", "ราคาต่อหน่วย", "จำนวนเงิน"]
     aligns = ["c", "l", "c", "r", "r"]
@@ -410,7 +421,7 @@ def _render_sale_pdf(lead, seller, doc_no, doc_date, kind):
     y += hh
     dlines = _wrap(d, desc, cf, cols[2] - cols[1] - 28)
     row_h = max(48, 20 + len(dlines) * 34)
-    vals = ["1", None, "1 ปี", _fmt(amount), _fmt(amount)]
+    vals = ["1", None, f"{y} ปี", _fmt(amount), _fmt(amount)]
     for i, v in enumerate(vals):
         if i == 1:
             ty = y + 14

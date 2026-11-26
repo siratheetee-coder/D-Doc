@@ -226,6 +226,18 @@ class PurchaseFlowTests(unittest.TestCase):
             lead = db.query(accounts.Lead).one()
             self.assertEqual((lead.tenant_id, lead.amount, lead.modules), (1, self.price, self.key))
 
+    def test_checkout_five_years_saves_term_and_price(self):
+        self.login()
+        five = sales.price_for({self.key}, 5)['total']
+        bad = self.client.post('/checkout', data=self.order(years='5'), files={'slip':self.png()})
+        self.assertEqual(bad.status_code, 400)          # ยอด 1 ปีกับแพ็กเกจ 5 ปี ต้องไม่ผ่าน
+        result = self.client.post('/checkout', data=self.order(years='5', quoted_total=str(five)),
+                                  files={'slip':self.png()})
+        self.assertEqual(result.status_code, 303)
+        with self.Session() as db:
+            lead = db.query(accounts.Lead).one()
+            self.assertEqual((lead.amount, lead.years), (five, 5))
+
     def test_quote_link_preserves_selection_and_request_ignores_tampered_price(self):
         self.login()
         page = self.client.get('/checkout', params={'packages':MODULE_LABELS[self.key]})

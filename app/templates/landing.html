@@ -253,6 +253,14 @@
   .mfree b{ color:#16a34a; font-size:24px; }
   .mfree small{ display:block; font-size:13px; font-weight:500; color:var(--muted); }
 
+  .yr-toggle{ display:flex; justify-content:center; gap:6px; margin:0 auto 22px; padding:6px; width:max-content; max-width:100%;
+    border-radius:999px; background:linear-gradient(135deg,#eaf6ff,#ecebff); box-shadow:var(--shadow); }
+  .yr-toggle button{ border:0; background:transparent; font:inherit; font-size:16px; font-weight:600; color:var(--navy);
+    padding:9px 18px; border-radius:999px; cursor:pointer; white-space:nowrap; }
+  .yr-toggle button small{ display:block; font-size:12px; font-weight:500; color:#16a34a; }
+  .yr-toggle button.on{ color:#fff; background:linear-gradient(135deg,#06b6d4,#4f46e5); }
+  .yr-toggle button.on small{ color:#e0fbff; }
+  @media (max-width:600px){ .yr-toggle button{ padding:8px 12px; font-size:15px; } }
   .bundle{ position:relative; border-radius:26px; padding:28px 26px 26px; background:linear-gradient(160deg,#f1f6ff,#ebe9ff); box-shadow:var(--shadow), inset 0 0 0 2px #fff; display:flex; flex-direction:column; }
   .bd-badge{ display:inline-block; width:fit-content; background:var(--grad); color:#fff; font-weight:700; font-size:18px; padding:5px 20px; border-radius:999px; }
   .bd-school{ position:absolute; top:-16px; right:14px; width:170px; filter:drop-shadow(0 12px 18px rgba(37,72,160,.2)); }
@@ -686,6 +694,12 @@
       <p>ใช้เฉพาะงานที่ต้องการ หรือเลือกครบทุกงาน</p>
     </div>
 
+    <div class="yr-toggle" id="yrToggle" role="group" aria-label="ระยะเวลาแพ็กเกจ">
+      <button type="button" data-y="1" class="on">1 ปี</button>
+      <button type="button" data-y="3">3 ปี<small>ประหยัด 17%</small></button>
+      <button type="button" data-y="5">5 ปี<small>ประหยัด 25%</small></button>
+    </div>
+
     <div class="pk-wrap">
       <div class="pk-box">
         <h3>เลือกงานที่ต้องการ</h3>
@@ -696,7 +710,7 @@
             <input type="checkbox" checked aria-label="เลือก{{ name }}">
             <span class="mc-box"><svg class="ico"><use href="#ic-check"/></svg></span>
             <img src="{{ A }}{{ icon }}.png?v=2" alt="" aria-hidden="true">
-            <span class="mc-body"><h4>{{ name }}</h4><span class="mc-price">{{ "{:,}".format(px[key]) }} <small>บาท/ปี</small></span></span>
+            <span class="mc-body"><h4>{{ name }}</h4><span class="mc-price"><span class="mc-amt">{{ "{:,}".format(px[key]) }}</span> <small class="mc-unit">บาท/ปี</small></span></span>
           </label>
           {% endfor %}
           <div class="mfree"><img src="{{ A }}general.png?v=2" alt="" aria-hidden="true"><i></i>
@@ -714,24 +728,24 @@
           <li><span class="ck"><svg class="ico"><use href="#ic-check"/></svg></span>อัปเดตระบบและคู่มือการใช้งาน</li>
         </ul>
         <div class="bd-price">
-          <div class="was">จากปกติ <s>{{ "{:,}".format(full) }}</s> บาท</div>
-          <b>{{ "{:,}".format(px.bundle) }}</b><span>บาท ต่อปี / โรงเรียน</span><br>
-          <span class="save">ประหยัด {{ "{:,}".format(save) }} บาท</span>
+          <div class="was">จากปกติ <s id="bdWas">{{ "{:,}".format(full) }}</s> บาท</div>
+          <b id="bdPrice">{{ "{:,}".format(px.bundle) }}</b><span id="bdUnit">บาท ต่อปี / โรงเรียน</span><br>
+          <span class="save">ประหยัด <span id="bdSave">{{ "{:,}".format(save) }}</span> บาท</span>
           {% if promo_end_iso %}<div class="bd-promo">ราคานี้เหลืออีก {{ promo_days_left }} วัน</div><div class="bc-count" data-deadline="{{ promo_end_iso }}"></div>{% endif %}
           {% if promo_slots %}
           <div class="bc-slots"><div class="srow"><span>สิทธิ์ราคานี้</span><span>เหลือ <b>{{ promo_slots_left }}</b>/{{ promo_slots }}</span></div>
             <div class="bc-bar"><i style="width:{{ (promo_slots_left / promo_slots * 100)|round(0,'floor') }}%"></i></div></div>
           {% endif %}
         </div>
-        <a class="btn btn-primary" href="/checkout?packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}">เลือกแพ็กเกจครบทุกงาน <svg class="ico"><use href="#ic-arrow-right"/></svg></a>
-        <div class="bd-links"><a href="/quote?packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}">ขอใบเสนอราคา</a><a href="/register">ทดลองใช้ฟรี {{ trial_days }} วัน</a></div>
+        <a class="btn btn-primary" id="bdBuy" href="/checkout?packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}">เลือกแพ็กเกจครบทุกงาน <svg class="ico"><use href="#ic-arrow-right"/></svg></a>
+        <div class="bd-links"><a id="bdQuote" href="/quote?packages={{ 'ครบทุกงาน'|urlencode }}&amount={{ px.bundle }}">ขอใบเสนอราคา</a><a href="/register">ทดลองใช้ฟรี {{ trial_days }} วัน</a></div>
       </div>
     </div>
 
     <div class="sbar">
       <div class="sb-count"><svg class="ico"><use href="#ic-cart"/></svg> <span>เลือกแล้ว <span id="sbCount">6</span> งาน</span></div>
       <div class="sb-mid">
-        ยอดรวม <b id="sumTotal">{{ "{:,}".format(px.bundle) }}</b> บาท/ปี <span class="sb-save" id="sbSave"></span>
+        ยอดรวม <b id="sumTotal">{{ "{:,}".format(px.bundle) }}</b> <span id="sumUnit">บาท/ปี</span> <span class="sb-save" id="sbSave"></span>
         <div class="sb-sel" id="sbSel">ครบทุกงาน</div>
         <div class="sb-upsell" id="sbUpsell"></div>
       </div>
@@ -759,6 +773,8 @@
         <p>ไม่ต้องติดตั้ง ใช้งานผ่านเว็บเบราว์เซอร์ได้ทั้งคอมพิวเตอร์ แท็บเล็ต และมือถือ</p></details>
       <details><summary>เลือกซื้อเฉพาะบางงานได้ไหม?</summary>
         <p>ได้ เลือกเฉพาะงานที่ต้องใช้ ตั้งแต่ 2 งานขึ้นไปได้ส่วนลด หรือเลือกแพ็กเกจครบทุกงานในราคาคุ้มที่สุด ส่วนงานบริหารทั่วไปใช้ได้ฟรีทุกโรงเรียน</p></details>
+      <details><summary>แพ็กเกจ 3 ปี และ 5 ปี ต่างจากรายปีอย่างไร?</summary>
+        <p>จ่ายครั้งเดียวได้ใช้ต่อเนื่องตามจำนวนปี 3 ปีจ่ายเท่าราคา 2 ปีครึ่ง และ 5 ปีจ่ายเท่าราคา 3 ปี 9 เดือน ราคาคงที่ตลอดสัญญาแม้ภายหลังจะปรับราคา โควตา AI ได้เท่าแพ็กเกจรายปีทุกปี ยกเลิกกลางสัญญาไม่คืนเงิน</p></details>
       <details><summary>ดาวน์โหลดเอกสารไปแก้ต่อได้ไหม?</summary>
         <p>ได้ เอกสารดาวน์โหลดเป็นไฟล์ Word (.docx) ตามแบบราชการ เปิดแก้ไขเพิ่มเติมได้ก่อนพิมพ์</p></details>
       <details><summary>เริ่มต้นใช้งานและขอความช่วยเหลืออย่างไร?</summary>
@@ -800,6 +816,7 @@
 
 <dialog class="vbox" id="vbox"><button class="x" type="button" aria-label="ปิดวิดีโอ">×</button><iframe title="วิดีโอแนะนำ Easy Ekkasan" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></dialog>
 
+<script src="/static/term-price.js?v=1"></script>
 <script>
   (function(){
     var box = document.querySelector('.bc-count[data-deadline]');
@@ -814,7 +831,7 @@
     tick(); setInterval(tick, 1000);
   })();
 
-  // คิดยอดงานที่เลือก (ต้องตรงกับ price_for() ฝั่งเซิร์ฟเวอร์ seller_config.py ที่นี่แค่แสดงผล)
+  // คิดยอดงานที่เลือก + จำนวนปี (ต้องตรงกับ price_for() ฝั่งเซิร์ฟเวอร์ seller_config.py ที่นี่แค่แสดงผล)
   (function(){
     var BUNDLE = {{ px.bundle | tojson }};
     var FULL = {{ full | tojson }};
@@ -823,23 +840,41 @@
     var NMODS = cards.length;
     var $ = function(id){ return document.getElementById(id); };
     var fmt = function(n){ return n.toLocaleString('en-US'); };
+    var T = window.ddocTerm;
+    var years = T.toggle($('yrToggle'), render);
     function render(){
+      var y = years();
       var chosen = cards.filter(function(c){ return c.querySelector('input').checked; });
-      cards.forEach(function(c){ c.classList.toggle('on', c.querySelector('input').checked); });
+      cards.forEach(function(c){
+        c.classList.toggle('on', c.querySelector('input').checked);
+        c.querySelector('.mc-amt').textContent = fmt(T.term(+c.dataset.price, y));
+        c.querySelector('.mc-unit').textContent = y === 1 ? 'บาท/ปี' : 'บาท/' + y + ' ปี';
+      });
       var count = chosen.length;
       var listSum = chosen.reduce(function(s,c){ return s + (+c.dataset.price); }, 0);
-      var total = count === NMODS ? BUNDLE : (count ? Math.max(0, listSum - (TIERS[count] || 0)) : 0);
-      var discount = Math.max(0, listSum - total);
-      var label = count === NMODS ? 'ครบทุกงาน' : (count ? chosen.map(function(c){ return c.dataset.name; }).join(' + ') : '');
-      $('sbCount').textContent = count;
-      $('sbSel').textContent = count ? label + (discount ? ' (ราคาปกติ ' + fmt(listSum) + ' บาท)' : '') : 'ยังไม่ได้เลือกงาน';
+      var r = T.pick(listSum, count, NMODS, TIERS, BUNDLE, y);
+      var total = r.total, full = r.full;
+      var discount = Math.max(0, full - total);
+      var label = r.all ? 'ครบทุกงาน' : (count ? chosen.map(function(c){ return c.dataset.name; }).join(' + ') : '');
+      var unit = y === 1 ? 'บาท/ปี' : 'บาท (' + y + ' ปี)';
+      $('sbCount').textContent = r.all ? NMODS : count;
+      $('sbSel').textContent = count ? label + (r.capped ? ' (ราคานี้ได้ครบทุกงาน)' : '') + (discount ? ' (ราคาปกติ ' + fmt(full) + ' บาท)' : '') + (y > 1 ? ' เฉลี่ยปีละ ' + fmt(r.perYear) + ' บาท' : '') : 'ยังไม่ได้เลือกงาน';
       $('sumTotal').textContent = fmt(total);
+      $('sumUnit').textContent = unit;
       var sv = $('sbSave'), up = $('sbUpsell');
       sv.style.display = discount ? '' : 'none'; up.textContent = '';
       sv.textContent = 'ส่วนลด −' + fmt(discount) + ' บาท';
-      if(count >= 2 && count < NMODS && BUNDLE > total) up.textContent = 'เพิ่มอีก ' + fmt(BUNDLE - total) + ' บาท ได้ครบทั้ง ' + NMODS + ' งาน';
-      if(count === 1) up.textContent = 'เลือก 2 งานขึ้นไปได้ส่วนลด';
-      var q = '?packages=' + encodeURIComponent(label) + '&amount=' + total;
+      if(count >= 2 && !r.all && r.bundle > total) up.textContent = 'เพิ่มอีก ' + fmt(r.bundle - total) + ' บาท ได้ครบทั้ง ' + NMODS + ' งาน';
+      if(count === 1 && y === 1) up.textContent = 'เลือก 2 งานขึ้นไปได้ส่วนลด';
+      // การ์ดครบทุกงาน
+      var bT = T.term(BUNDLE, y);
+      $('bdPrice').textContent = fmt(bT);
+      $('bdUnit').textContent = y === 1 ? 'บาท ต่อปี / โรงเรียน' : 'บาท ' + y + ' ปี (เฉลี่ยปีละ ' + fmt(Math.round(bT / y)) + ')';
+      $('bdWas').textContent = fmt(FULL * y);
+      $('bdSave').textContent = fmt(FULL * y - bT);
+      var bq = '?packages=' + encodeURIComponent('ครบทุกงาน') + '&amount=' + bT + '&years=' + y;
+      $('bdBuy').href = '/checkout' + bq; $('bdQuote').href = '/quote' + bq;
+      var q = '?packages=' + encodeURIComponent(label) + '&amount=' + total + '&years=' + y;
       [[$('btnBuy'), '/checkout'], [$('btnQuote'), '/quote']].forEach(function(it){
         var b = it[0]; if(!b) return;
         if(count){ b.href = it[1] + q; b.removeAttribute('aria-disabled'); b.removeAttribute('tabindex'); }

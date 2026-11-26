@@ -97,7 +97,7 @@
                 {% if l.address %}<br><span class="sub">{{ l.address }}</span>{% endif %}
                 {% if l.note %}<br><span class="sub">📝 {{ l.note }}</span>{% endif %}</td>
             <td class="sub">{% if l.email %}<a class="slip" href="mailto:{{ l.email }}">{{ l.email }}</a><br>{% endif %}{{ l.phone or '' }}</td>
-            <td class="sub">{{ l.packages or '-' }}</td>
+            <td class="sub">{{ l.packages or '-' }}{% if (l.years or 1) > 1 %} <b>({{ l.years }} ปี)</b>{% endif %}</td>
             <td class="amt">{{ "{:,.0f}".format(l.amount) if l.amount else '-' }}</td>
             <td>{% if l.slip_file %}<a class="slip" href="/admin-console/leads/slip/{{ l.slip_file }}" target="_blank">ดูสลิป</a>{% else %}<span class="sub">-</span>{% endif %}</td>
             <td style="white-space:nowrap; line-height:2;">
@@ -118,7 +118,7 @@
                   <div class="pill s-done">✓ ต่ออายุ 1 ปีแล้ว</div><br>
                 {% else %}
                   <form class="inline" method="post" action="/admin-console/leads/{{ l.id }}/approve"
-                        onsubmit="return confirm('ตรวจสลิปแล้ว? ระบบจะต่ออายุ 1 ปี และเปิดสิทธิ์งานที่ซื้อ ({{ l.packages or 'ตามคำสั่งซื้อ' }}) ให้อัตโนมัติ');">
+                        onsubmit="return confirm('ตรวจสลิปแล้ว? ระบบจะต่ออายุ {{ l.years or 1 }} ปี และเปิดสิทธิ์งานที่ซื้อ ({{ l.packages or 'ตามคำสั่งซื้อ' }}) ให้อัตโนมัติ');">
                     <input type="hidden" name="kind" value="{{ kind or '' }}">
                     <button class="btn green" type="submit">✓ อนุมัติ + ต่ออายุ 1 ปี</button>
                   </form>
