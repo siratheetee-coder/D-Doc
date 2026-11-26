@@ -87,6 +87,16 @@ class PurchaseFlowTests(unittest.TestCase):
         self.assertEqual(page.context['selected_mods'], [self.key])
         self.assertEqual(page.context['mode'], 'สั่งซื้อ')
 
+    def test_guest_checkout_keeps_years_through_login(self):
+        result = self.client.get('/checkout', params={'packages': MODULE_LABELS[self.key], 'years': '5'})
+        target = self.client.get(result.headers['location']).context['next']
+        self.assertEqual(parse_qs(urlparse(target).query)['years'], ['5'])
+        result = self.client.post('/login', data={'username':'owner1@example.test',
+                                  'password':'test-password', 'next':target})
+        page = self.client.get(result.headers['location'])
+        self.assertEqual(page.context['years'], 5)
+        self.assertEqual(page.context['amount'], sales.price_for({self.key}, 5)['total'])
+
     def test_checkout_blocked_account_has_html_and_preserves_destination(self):
         cases = [('role', 'superadmin', 'admin'), ('verified', False, 'unverified'),
                  ('must_change_password', True, 'password'), ('active', False, 'unavailable')]

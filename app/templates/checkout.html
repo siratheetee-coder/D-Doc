@@ -139,6 +139,14 @@
   .co-item.owned .co-check{ background:#94a3b8; border-color:#94a3b8; }
   .co-owned-tag{ font-weight:700; color:#0e7a44; font-size:13px; white-space:nowrap; }
   @media (prefers-reduced-motion: reduce){ .shine-host .shine::before{ animation:none; opacity:0; } }
+  .yr-toggle{ display:flex; gap:6px; margin:0 0 14px; padding:5px; border-radius:999px; flex-wrap:wrap;
+    background:linear-gradient(135deg,#eaf6ff,#ecebff); }
+  .yr-toggle button{ flex:1; border:0; background:transparent; font:inherit; font-size:15px; font-weight:600; color:#1e2a55;
+    padding:8px 10px; border-radius:999px; cursor:pointer; white-space:nowrap; }
+  .yr-toggle button small{ display:block; font-size:11.5px; font-weight:500; color:#16a34a; }
+  .yr-toggle button.on{ color:#fff; background:linear-gradient(135deg,#06b6d4,#4f46e5); }
+  .yr-toggle button.on small{ color:#e0fbff; }
+  .yr-note{ font-size:13px; color:var(--muted); margin:-6px 0 12px; }
 {% endblock %}
 {% block content %}
 {% if error %}<div class="card" role="alert" style="color:#b91c1c;background:#fef2f2;">{{ error }}<br>ข้อมูลเดิมยังอยู่ กรุณาตรวจสอบและเลือกไฟล์สลิปอีกครั้ง</div>{% endif %}

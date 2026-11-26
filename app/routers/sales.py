@@ -296,6 +296,10 @@ def checkout_page(request: Request, packages: str = "", amount: str = "", years:
     # ต้องลงทะเบียน/เข้าสู่ระบบก่อน (ผูกคำสั่งซื้อกับบัญชีอีเมล)
     if not request.session.get("uid"):
         from urllib.parse import quote as _q
+        from app.seller_config import term_years
+        if term_years(years) > 1:       # แพ็กเกจหลายปี: พกจำนวนปีไปกับปลายทางหลังสมัคร/ล็อกอิน
+            target = "/checkout?" + urlencode({"packages": packages, "years": term_years(years)})
+            return RedirectResponse("/register?" + urlencode({"next": target, "packages": packages}), status_code=303)
         return RedirectResponse(f"/register?next=checkout&packages={_q(packages)}&amount={amount}", status_code=303)
     return _render_checkout(request, packages, years=years)
 

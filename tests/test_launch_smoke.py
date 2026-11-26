@@ -13,15 +13,16 @@ from fastapi.testclient import TestClient
 
 
 @pytest.fixture()
-def client():
+def client(monkeypatch):
+    # monkeypatch คืนค่าเดิมหลังจบเทสต์ (ของเดิมแทนที่ถาวร ทำให้เทสต์ไฟล์อื่นที่รันต่อพัง)
     import app.main as m
     import app.routers.auth as auth
-    auth.authenticate = lambda u, p: {
+    monkeypatch.setattr(auth, "authenticate", lambda u, p: {
         "uid": 2, "username": "tester", "role": "user", "tenant_id": 1,
         "display_name": "ผู้ทดสอบ", "must_change": False, "is_owner": True,
         "modules": "", "welcomed": True, "verified": True,
-    }
-    m.can_use_module = lambda t, mod: True
+    })
+    monkeypatch.setattr(m, "can_use_module", lambda t, mod: True)
     c = TestClient(m.app)
     c.post("/login", data={"username": "a", "password": "b"})
     return c
@@ -77,13 +78,14 @@ def test_ssrf_blocked_for_internal_hosts():
     assert fetch_file("http://169.254.169.254/latest/meta-data")[2] == "url"
 
 
-def test_login_rate_limit():
-    import importlib
+def test_login_rate_limit(monkeypatch):
+    import uuid
     import app.routers.auth as auth
-    importlib.reload(auth)          # ล้างตัวนับ fail ให้เริ่มสด
     import app.main as m
-    auth.authenticate = lambda u, p: None      # ให้ล็อกอินล้มเหลวเสมอ
+    # monkeypatch คืนค่าเดิมหลังจบ (ของเดิม reload + แทนที่ถาวร ทำให้ล็อกอินในเทสต์ไฟล์ถัดไปล้มทุกครั้ง)
+    monkeypatch.setattr(auth, "authenticate", lambda u, p: None)   # ให้ล็อกอินล้มเหลวเสมอ
+    user = "ratelimit-" + uuid.uuid4().hex[:8]                      # ชื่อใหม่ทุกครั้ง = ตัวนับเริ่มสด
     c = TestClient(m.app)
-    codes = [c.post("/login", data={"username": "x", "password": "y"}).status_code
+    codes = [c.post("/login", data={"username": user, "password": "y"}).status_code
              for _ in range(10)]
     assert 429 in codes            # ต้องโดนล็อกหลังพยายามหลายครั้ง
